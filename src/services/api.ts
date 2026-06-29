@@ -2,7 +2,7 @@ import axios, { AxiosError, AxiosHeaders, type InternalAxiosRequestConfig } from
 import { useUiStore } from '@/stores/uiStore'
 
 const AUTH_TOKEN_KEY = 'routewise.auth.token'
-const DEFAULT_API_BASE_URL = 'http://localhost:8080'
+const DEFAULT_API_BASE_URL = '/api'
 
 declare module 'axios' {
   export interface AxiosRequestConfig {
