@@ -60,7 +60,7 @@
 
           <div v-if="!infoEditMode" class="grid gap-3 md:grid-cols-2">
             <InfoLine label="Pojazd" :value="repairVehicleLabel(repair)" />
-            <InfoLine label="Utworzył" :value="repair.createdByUsername || '-'" />
+            <InfoLine label="Utworzył" :value="repairCreatorName(repair)" />
             <InfoLine label="Status" :value="statusLabel(repair.status)" />
             <InfoLine label="Miejsce naprawy" :value="repairPlaceLabel(repair)" />
             <InfoLine label="Planowany przyjazd" :value="formatDateTime(repair.plannedArrivalAt)" />
@@ -88,24 +88,79 @@
         </AppCard>
 
         <AppCard title="Zdjęcia usterek" compact>
+          <input
+            ref="photoInput"
+            type="file"
+            class="hidden"
+            accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
+            @change="handlePhotoSelection"
+          />
+
+          <p v-if="photoValidationError" class="mb-3 rounded-2xl border border-danger-100 bg-danger-50 px-3 py-2 text-sm text-danger-600 dark:border-danger-400 dark:bg-app-elevated dark:text-danger-400">
+            {{ photoValidationError }}
+          </p>
+
           <div class="grid gap-3 sm:grid-cols-3">
             <button
               type="button"
-              class="flex h-28 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
+              class="flex min-h-36 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
+              :disabled="isPhotoMutating"
+              @click="openPhotoPicker"
             >
               <span class="flex items-center gap-2 text-sm font-medium">
-                <ImagePlus class="h-4 w-4" />
-                Dodaj zdjęcie
+                <LoaderCircle v-if="isPhotoMutating" class="h-4 w-4 animate-spin" />
+                <ImagePlus v-else class="h-4 w-4" />
+                {{ isPhotoMutating ? 'Przesyłanie...' : 'Dodaj zdjęcie' }}
               </span>
             </button>
-            <div
-              v-for="photo in mockedFaultPhotos"
-              :key="photo"
-              class="overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 dark:border-app-border dark:bg-app-dark"
+
+            <article
+              v-for="photo in repair.photos"
+              :key="photo.id"
+              class="group overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 dark:border-app-border dark:bg-app-dark"
             >
-              <div class="h-28" :class="photo"></div>
-            </div>
+              <div class="relative h-28 bg-slate-100 dark:bg-app-elevated">
+                <button
+                  v-if="photoObjectUrls[photo.id]"
+                  type="button"
+                  class="block h-full w-full cursor-zoom-in overflow-hidden"
+                  :aria-label="`Powiększ zdjęcie ${photo.originalFilename}`"
+                  @click="photoPreview = photo"
+                >
+                  <img
+                    :src="photoObjectUrls[photo.id]"
+                    :alt="photo.originalFilename"
+                    class="h-full w-full object-cover transition duration-200 group-hover:scale-[1.02]"
+                  />
+                </button>
+                <div v-else class="flex h-full items-center justify-center text-slate-400 dark:text-app-muted">
+                  <ImageOff v-if="photoLoadFailures[photo.id]" class="h-5 w-5" />
+                  <LoaderCircle v-else class="h-5 w-5 animate-spin" />
+                </div>
+                <button
+                  type="button"
+                  class="absolute right-2 top-2 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/30 bg-slate-950/65 text-white opacity-100 shadow-sm transition hover:bg-slate-950 disabled:cursor-not-allowed disabled:opacity-50 sm:opacity-0 sm:group-hover:opacity-100"
+                  :disabled="isPhotoMutating"
+                  aria-label="Usuń zdjęcie"
+                  @click="photoToDelete = photo"
+                >
+                  <Trash2 class="h-4 w-4" />
+                </button>
+              </div>
+              <div class="px-3 py-2">
+                <p class="truncate text-xs font-semibold text-slate-950 dark:text-slate-50" :title="photo.originalFilename">
+                  {{ photo.originalFilename }}
+                </p>
+                <p class="mt-0.5 text-[11px] text-slate-500 dark:text-app-muted">
+                  {{ formatFileSize(photo.sizeBytes) }} · {{ photoUploaderName(photo) }}
+                </p>
+              </div>
+            </article>
           </div>
+
+          <p v-if="!repair.photos.length" class="mt-3 text-sm text-slate-500 dark:text-slate-400">
+            Brak zdjęć dla tej naprawy.
+          </p>
         </AppCard>
       </div>
 
@@ -145,7 +200,7 @@
             <div
               v-for="fault in repair.faults"
               :key="fault.id"
-              class="grid grid-cols-[2rem_minmax(0,1fr)] gap-2 border-b border-slate-100 px-3 py-2 last:border-b-0 dark:border-app-border md:grid-cols-[2rem_minmax(0,1fr)_minmax(8rem,12rem)_auto] md:items-center"
+              class="grid grid-cols-[2rem_minmax(0,1fr)_auto] gap-x-2 gap-y-1 border-b border-slate-100 px-2 py-2 last:border-b-0 dark:border-app-border sm:px-3 md:grid-cols-[2rem_minmax(0,1fr)_minmax(8rem,12rem)_auto] md:items-center md:gap-2"
             >
               <button
                 type="button"
@@ -172,17 +227,18 @@
 
               <AppSearchSelect
                 v-if="faultsEditMode"
-                class="col-start-2 md:col-auto"
+                class="col-start-2 row-start-2 md:col-auto md:row-auto"
                 v-model="faultEditRows[fault.id].assignedMechanicId"
                 placeholder="Mechanik"
                 :options="mechanicOptionsWithEmpty"
+                show-all-on-open
                 size="sm"
               />
-              <p v-else class="col-start-2 truncate text-xs text-slate-500 dark:text-slate-400 md:col-auto">
+              <p v-else class="col-start-2 row-start-2 truncate text-xs text-slate-500 dark:text-slate-400 md:col-auto md:row-auto">
                 {{ fault.assignedMechanicFullName || 'Brak' }}
               </p>
 
-              <div class="col-start-2 flex justify-start gap-1 md:col-auto md:justify-end">
+              <div class="col-start-3 row-span-2 row-start-1 flex self-center justify-end gap-1 md:col-auto md:row-auto md:justify-end">
                 <button
                   type="button"
                   class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
@@ -203,7 +259,7 @@
 
           <div v-if="showAddFaultForm" class="mt-4 grid gap-2 rounded-2xl border border-slate-100 p-3 dark:border-app-border lg:grid-cols-[1fr_16rem_auto]">
             <AppInput v-model="newDetailFault.description" label="Nowa usterka" placeholder="Opis usterki" />
-            <AppSearchSelect v-model="newDetailFault.assignedMechanicId" label="Mechanik" placeholder="Brak mechanika" :options="mechanicOptionsWithEmpty" />
+            <AppSearchSelect v-model="newDetailFault.assignedMechanicId" label="Mechanik" placeholder="Brak mechanika" :options="mechanicOptionsWithEmpty" show-all-on-open />
             <AppButton class="self-end" size="sm" :loading="isMutating" @click="addFaultToDetail">Dodaj</AppButton>
           </div>
         </AppCard>
@@ -243,6 +299,61 @@
         </AppCard>
       </div>
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="photoPreview && photoObjectUrls[photoPreview.id]"
+        class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/85 p-3 backdrop-blur-sm sm:p-6"
+        @click.self="photoPreview = null"
+      >
+        <section class="flex max-h-full w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-white/15 bg-app-panel shadow-2xl">
+          <header class="flex shrink-0 items-center justify-between gap-3 border-b border-app-border px-3 py-2.5 sm:px-4">
+            <div class="min-w-0">
+              <p class="truncate text-sm font-semibold text-slate-50">{{ photoPreview.originalFilename }}</p>
+              <p class="mt-0.5 text-xs text-app-muted">
+                {{ formatFileSize(photoPreview.sizeBytes) }} · {{ photoUploaderName(photoPreview) }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-300 transition hover:bg-app-elevated hover:text-white"
+              aria-label="Zamknij podgląd zdjęcia"
+              @click="photoPreview = null"
+            >
+              <X class="h-5 w-5" />
+            </button>
+          </header>
+          <div class="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-slate-950 p-2 sm:p-4">
+            <img
+              :src="photoObjectUrls[photoPreview.id]"
+              :alt="photoPreview.originalFilename"
+              class="max-h-[calc(100vh-8rem)] max-w-full object-contain"
+            />
+          </div>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
+        v-if="photoToDelete"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+        @click.self="photoToDelete = null"
+      >
+        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
+          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
+            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Usunąć zdjęcie?</h2>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Czy na pewno chcesz usunąć {{ photoToDelete.originalFilename }}?
+            </p>
+          </header>
+          <footer class="flex justify-end gap-2 px-5 py-4">
+            <AppButton variant="secondary" :disabled="isPhotoMutating" @click="photoToDelete = null">Anuluj</AppButton>
+            <AppButton variant="danger" :loading="isPhotoMutating" @click="confirmDeletePhoto">Usuń</AppButton>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
 
     <Teleport to="body">
       <div
@@ -356,10 +467,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, type PropType } from 'vue'
+import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch, type PropType } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Check, Circle, CircleCheck, ImagePlus, Plus, Send, SquarePen, Trash2, X } from 'lucide-vue-next'
+import { ArrowLeft, Check, Circle, CircleCheck, ImageOff, ImagePlus, LoaderCircle, Plus, Send, SquarePen, Trash2, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
@@ -367,9 +478,10 @@ import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSearchSelect, { type AppSearchSelectOption } from '@/components/ui/AppSearchSelect.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
+import { repairService } from '@/services/repairService'
 import { useRepairStore } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
-import type { Repair, RepairFault, RepairStatus } from '@/types/repair'
+import type { Repair, RepairFault, RepairPhoto, RepairStatus } from '@/types/repair'
 
 const route = useRoute()
 const router = useRouter()
@@ -382,6 +494,7 @@ const {
   places,
   isDetailLoading: isLoading,
   isMutating,
+  isPhotoMutating,
 } = storeToRefs(repairStore)
 const newCommentText = ref('')
 const repairToDelete = ref<Repair | null>(null)
@@ -392,6 +505,14 @@ const faultToDelete = ref<RepairFault | null>(null)
 const faultsEditMode = ref(false)
 const showAddFaultForm = ref(false)
 const infoEditMode = ref(false)
+const photoInput = ref<HTMLInputElement | null>(null)
+const photoToDelete = ref<RepairPhoto | null>(null)
+const photoPreview = ref<RepairPhoto | null>(null)
+const photoValidationError = ref('')
+const photoObjectUrls = reactive<Record<number, string>>({})
+const photoLoadFailures = reactive<Record<number, boolean>>({})
+const pendingPhotoLoads = new Map<number, symbol>()
+let photoLoadErrorShown = false
 const newDetailFault = reactive({ description: '', assignedMechanicId: '' })
 const faultEditRows = reactive<Record<number, { description: string; assignedMechanicId: string }>>({})
 const editForm = reactive({
@@ -403,11 +524,8 @@ const editForm = reactive({
 })
 const repairId = computed(() => String(route.params.id || ''))
 
-const mockedFaultPhotos = [
-  'bg-[linear-gradient(135deg,#e5e7eb_0%,#f8fafc_45%,#cbd5e1_100%)] dark:bg-[linear-gradient(135deg,#404044_0%,#343437_45%,#242427_100%)]',
-  'bg-[linear-gradient(135deg,#dbeafe_0%,#f8fafc_45%,#cbd5e1_100%)] dark:bg-[linear-gradient(135deg,#3f4656_0%,#343437_45%,#242427_100%)]',
-  'bg-[linear-gradient(135deg,#e2e8f0_0%,#ffffff_45%,#d1d5db_100%)] dark:bg-[linear-gradient(135deg,#3a3a3e_0%,#4a4a4e_45%,#242427_100%)]',
-]
+const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+const MAX_PHOTO_SIZE = 20 * 1024 * 1024
 
 const repairStatusOptions: AppSelectOption[] = [
   { label: 'Nowa', value: 'new' },
@@ -519,6 +637,178 @@ function repairVehicleLabel(value: Repair) {
 
 function repairPlaceLabel(value: Repair) {
   return value.place?.name || value.placeName || (value.placeId ? `Miejsce #${value.placeId}` : 'Brak miejsca')
+}
+
+function repairCreatorName(value: Repair) {
+  return value.createdBy?.username || value.createdByUsername || (value.createdBy?.id ? `Użytkownik #${value.createdBy.id}` : '-')
+}
+
+function photoUploaderName(photo: RepairPhoto) {
+  return photo.uploadedBy?.username || (photo.uploadedBy?.id ? `Użytkownik #${photo.uploadedBy.id}` : 'Użytkownik')
+}
+
+function formatFileSize(sizeBytes: number) {
+  if (sizeBytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(sizeBytes / 1024))} KB`
+  }
+
+  return `${(sizeBytes / (1024 * 1024)).toLocaleString('pl-PL', { maximumFractionDigits: 1 })} MB`
+}
+
+function validateRepairPhoto(file: File) {
+  if (!ALLOWED_PHOTO_TYPES.has(file.type)) {
+    return 'Dozwolone formaty: JPG, PNG, GIF i WEBP.'
+  }
+
+  if (file.size > MAX_PHOTO_SIZE) {
+    return 'Zdjęcie może mieć maksymalnie 20 MB.'
+  }
+
+  return null
+}
+
+function openPhotoPicker() {
+  photoValidationError.value = ''
+  photoInput.value?.click()
+}
+
+async function handlePhotoSelection(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+
+  if (!file || !repair.value) {
+    return
+  }
+
+  const validationError = validateRepairPhoto(file)
+
+  if (validationError) {
+    photoValidationError.value = validationError
+    return
+  }
+
+  photoValidationError.value = ''
+
+  try {
+    const photo = await repairStore.uploadRepairPhoto(repair.value.id, file)
+    await loadPhotoObjectUrl(photo)
+    uiStore.addToast({
+      type: 'success',
+      title: 'Zdjęcie dodane',
+      message: 'Zdjęcie zostało dodane do naprawy.',
+    })
+  } catch {
+    // Global API interceptor shows the backend error, including HTTP 413.
+  }
+}
+
+function revokePhotoObjectUrl(photoId: number) {
+  pendingPhotoLoads.delete(photoId)
+
+  if (photoPreview.value?.id === photoId) {
+    photoPreview.value = null
+  }
+
+  if (photoObjectUrls[photoId]) {
+    URL.revokeObjectURL(photoObjectUrls[photoId])
+    delete photoObjectUrls[photoId]
+  }
+
+  delete photoLoadFailures[photoId]
+}
+
+function revokeAllPhotoObjectUrls() {
+  pendingPhotoLoads.clear()
+  Object.keys(photoObjectUrls).forEach((photoId) => revokePhotoObjectUrl(Number(photoId)))
+  Object.keys(photoLoadFailures).forEach((photoId) => delete photoLoadFailures[Number(photoId)])
+}
+
+async function loadPhotoObjectUrl(photo: RepairPhoto) {
+  if (photoObjectUrls[photo.id] || pendingPhotoLoads.has(photo.id)) {
+    return
+  }
+
+  const requestToken = Symbol(`repair-photo-${photo.id}`)
+  pendingPhotoLoads.set(photo.id, requestToken)
+  delete photoLoadFailures[photo.id]
+
+  try {
+    const objectUrl = await repairService.loadRepairPhoto(photo, { silent: true })
+    const isCurrentRequest = pendingPhotoLoads.get(photo.id) === requestToken
+    const photoStillExists = repair.value?.photos.some((item) => item.id === photo.id)
+
+    if (!isCurrentRequest || !photoStillExists) {
+      URL.revokeObjectURL(objectUrl)
+      return
+    }
+
+    photoObjectUrls[photo.id] = objectUrl
+  } catch {
+    if (pendingPhotoLoads.get(photo.id) === requestToken) {
+      photoLoadFailures[photo.id] = true
+
+      if (!photoLoadErrorShown) {
+        photoLoadErrorShown = true
+        uiStore.addToast({
+          type: 'error',
+          title: 'Nie udało się wczytać zdjęcia',
+          message: 'Odśwież widok i spróbuj ponownie.',
+        })
+      }
+    }
+  } finally {
+    if (pendingPhotoLoads.get(photo.id) === requestToken) {
+      pendingPhotoLoads.delete(photo.id)
+    }
+  }
+}
+
+function syncPhotoObjectUrls(photos: RepairPhoto[]) {
+  const photoIds = new Set(photos.map((photo) => photo.id))
+
+  Object.keys(photoObjectUrls).forEach((photoId) => {
+    const id = Number(photoId)
+
+    if (!photoIds.has(id)) {
+      revokePhotoObjectUrl(id)
+    }
+  })
+
+  pendingPhotoLoads.forEach((_token, photoId) => {
+    if (!photoIds.has(photoId)) {
+      pendingPhotoLoads.delete(photoId)
+    }
+  })
+
+  photos.forEach((photo) => void loadPhotoObjectUrl(photo))
+}
+
+async function confirmDeletePhoto() {
+  if (!repair.value || !photoToDelete.value) {
+    return
+  }
+
+  const photo = photoToDelete.value
+
+  try {
+    await repairStore.deleteRepairPhoto(repair.value.id, photo.id)
+    revokePhotoObjectUrl(photo.id)
+    photoToDelete.value = null
+    uiStore.addToast({
+      type: 'success',
+      title: 'Zdjęcie usunięte',
+      message: 'Zdjęcie zostało usunięte z naprawy.',
+    })
+  } catch {
+    // Keep the photo and confirmation open; the API interceptor reports the error.
+  }
+}
+
+function handlePreviewKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && photoPreview.value) {
+    photoPreview.value = null
+  }
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -958,11 +1248,20 @@ async function confirmDeleteRepair() {
   }
 }
 
+watch(
+  () => repair.value?.photos || [],
+  (photos) => syncPhotoObjectUrls(photos),
+  { deep: true, immediate: true },
+)
+
 onMounted(() => {
+  document.addEventListener('keydown', handlePreviewKeydown)
   void Promise.allSettled([loadRepair(), repairStore.loadDictionaries()])
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('keydown', handlePreviewKeydown)
+  revokeAllPhotoObjectUrls()
   repairStore.clearCurrentRepair()
 })
 </script>

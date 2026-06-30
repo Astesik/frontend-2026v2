@@ -237,7 +237,7 @@
                   class="grid gap-2 rounded-2xl border border-slate-100 p-3 dark:border-app-border lg:grid-cols-[1fr_16rem_auto]"
                 >
                   <AppInput v-model="fault.description" :label="`Usterka ${index + 1}`" placeholder="Opis usterki" />
-                  <AppSearchSelect v-model="fault.assignedMechanicId" label="Mechanik" placeholder="Brak mechanika" :options="mechanicOptionsWithEmpty" />
+                  <AppSearchSelect v-model="fault.assignedMechanicId" label="Mechanik" placeholder="Brak mechanika" :options="mechanicOptionsWithEmpty" show-all-on-open />
                   <button type="button" class="icon-button self-end" aria-label="Usuń usterkę" @click="removeDraftFault(fault.id)">
                     <Trash2 class="h-4 w-4" />
                   </button>
@@ -1223,7 +1223,7 @@ function createVehicleMarker(item: { repair: Repair; vehicle: Vehicle }) {
 
   overlay.onAdd = () => {
     element = document.createElement('div')
-    element.className = 'rw-map-vehicle-marker'
+    element.className = `rw-map-vehicle-marker rw-map-vehicle-marker-${item.vehicle.vehicleType}`
     element.title = item.vehicle.plateNumber
     element.innerHTML = markerHtml(item.vehicle)
     button = element.querySelector<HTMLButtonElement>('.rw-map-marker-button')
@@ -1399,10 +1399,18 @@ onBeforeUnmount(() => {
   border: 0;
   background: transparent;
   padding: 0;
-  color: #111827;
+  color: rgb(var(--rw-app-text));
   cursor: default;
   pointer-events: none;
   transform: translate(-50%, -13px);
+}
+
+.rw-map-vehicle-marker-trailer {
+  z-index: 30;
+}
+
+.rw-map-vehicle-marker-truck {
+  z-index: 31;
 }
 
 .rw-map-marker-button {
@@ -1424,7 +1432,7 @@ onBeforeUnmount(() => {
   width: 26px;
   place-items: center;
   border-radius: 9999px;
-  background: #ffffff;
+  background: rgb(var(--rw-app-panel));
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
 }
 
@@ -1462,11 +1470,11 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 5px;
   max-width: 14rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgb(var(--rw-app-border));
   border-radius: 12px;
-  background: #ffffff;
+  background: rgb(var(--rw-app-panel));
   padding: 3px 8px;
-  color: #0f172a;
+  color: rgb(var(--rw-app-text));
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
@@ -1483,24 +1491,13 @@ onBeforeUnmount(() => {
 }
 
 .rw-map-marker-driver {
-  color: #64748b;
+  color: rgb(var(--rw-app-muted));
   font-size: 10px;
   font-weight: 600;
   min-width: 0;
 }
 
-.dark .rw-map-marker-plate {
-  border-color: #4a4a4e;
-  background: #343437;
-  color: #f8fafc;
-}
-
-.dark .rw-map-marker-driver {
-  color: #cbd5e1;
-}
-
 .dark .rw-map-marker-icon {
-  background: #343437;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
 }
 </style>

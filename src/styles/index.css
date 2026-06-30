@@ -4,6 +4,40 @@
 
 @layer base {
   :root {
+    /* Light theme. Edit this section to customize the light palette. */
+    --rw-app-content: 236 236 236;
+    --rw-app-sidebar: 245 246 248;
+    --rw-app-panel: 255 255 255;
+    --rw-app-elevated: 248 250 252;
+    --rw-app-hover: 243 244 246;
+    --rw-app-border: 226 232 240;
+    --rw-app-text: 15 23 42;
+    --rw-app-muted: 100 116 139;
+
+    --rw-white: 255 255 255;
+    --rw-slate-50: 248 250 252;
+    --rw-slate-100: 241 245 249;
+    --rw-slate-200: 226 232 240;
+    --rw-slate-300: 203 213 225;
+    --rw-slate-400: 148 163 184;
+    --rw-slate-500: 100 116 139;
+    --rw-slate-600: 71 85 105;
+    --rw-slate-700: 51 65 85;
+    --rw-slate-800: 30 41 59;
+    --rw-slate-900: 15 23 42;
+    --rw-slate-950: 2 6 23;
+
+    --rw-success-50: 236 253 243;
+    --rw-success-100: 209 250 223;
+    --rw-success-400: 50 213 131;
+    --rw-success-500: 18 183 106;
+    --rw-success-600: 3 152 85;
+    --rw-danger-50: 254 243 242;
+    --rw-danger-100: 254 228 226;
+    --rw-danger-400: 249 112 102;
+    --rw-danger-500: 240 68 56;
+    --rw-danger-600: 217 45 32;
+
     color-scheme: light;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
@@ -12,6 +46,30 @@
   }
 
   :root.dark {
+    /* Dark theme. Background: rgb(34 34 35). */
+    --rw-app-content: 34 34 35;
+    --rw-app-sidebar: 34 34 35;
+    --rw-app-panel: 52 52 55;
+    --rw-app-elevated: 34 34 35;
+    --rw-app-hover: 64 64 68;
+    --rw-app-border: 82 82 87;
+    --rw-app-text: 248 250 252;
+    --rw-app-muted: 185 186 194;
+
+    /* Keep Tailwind neutral utilities stable in dark variants. */
+    --rw-white: 255 255 255;
+    --rw-slate-50: 248 250 252;
+    --rw-slate-100: 241 245 249;
+    --rw-slate-200: 226 232 240;
+    --rw-slate-300: 203 213 225;
+    --rw-slate-400: 148 163 184;
+    --rw-slate-500: 100 116 139;
+    --rw-slate-600: 71 85 105;
+    --rw-slate-700: 51 65 85;
+    --rw-slate-800: 30 41 59;
+    --rw-slate-900: 15 23 42;
+    --rw-slate-950: 2 6 23;
+
     color-scheme: dark;
   }
 
@@ -24,14 +82,9 @@
   body {
     margin: 0;
     min-width: 320px;
-    background: #f5f6f8;
-    color: #0f172a;
+    background: rgb(var(--rw-app-content));
+    color: rgb(var(--rw-app-text));
     font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  }
-
-  .dark body {
-    background: #343437;
-    color: #f8fafc;
   }
 
   button,

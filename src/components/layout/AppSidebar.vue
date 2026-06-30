@@ -6,7 +6,7 @@
   ></div>
 
   <aside
-    class="flex h-screen min-h-0 shrink-0 flex-col overflow-visible border-r border-slate-200 bg-app-light py-4 shadow-sm transition-all duration-200 dark:border-app-border dark:bg-app-dark"
+    class="flex h-screen min-h-0 shrink-0 flex-col overflow-visible border-r border-slate-200 bg-app-sidebar py-4 shadow-sm transition-all duration-200 dark:border-app-border"
     :class="sidebarClasses"
   >
     <div
@@ -79,28 +79,28 @@
 
       <div
         v-if="isUserMenuOpen"
-        class="sidebar-user-menu absolute z-[70] rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel"
+        class="sidebar-user-menu absolute z-[70] rounded-2xl border p-1 shadow-sm"
         :class="displaySidebarCollapsed ? 'bottom-0 left-full ml-2 w-60' : 'bottom-full left-0 right-0 mb-2'"
       >
-        <button type="button" class="sidebar-menu-action text-slate-800 dark:!text-slate-100" @click="toggleTheme">
+        <button type="button" class="sidebar-menu-action" @click="toggleTheme">
           <Sun v-if="uiStore.isDark" class="h-4 w-4" />
           <Moon v-else class="h-4 w-4" />
           <span>{{ uiStore.isDark ? 'Jasny motyw' : 'Ciemny motyw' }}</span>
         </button>
 
-        <button type="button" class="sidebar-menu-action text-slate-800 dark:!text-slate-100" @click="goTo('/dashboard')">
+        <button type="button" class="sidebar-menu-action" @click="goTo('/dashboard')">
           <LayoutDashboard class="h-4 w-4" />
           <span>Dashboard floty</span>
         </button>
 
-        <button type="button" class="sidebar-menu-action text-slate-800 dark:!text-slate-100" @click="goTo('/settings')">
+        <button type="button" class="sidebar-menu-action" @click="goTo('/settings')">
           <UserCog class="h-4 w-4" />
           <span>Ustawienia konta</span>
         </button>
 
         <button
           type="button"
-          class="sidebar-menu-action text-slate-800 dark:!text-slate-100"
+          class="sidebar-menu-action"
           @click="handleLogout"
         >
           <LogOut class="h-4 w-4" />
@@ -213,6 +213,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
   text-align: left;
   font-size: 0.875rem;
   font-weight: 500;
+  color: rgb(var(--rw-app-text));
   transition: background-color 150ms ease, color 150ms ease;
 }
 
@@ -222,12 +223,8 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
 }
 
 .sidebar-menu-action:hover {
-  background: rgb(243 244 246);
-}
-
-:global(.dark) .sidebar-menu-action:hover {
-  --tw-bg-opacity: 1;
-  background-color: rgb(64 64 68 / var(--tw-bg-opacity, 1)) !important;
+  background-color: rgb(var(--rw-app-hover));
+  color: rgb(var(--rw-app-text));
 }
 
 :global(.dark) .sidebar-menu-action span,
@@ -235,8 +232,9 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
   color: inherit !important;
 }
 
-:global(.dark) .sidebar-user-menu {
-  --tw-bg-opacity: 1;
-  background-color: rgb(52 52 55 / var(--tw-bg-opacity, 1));
+.sidebar-user-menu {
+  border-color: rgb(var(--rw-app-border));
+  background-color: rgb(var(--rw-app-panel));
+  color: rgb(var(--rw-app-text));
 }
 </style>

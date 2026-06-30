@@ -19,7 +19,7 @@
             </div>
             <button
               type="button"
-              class="rounded-full p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-200"
+              class="inline-flex h-7 w-7 shrink-0 self-start items-center justify-center rounded-full p-0 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-200"
               aria-label="Zamknij powiadomienie"
               @click="uiStore.removeToast(toast.id)"
             >

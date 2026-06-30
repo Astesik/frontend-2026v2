@@ -74,17 +74,26 @@ function resolveApiErrorMessage(error: AxiosError) {
     return 'Brak uprawnien do wykonania tej operacji.'
   }
 
+  if (error.response?.status === 413) {
+    return 'Zdjęcie może mieć maksymalnie 20 MB.'
+  }
+
   return 'Nie udalo sie polaczyc z backendem. Sprobuj ponownie.'
 }
 
 api.interceptors.request.use((config) => {
   const token = getStoredToken()
+  const headers = AxiosHeaders.from(config.headers)
+
+  if (config.data instanceof FormData) {
+    headers.delete('Content-Type')
+  }
 
   if (token) {
-    const headers = AxiosHeaders.from(config.headers)
     headers.set('Authorization', `Bearer ${token}`)
-    config.headers = headers
   }
+
+  config.headers = headers
 
   return config
 })

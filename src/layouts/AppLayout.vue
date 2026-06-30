@@ -1,7 +1,7 @@
 <template>
-  <div class="flex h-screen overflow-hidden bg-app-light text-slate-950 dark:bg-app-dark dark:text-slate-50">
+  <div class="flex h-screen overflow-hidden bg-app-content text-slate-950 dark:text-slate-50">
     <AppSidebar />
-    <main class="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+    <main class="flex h-screen min-w-0 flex-1 flex-col overflow-hidden bg-app-content">
       <header class="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-app-light px-3 dark:border-app-border dark:bg-app-dark md:hidden">
         <button
           type="button"

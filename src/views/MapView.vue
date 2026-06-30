@@ -79,6 +79,7 @@
             v-model="vehicleSearch"
             placeholder="Szukaj pojazdu"
             size="sm"
+            clearable
           />
         </div>
 
@@ -125,7 +126,7 @@
                       @click.stop="toggleAlertTooltip(vehicle, $event)"
                       @focus="showAlertTooltip(vehicle, $event)"
                       @mouseenter="showAlertTooltip(vehicle, $event)"
-                      @mouseleave="hideAlertTooltip"
+                      @mouseleave="scheduleAlertTooltipHide"
                     >
                       <span
                         v-if="vehicleAlertItems(vehicle).length > 1"
@@ -135,6 +136,7 @@
                         {{ vehicleAlertItems(vehicle).length }}
                       </span>
                       <GlobeOff v-else-if="vehicleAlertItems(vehicle)[0]?.id === 'gps-offline'" class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
+                      <Wrench v-else-if="vehicleAlertItems(vehicle)[0]?.repairId" class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
                       <TriangleAlert v-else class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
                     </button>
                   </div>
@@ -518,8 +520,11 @@
 
     <div
       v-if="activeAlertTooltip"
-      class="pointer-events-none fixed z-[80] w-80 -translate-y-1/2 rounded-[3px] bg-[#48484e] p-0 text-left normal-case text-white shadow-[0_3px_6px_-4px_rgba(0,0,0,.24),0_6px_12px_rgba(0,0,0,.16),0_9px_18px_8px_rgba(0,0,0,.10)]"
+      class="fixed z-[80] w-80 -translate-y-1/2 rounded-[3px] bg-[#48484e] p-0 text-left normal-case text-white shadow-[0_3px_6px_-4px_rgba(0,0,0,.24),0_6px_12px_rgba(0,0,0,.16),0_9px_18px_8px_rgba(0,0,0,.10)]"
       :style="{ left: `${activeAlertTooltip.x}px`, top: `${activeAlertTooltip.y}px` }"
+      @mouseenter="cancelAlertTooltipHide"
+      @mouseleave="scheduleAlertTooltipHide"
+      @click.stop
     >
       <div class="flex items-center gap-1.5 border-b border-white/10 px-3.5 py-2 text-[13px] font-medium text-white/90">
         <CircleAlert class="h-3.5 w-3.5" />
@@ -528,17 +533,34 @@
           {{ activeAlertTooltip.items.length }}
         </span>
       </div>
-      <div class="space-y-2 px-3.5 py-2">
-        <div
+      <div class="max-h-[70vh] space-y-2 overflow-y-auto px-3.5 py-2">
+        <button
           v-for="alert in activeAlertTooltip.items"
           :key="alert.id"
-          class="rounded-sm border border-white/10 bg-white/[0.03] px-2.5 py-2"
+          type="button"
+          class="block w-full rounded-sm border border-white/10 bg-white/[0.03] px-2.5 py-2 text-left transition"
+          :class="alert.repairId ? 'cursor-pointer hover:border-white/25 hover:bg-white/10' : 'cursor-default'"
+          @click="openAlertRepair(alert)"
         >
           <div class="flex items-center justify-between gap-3">
             <span class="font-medium text-white/90">{{ alert.title }}</span>
             <span class="text-[11px]" :class="alertDeadlineClasses(alert)">{{ alert.daysLabel }}</span>
           </div>
-          <div class="mt-1 flex items-center gap-1.5 text-[11px] text-white/75">
+          <div v-if="alert.repairId" class="mt-1.5 space-y-1 text-[11px] text-white/75">
+            <div class="flex items-center gap-1.5">
+              <Wrench class="h-2.5 w-2.5 shrink-0" />
+              <span class="truncate">Miejsce: {{ alert.placeName }}</span>
+            </div>
+            <div class="truncate">Dodał: {{ alert.createdByName }}</div>
+            <div>
+              <span class="font-medium text-white/90">Usterki:</span>
+              <ul v-if="alert.faults.length" class="mt-1 space-y-0.5 pl-3">
+                <li v-for="fault in alert.faults" :key="fault" class="list-disc">{{ fault }}</li>
+              </ul>
+              <span v-else class="ml-1">brak</span>
+            </div>
+          </div>
+          <div v-else class="mt-1 flex items-center gap-1.5 text-[11px] text-white/75">
             <GlobeOff v-if="alert.id === 'gps-offline'" class="h-2.5 w-2.5" />
             <CircleAlert v-else class="h-2.5 w-2.5" />
             <span v-if="alert.dateLabel">
@@ -547,15 +569,17 @@
             </span>
             <span v-else :class="alertDeadlineClasses(alert)">{{ alert.description }}</span>
           </div>
-        </div>
+        </button>
       </div>
     </div>
 
   </div>
 </template>
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { computed, defineComponent, h, markRaw, onBeforeUnmount, onMounted, reactive, ref, render, shallowRef, watch, type Component } from 'vue'
-import { ArrowDown, ArrowUp, ArrowUpDown, CircleAlert, Container, Copy, Flag, Gauge, GlobeOff, History, Layers, List, LocateFixed, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, Settings, TriangleAlert, Truck, X } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { ArrowDown, ArrowUp, ArrowUpDown, CircleAlert, Container, Copy, Flag, Gauge, GlobeOff, History, Layers, List, LocateFixed, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, Settings, TriangleAlert, Truck, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
@@ -567,8 +591,10 @@ import { loadGoogleMaps } from '@/services/googleMapsLoader'
 import type { ApiPositionHistoryPoint } from '@/services/positionService'
 import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
+import { useRepairStore } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
 import type { Vehicle } from '@/types/fleet'
+import type { Repair } from '@/types/repair'
 
 type MapMode = 'list' | 'history' | 'settings'
 type MapState = 'missing-key' | 'loading' | 'ready' | 'error'
@@ -588,6 +614,10 @@ type VehicleAlertItem = {
   daysLabel: string
   daysLeft: number | null
   variant: BadgeVariant
+  repairId: number | null
+  placeName: string
+  createdByName: string
+  faults: string[]
 }
 type AlertTooltip = {
   vehicleId: string
@@ -896,6 +926,9 @@ function historyRangeForPreset(preset: HistoryPreset) {
 const fleetStore = useFleetStore()
 const uiStore = useUiStore()
 const authStore = useAuthStore()
+const repairStore = useRepairStore()
+const router = useRouter()
+const { repairs } = storeToRefs(repairStore)
 const positionHistory = usePositionHistory()
 const activeMode = ref<MapMode>('list')
 const selectedFleetId = ref(readSelectedFleet())
@@ -928,6 +961,7 @@ const historyFilters = reactive({
   dateTo: initialHistoryDates.to,
 })
 const historyFormError = ref('')
+let alertTooltipHideTimer: number | null = null
 let todayRouteRequestId = 0
 let routeAnimationFrameId: number | null = null
 let routeAnimationId = 0
@@ -1010,6 +1044,24 @@ const mapMarkerVehicles = computed(() => {
   }
 
   return filteredVehicles.value.filter((vehicle) => vehicle.hasPosition)
+})
+
+const activeRepairsByVehicleId = computed(() => {
+  const grouped = new Map<string, Repair[]>()
+
+  repairs.value.forEach((repair) => {
+    const status = String(repair.status || '').trim().toLowerCase()
+
+    if (status === 'done' || status === 'cancelled') {
+      return
+    }
+
+    const vehicleId = repair.vehicle?.id ?? repair.vehicleId
+    const key = String(vehicleId)
+    grouped.set(key, [...(grouped.get(key) || []), repair])
+  })
+
+  return grouped
 })
 
 const canSearchHistory = computed(() => (
@@ -1506,7 +1558,27 @@ function vehicleAlertItems(vehicle: Vehicle): VehicleAlertItem[] {
     daysLabel: formatDaysLeft(alert.daysLeft),
     daysLeft: alert.daysLeft,
     variant: resolveDaysVariant(alert.daysLeft),
+    repairId: null,
+    placeName: '',
+    createdByName: '',
+    faults: [],
   }))
+
+  const repairAlerts = (activeRepairsByVehicleId.value.get(String(vehicle.backendId)) || []).map((repair) => ({
+    id: `repair-${repair.id}`,
+    title: `Naprawa #${repair.id}`,
+    description: repair.placeName || repair.place?.name || 'Brak przypisanego miejsca',
+    dateLabel: '',
+    daysLabel: repairStatusLabel(repair.status),
+    daysLeft: null,
+    variant: 'info' as BadgeVariant,
+    repairId: repair.id,
+    placeName: repair.placeName || repair.place?.name || 'Brak przypisanego miejsca',
+    createdByName: repairCreatedByName(repair),
+    faults: repair.faults.map((fault) => fault.description).filter(Boolean),
+  }))
+
+  alerts.push(...repairAlerts)
 
   const ageHours = positionAgeHours(vehicle)
 
@@ -1521,10 +1593,40 @@ function vehicleAlertItems(vehicle: Vehicle): VehicleAlertItem[] {
       daysLabel: signalAge || '>24h',
       daysLeft: null,
       variant: 'error',
+      repairId: null,
+      placeName: '',
+      createdByName: '',
+      faults: [],
     })
   }
 
   return alerts
+}
+
+function repairStatusLabel(status: Repair['status']) {
+  const normalized = String(status || '').trim().toLowerCase()
+  const labels: Record<string, string> = {
+    new: 'Nowa',
+    planned: 'Zaplanowana',
+    ready_to_be_repaired: 'Gotowa',
+    in_progress: 'W trakcie',
+    in_field: 'W terenie',
+    infield: 'W terenie',
+  }
+
+  return labels[normalized] || 'Aktywna'
+}
+
+function repairCreatedByName(repair: Repair) {
+  if (repair.createdByUsername) {
+    return repair.createdByUsername
+  }
+
+  if (repair.createdBy && typeof repair.createdBy === 'object' && repair.createdBy.username) {
+    return repair.createdBy.username
+  }
+
+  return 'Brak danych'
 }
 
 function alertDeadlineClasses(alert: VehicleAlertItem) {
@@ -1554,18 +1656,35 @@ function vehicleAlertSeverity(vehicle: Vehicle) {
 }
 
 function vehicleAlertIconClasses(vehicle: Vehicle) {
-  return vehicleAlertSeverity(vehicle) === 'warning'
-    ? 'text-amber-500 dark:text-amber-300'
-    : 'text-danger-600 dark:text-danger-400'
+  const severity = vehicleAlertSeverity(vehicle)
+
+  if (severity === 'warning') {
+    return 'text-amber-500 dark:text-amber-300'
+  }
+
+  if (severity === 'error') {
+    return 'text-danger-600 dark:text-danger-400'
+  }
+
+  return 'text-slate-600 dark:text-slate-300'
 }
 
 function vehicleAlertCountClasses(vehicle: Vehicle) {
-  return vehicleAlertSeverity(vehicle) === 'warning'
-    ? 'bg-amber-400 text-slate-950 dark:bg-amber-300 dark:text-app-dark'
-    : 'bg-danger-600 text-white dark:bg-danger-400 dark:text-app-dark'
+  const severity = vehicleAlertSeverity(vehicle)
+
+  if (severity === 'warning') {
+    return 'bg-amber-400 text-slate-950 dark:bg-amber-300 dark:text-app-dark'
+  }
+
+  if (severity === 'error') {
+    return 'bg-danger-600 text-white dark:bg-danger-400 dark:text-app-dark'
+  }
+
+  return 'bg-slate-200 text-slate-700 dark:bg-app-elevated dark:text-slate-100'
 }
 
 function showAlertTooltip(vehicle: Vehicle, event: MouseEvent | FocusEvent, pinned = false) {
+  cancelAlertTooltipHide()
   const target = event.currentTarget as HTMLElement | null
 
   if (!target) {
@@ -1599,7 +1718,37 @@ function hideAlertTooltip() {
   }
 }
 
+function scheduleAlertTooltipHide() {
+  cancelAlertTooltipHide()
+
+  if (activeAlertTooltip.value?.pinned) {
+    return
+  }
+
+  alertTooltipHideTimer = window.setTimeout(() => {
+    hideAlertTooltip()
+    alertTooltipHideTimer = null
+  }, 140)
+}
+
+function cancelAlertTooltipHide() {
+  if (alertTooltipHideTimer !== null) {
+    window.clearTimeout(alertTooltipHideTimer)
+    alertTooltipHideTimer = null
+  }
+}
+
+function openAlertRepair(alert: VehicleAlertItem) {
+  if (!alert.repairId) {
+    return
+  }
+
+  activeAlertTooltip.value = null
+  void router.push({ name: 'repair-detail', params: { id: alert.repairId } })
+}
+
 function hidePinnedOverlays() {
+  cancelAlertTooltipHide()
   activeAlertTooltip.value = null
   layersMenuOpen.value = false
   if (routeInfoWindowPinned) {
@@ -1852,7 +2001,7 @@ function createVehicleMarker(vehicle: Vehicle) {
 
   overlay.onAdd = () => {
     element = document.createElement('div')
-    element.className = 'rw-map-vehicle-marker'
+    element.className = `rw-map-vehicle-marker rw-map-vehicle-marker-${vehicle.vehicleType}`
     element.title = vehicle.plateNumber
     element.innerHTML = markerHtml(vehicle)
     button = element.querySelector<HTMLButtonElement>('.rw-map-marker-button')
@@ -2672,10 +2821,13 @@ watch(() => mapSettings.map.historyMarkersByZoom, () => {
 
 onMounted(() => {
   void initializeGoogleMap()
+  void repairStore.loadRepairs({ silent: true }).catch(() => undefined)
   startPositionRefresh()
 })
 
 onBeforeUnmount(() => {
+  cancelAlertTooltipHide()
+
   if (positionRefreshTimer.value !== null) {
     window.clearInterval(positionRefreshTimer.value)
     positionRefreshTimer.value = null
@@ -2716,10 +2868,18 @@ onBeforeUnmount(() => {
   border: 0;
   background: transparent;
   padding: 0;
-  color: #111827;
+  color: rgb(var(--rw-app-text));
   cursor: default;
   pointer-events: none;
   transform: translate(-50%, -13px);
+}
+
+.rw-map-vehicle-marker-trailer {
+  z-index: 30;
+}
+
+.rw-map-vehicle-marker-truck {
+  z-index: 31;
 }
 
 .rw-map-marker-button {
@@ -2792,18 +2952,12 @@ onBeforeUnmount(() => {
 .rw-route-info-window {
   width: min(18rem, calc(100vw - 2rem));
   overflow: hidden;
-  border: 1px solid #dbe1e8;
+  border: 1px solid rgb(var(--rw-app-border));
   border-radius: 3px;
-  background: #ffffff;
-  color: #64748b;
+  background: rgb(var(--rw-app-panel));
+  color: rgb(var(--rw-app-muted));
   font-size: 11px;
   box-shadow: 0 3px 6px -4px rgba(0, 0, 0, 0.24), 0 6px 12px rgba(0, 0, 0, 0.16), 0 9px 18px 8px rgba(0, 0, 0, 0.10);
-}
-
-.dark .rw-route-info-window {
-  border-color: #4a4a4e;
-  background: #343437;
-  color: rgba(255, 255, 255, 0.75);
 }
 
 .rw-route-info-header {
@@ -2812,21 +2966,12 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 8px;
   padding: 8px 14px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.dark .rw-route-info-header {
-  border-color: rgba(255, 255, 255, 0.10);
+  border-bottom: 1px solid rgb(var(--rw-app-border));
 }
 
 .rw-route-info-header strong,
 .rw-route-info-row strong {
-  color: #0f172a;
-}
-
-.dark .rw-route-info-header strong,
-.dark .rw-route-info-row strong {
-  color: rgba(255, 255, 255, 0.92);
+  color: rgb(var(--rw-app-text));
 }
 
 .rw-route-info-header strong {
@@ -2845,11 +2990,7 @@ onBeforeUnmount(() => {
 }
 
 .rw-route-info-header-meta > span {
-  color: #64748b;
-}
-
-.dark .rw-route-info-header-meta > span {
-  color: rgba(255, 255, 255, 0.55);
+  color: rgb(var(--rw-app-muted));
 }
 
 .rw-route-info-header-meta > span {
@@ -2894,23 +3035,14 @@ onBeforeUnmount(() => {
   border: 0;
   border-radius: 5px;
   background: transparent;
-  color: #64748b;
+  color: rgb(var(--rw-app-muted));
   cursor: pointer;
   transition: background-color 150ms ease, color 150ms ease;
 }
 
 .rw-route-info-action:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-}
-
-.dark .rw-route-info-action {
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.dark .rw-route-info-action:hover {
-  background: rgba(255, 255, 255, 0.10);
-  color: #ffffff;
+  background: rgb(var(--rw-app-hover));
+  color: rgb(var(--rw-app-text));
 }
 
 .rw-route-info-action-icon {
@@ -2940,7 +3072,7 @@ onBeforeUnmount(() => {
   width: 26px;
   place-items: center;
   border-radius: 9999px;
-  background: #ffffff;
+  background: rgb(var(--rw-app-panel));
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
 }
 
@@ -2978,11 +3110,11 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 5px;
   max-width: 14rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid rgb(var(--rw-app-border));
   border-radius: 12px;
-  background: #ffffff;
+  background: rgb(var(--rw-app-panel));
   padding: 3px 8px;
-  color: #0f172a;
+  color: rgb(var(--rw-app-text));
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
@@ -2999,24 +3131,13 @@ onBeforeUnmount(() => {
 }
 
 .rw-map-marker-driver {
-  color: #64748b;
+  color: rgb(var(--rw-app-muted));
   font-size: 10px;
   font-weight: 600;
   min-width: 0;
 }
 
-.dark .rw-map-marker-plate {
-  border-color: #4a4a4e;
-  background: #343437;
-  color: #f8fafc;
-}
-
-.dark .rw-map-marker-driver {
-  color: #cbd5e1;
-}
-
 .dark .rw-map-marker-icon {
-  background: #343437;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
 }
 </style>

@@ -45,6 +45,24 @@ export interface RepairComment {
   createdAt: string
 }
 
+export interface RepairCreatedBy {
+  id: number
+  username: string | null
+}
+
+export type RepairPhotoContentType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
+
+export interface RepairPhoto {
+  id: number
+  repairId: number
+  originalFilename: string
+  contentType: RepairPhotoContentType
+  sizeBytes: number
+  createdAt: string
+  uploadedBy: RepairCreatedBy | null
+  url: string
+}
+
 export interface Repair {
   id: number
   companyId?: number
@@ -60,12 +78,13 @@ export interface Repair {
   departureTime?: string | null
   status: RepairStatus | string
   description: string | null
-  createdBy?: number | { id?: number; username?: string | null } | null
+  createdBy: RepairCreatedBy | null
   createdByUsername?: string | null
   faults: RepairFault[]
   totalFaults: number
   doneFaults: number
   comments?: RepairComment[]
+  photos: RepairPhoto[]
 }
 
 export interface RepairWeek {

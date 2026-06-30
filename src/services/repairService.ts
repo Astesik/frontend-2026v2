@@ -7,6 +7,7 @@ import type {
   RepairFaultPayload,
   RepairFaultUpdatePayload,
   RepairPayload,
+  RepairPhoto,
   RepairStatus,
   RepairUpdatePayload,
   RepairWeek,
@@ -111,6 +112,7 @@ function normalizeFault(fault: RepairFault): RepairFault {
 function normalizeRepair(repair: Repair): Repair {
   const rawRepair = repair as Repair & {
     createdBy?: number | { id?: number; username?: string | null } | null
+    photos?: RepairPhoto[] | null
   }
   const faults = Array.isArray(repair.faults) ? repair.faults.map(normalizeFault) : []
   const doneFaults = typeof repair.doneFaults === 'number'
@@ -121,8 +123,13 @@ function normalizeRepair(repair: Repair): Repair {
     || (typeof rawRepair.createdBy === 'object' && rawRepair.createdBy ? rawRepair.createdBy.username || null : null)
     || null
   const createdBy = typeof rawRepair.createdBy === 'object' && rawRepair.createdBy
-    ? rawRepair.createdBy.id ?? null
-    : rawRepair.createdBy ?? null
+    ? {
+        id: Number(rawRepair.createdBy.id),
+        username: rawRepair.createdBy.username || null,
+      }
+    : typeof rawRepair.createdBy === 'number'
+      ? { id: rawRepair.createdBy, username: createdByUsername }
+      : null
 
   return {
     ...repair,
@@ -138,6 +145,7 @@ function normalizeRepair(repair: Repair): Repair {
     totalFaults,
     doneFaults,
     comments: repair.comments?.map(normalizeComment),
+    photos: Array.isArray(rawRepair.photos) ? rawRepair.photos : [],
   }
 }
 
@@ -186,6 +194,27 @@ export const repairService = {
 
   async deleteRepair(repairId: number | string) {
     await api.delete(`/api/repairs/${repairId}`)
+  },
+
+  async uploadRepairPhoto(repairId: number | string, file: File) {
+    const formData = new FormData()
+    formData.append('file', file, file.name)
+
+    const { data } = await api.post<RepairPhoto>(`/api/repairs/${repairId}/photos`, formData)
+    return data
+  },
+
+  async loadRepairPhoto(photo: RepairPhoto, options?: { silent?: boolean }) {
+    const response = await api.get<Blob>(photo.url, {
+      responseType: 'blob',
+      skipErrorToast: options?.silent,
+    })
+
+    return URL.createObjectURL(response.data)
+  },
+
+  async deleteRepairPhoto(repairId: number | string, photoId: number | string) {
+    await api.delete(`/api/repairs/${repairId}/photos/${photoId}`)
   },
 
   async getVehicleRepairHistory(vehicleId: number | string, options?: { silent?: boolean }) {

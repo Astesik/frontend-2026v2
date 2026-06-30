@@ -12,6 +12,7 @@ import type {
   RepairFaultPayload,
   RepairFaultUpdatePayload,
   RepairPayload,
+  RepairPhoto,
   RepairUpdatePayload,
   RepairWeek,
 } from '@/types/repair'
@@ -31,6 +32,7 @@ export const useRepairStore = defineStore('repairs', () => {
   const isDetailLoading = ref(false)
   const isVehicleRepairHistoryLoading = ref(false)
   const isMutating = ref(false)
+  const isPhotoMutating = ref(false)
 
   const repairById = computed(() => new Map(repairs.value.map((repair) => [repair.id, repair])))
 
@@ -192,6 +194,58 @@ export const useRepairStore = defineStore('repairs', () => {
   function clearCurrentRepair() {
     currentRepair.value = null
     currentRepairComments.value = []
+  }
+
+  function updateRepairPhotos(repairId: number | string, photos: RepairPhoto[]) {
+    const key = String(repairId)
+
+    if (String(currentRepair.value?.id) === key && currentRepair.value) {
+      currentRepair.value = {
+        ...currentRepair.value,
+        photos,
+      }
+      upsertRepair(currentRepair.value)
+      return
+    }
+
+    if (repairDetailsById.value[key]) {
+      repairDetailsById.value = {
+        ...repairDetailsById.value,
+        [key]: {
+          ...repairDetailsById.value[key],
+          photos,
+        },
+      }
+    }
+  }
+
+  async function uploadRepairPhoto(repairId: number | string, file: File) {
+    isPhotoMutating.value = true
+
+    try {
+      const photo = await repairService.uploadRepairPhoto(repairId, file)
+      const currentPhotos = String(currentRepair.value?.id) === String(repairId)
+        ? currentRepair.value?.photos || []
+        : repairDetailsById.value[String(repairId)]?.photos || []
+      updateRepairPhotos(repairId, [...currentPhotos, photo])
+      return photo
+    } finally {
+      isPhotoMutating.value = false
+    }
+  }
+
+  async function deleteRepairPhoto(repairId: number | string, photoId: number | string) {
+    isPhotoMutating.value = true
+
+    try {
+      await repairService.deleteRepairPhoto(repairId, photoId)
+      const currentPhotos = String(currentRepair.value?.id) === String(repairId)
+        ? currentRepair.value?.photos || []
+        : repairDetailsById.value[String(repairId)]?.photos || []
+      updateRepairPhotos(repairId, currentPhotos.filter((photo) => String(photo.id) !== String(photoId)))
+    } finally {
+      isPhotoMutating.value = false
+    }
   }
 
   async function createRepairWithFaults(payload: RepairPayload, faults: RepairFaultPayload[]) {
@@ -375,6 +429,7 @@ export const useRepairStore = defineStore('repairs', () => {
     isDetailLoading,
     isVehicleRepairHistoryLoading,
     isMutating,
+    isPhotoMutating,
     repairById,
     loadRepairs,
     loadListData,
@@ -385,6 +440,8 @@ export const useRepairStore = defineStore('repairs', () => {
     loadRepairDetail,
     refreshCurrentRepair,
     clearCurrentRepair,
+    uploadRepairPhoto,
+    deleteRepairPhoto,
     createRepairWithFaults,
     updateRepair,
     deleteRepair,
