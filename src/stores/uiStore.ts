@@ -12,7 +12,7 @@ function readStoredTheme(): Theme {
     return storedTheme
   }
 
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return 'dark'
 }
 
 function readStoredSidebarState() {
@@ -24,7 +24,7 @@ function createToastId() {
 }
 
 export const useUiStore = defineStore('ui', () => {
-  const theme = ref<Theme>('light')
+  const theme = ref<Theme>('dark')
   const sidebarCollapsed = ref(false)
   const mobileSidebarOpen = ref(false)
   const toasts = ref<Toast[]>([])

@@ -79,8 +79,8 @@
 
       <div
         v-if="isUserMenuOpen"
-        class="sidebar-user-menu absolute bottom-full z-50 mb-2 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel"
-        :class="displaySidebarCollapsed ? 'left-0 w-60' : 'left-0 right-0'"
+        class="sidebar-user-menu absolute z-[70] rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel"
+        :class="displaySidebarCollapsed ? 'bottom-0 left-full ml-2 w-60' : 'bottom-full left-0 right-0 mb-2'"
       >
         <button type="button" class="sidebar-menu-action text-slate-800 dark:!text-slate-100" @click="toggleTheme">
           <Sun v-if="uiStore.isDark" class="h-4 w-4" />
@@ -116,7 +116,6 @@ import { computed, onBeforeUnmount, onMounted, ref, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   Calculator,
-  ChartColumn,
   ChevronUp,
   LayoutDashboard,
   LogOut,
@@ -129,7 +128,6 @@ import {
   Sun,
   Truck,
   UserCog,
-  Users,
   Wrench,
 } from 'lucide-vue-next'
 import SidebarItem from './SidebarItem.vue'
@@ -147,8 +145,6 @@ const navigation: Array<{ to: string; label: string; icon: Component }> = [
   { to: '/route-calculator', label: 'Kalkulator tras - BETA', icon: Calculator },
   { to: '/vehicles', label: 'Pojazdy', icon: Truck },
   { to: '/repairs', label: 'Naprawy', icon: Wrench },
-  { to: '/drivers', label: 'Kierowcy', icon: Users },
-  { to: '/reports', label: 'Raporty', icon: ChartColumn },
   { to: '/settings', label: 'Ustawienia', icon: Settings },
 ]
 
@@ -160,7 +156,7 @@ const sidebarClasses = computed(() => {
     : 'pointer-events-none fixed inset-y-0 left-0 z-50 w-screen -translate-x-full px-3'
   const desktopState = uiStore.sidebarCollapsed ? 'md:w-24 md:px-2' : 'md:w-72 md:px-3'
 
-  return `${mobileState} md:pointer-events-auto md:relative md:inset-auto md:z-auto md:flex md:translate-x-0 ${desktopState}`
+  return `${mobileState} md:pointer-events-auto md:relative md:inset-auto md:z-30 md:flex md:translate-x-0 ${desktopState}`
 })
 
 function toggleTheme() {

@@ -50,7 +50,7 @@ const form = reactive({
 const formError = ref('')
 
 function getRedirectPath() {
-  return typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
+  return typeof route.query.redirect === 'string' ? route.query.redirect : '/map'
 }
 
 async function handleSubmit() {

@@ -6,7 +6,7 @@ import AuthLayout from '@/layouts/AuthLayout.vue'
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: '/dashboard',
+    redirect: '/map',
   },
   {
     path: '/login',
@@ -81,7 +81,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/dashboard',
+    redirect: '/map',
   },
 ]
 
@@ -105,7 +105,7 @@ router.beforeEach((to) => {
   }
 
   if (to.meta.guestOnly && authStore.isAuthenticated) {
-    return '/dashboard'
+    return '/map'
   }
 
   return true
