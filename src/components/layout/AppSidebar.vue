@@ -117,6 +117,7 @@ import { useRouter } from 'vue-router'
 import {
   Calculator,
   ChevronUp,
+  Cpu,
   LayoutDashboard,
   LogOut,
   MapPinned,
@@ -144,6 +145,7 @@ const navigation: Array<{ to: string; label: string; icon: Component }> = [
   { to: '/map', label: 'Mapa', icon: MapPinned },
   { to: '/route-calculator', label: 'Kalkulator tras - BETA', icon: Calculator },
   { to: '/vehicles', label: 'Pojazdy', icon: Truck },
+  { to: '/devices', label: 'Urządzenia', icon: Cpu },
   { to: '/repairs', label: 'Naprawy', icon: Wrench },
   { to: '/settings', label: 'Ustawienia', icon: Settings },
 ]

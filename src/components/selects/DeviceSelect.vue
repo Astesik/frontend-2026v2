@@ -4,16 +4,16 @@
     :label="label"
     :placeholder="placeholder"
     :options="options"
-    :disabled="disabled || isLoading"
+    :disabled="disabled || deviceStore.isSelectLoading"
     :size="size"
     @update:model-value="emit('update:modelValue', $event)"
   />
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import AppSearchSelect, { type AppSearchSelectOption } from '@/components/ui/AppSearchSelect.vue'
-import { deviceService, type DeviceSelectItem } from '@/services/deviceService'
+import { useDeviceStore } from '@/stores/deviceStore'
 
 const props = withDefaults(defineProps<{
   modelValue: string
@@ -34,10 +34,9 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const devices = ref<DeviceSelectItem[]>([])
-const isLoading = ref(false)
+const deviceStore = useDeviceStore()
 
-const options = computed<AppSearchSelectOption[]>(() => devices.value.map((device) => ({
+const options = computed<AppSearchSelectOption[]>(() => deviceStore.selectDevices.map((device) => ({
   value: String(device.id),
   label: device.assigned ? `${device.deviceName} - przypisane` : device.deviceName,
   description: `ID: ${device.id}`,
@@ -46,14 +45,10 @@ const options = computed<AppSearchSelectOption[]>(() => devices.value.map((devic
 })))
 
 async function loadDevices(silent = false) {
-  isLoading.value = true
-
   try {
-    devices.value = await deviceService.getDeviceSelect({ silent })
+    await deviceStore.loadSelectDevices({ silent })
   } catch {
-    devices.value = []
-  } finally {
-    isLoading.value = false
+    // API errors are handled globally unless this is a silent reload.
   }
 }
 

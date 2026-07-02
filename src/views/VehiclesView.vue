@@ -74,14 +74,14 @@
               <th class="py-3 pr-3 font-medium">
                 <SortButton label="Winieta UK" column="vignetteUk" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
               </th>
-              <th class="w-16 py-3 pr-1 text-right font-medium">Akcje</th>
+              <th class="sticky right-0 z-10 w-16 bg-white py-3 pr-1 text-right font-medium shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] dark:bg-app-panel">Akcje</th>
             </tr>
           </thead>
           <tbody>
             <tr
               v-for="(vehicle, index) in sortedVehicles"
               :key="vehicle.id"
-              class="border-b border-slate-100 transition last:border-0 hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
+              class="group border-b border-slate-100 transition last:border-0 hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
             >
               <td class="py-3 pr-3 text-slate-500 dark:text-slate-400">{{ index + 1 }}.</td>
               <td class="py-3 pr-3">
@@ -91,7 +91,7 @@
                 >
                   {{ vehicle.licensePlate }}
                 </RouterLink>
-                <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{{ vehicle.vin || 'VIN: brak' }}</p>
+                <span class="ml-2 text-xs font-medium text-slate-400 dark:text-app-muted">#{{ vehicle.id }}</span>
               </td>
               <td class="py-3 pr-3">
                 <AppBadge :variant="vehicleTypeVariant(vehicle.type)">{{ vehicleTypeLabel(vehicle.type) }}</AppBadge>
@@ -101,7 +101,7 @@
               <td class="py-3 pr-3"><DateCell :date="vehicle.technicalInspection" /></td>
               <td class="py-3 pr-3"><DateCell :date="vehicle.tachographInspection" /></td>
               <td class="py-3 pr-3"><DateCell :date="vehicle.vignetteUk" /></td>
-              <td class="py-3 pr-1 text-right">
+              <td class="sticky right-0 z-10 bg-white py-3 pr-1 text-right shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] transition group-hover:bg-slate-50 dark:bg-app-panel dark:group-hover:bg-app-elevated">
                 <RouterLink
                   class="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
                   :to="{ name: 'vehicle-detail', params: { id: vehicle.id } }"
