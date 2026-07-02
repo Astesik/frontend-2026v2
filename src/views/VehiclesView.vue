@@ -2,8 +2,7 @@
   <div class="space-y-5 xl:flex xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:flex-col xl:space-y-0 xl:gap-4 xl:overflow-hidden">
     <header class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div>
-        <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Flota</p>
-        <h1 class="mt-1 text-2xl font-semibold text-slate-950 dark:text-slate-50">Pojazdy</h1>
+        <h1 class="text-2xl font-semibold text-slate-950 dark:text-slate-50">Pojazdy</h1>
       </div>
 
       <div class="flex flex-col gap-2 lg:flex-row lg:items-end">

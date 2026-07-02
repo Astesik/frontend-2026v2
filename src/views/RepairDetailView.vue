@@ -221,7 +221,11 @@
                   placeholder="Opis usterki"
                 />
                 <template v-else>
-                  <p class="truncate text-sm font-semibold text-slate-950 dark:text-slate-50">{{ fault.description }}</p>
+                  <div class="fault-description-scroll min-w-0 overflow-x-auto pb-1">
+                    <p class="w-max min-w-full whitespace-nowrap text-sm font-semibold text-slate-950 dark:text-slate-50">
+                      {{ fault.description }}
+                    </p>
+                  </div>
                 </template>
               </div>
 
@@ -1292,5 +1296,23 @@ onBeforeUnmount(() => {
 :global(.dark) .icon-button:hover {
   background: #48484d;
   color: rgb(248 250 252);
+}
+
+.fault-description-scroll {
+  scrollbar-color: rgb(var(--rw-app-border)) transparent;
+  scrollbar-width: thin;
+}
+
+.fault-description-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.fault-description-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.fault-description-scroll::-webkit-scrollbar-thumb {
+  border-radius: 9999px;
+  background: rgb(var(--rw-app-border));
 }
 </style>
