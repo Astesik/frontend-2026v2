@@ -21,7 +21,8 @@
 
     <div
       v-if="isOpen"
-      class="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel"
+      class="absolute z-30 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel"
+      :class="openUpwards ? 'bottom-full mb-2' : 'top-full mt-2'"
     >
       <button
         v-for="option in options"
@@ -69,14 +70,28 @@ const emit = defineEmits<{
 
 const rootElement = ref<HTMLElement | null>(null)
 const isOpen = ref(false)
+const openUpwards = ref(false)
 const selectId = `select-${Math.random().toString(16).slice(2)}`
 
 const selectedOption = computed(() => props.options.find((option) => option.value === props.modelValue))
 
 function toggleOpen() {
-  if (!props.disabled) {
-    isOpen.value = !isOpen.value
-  }
+  if (props.disabled) return
+
+  if (!isOpen.value) updateDropdownDirection()
+  isOpen.value = !isOpen.value
+}
+
+function updateDropdownDirection() {
+  if (!rootElement.value) return
+
+  const rect = rootElement.value.getBoundingClientRect()
+  const optionHeight = props.size === 'sm' ? 36 : 40
+  const dropdownHeight = Math.min(props.options.length * optionHeight + 8, 288)
+  const spaceBelow = window.innerHeight - rect.bottom
+  const spaceAbove = rect.top
+
+  openUpwards.value = spaceBelow < dropdownHeight + 8 && spaceAbove > spaceBelow
 }
 
 function selectOption(option: AppSelectOption) {
@@ -94,6 +109,15 @@ function onDocumentClick(event: MouseEvent) {
   }
 }
 
-onMounted(() => document.addEventListener('click', onDocumentClick))
-onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
+onMounted(() => {
+  document.addEventListener('click', onDocumentClick)
+  document.addEventListener('scroll', updateDropdownDirection, true)
+  window.addEventListener('resize', updateDropdownDirection)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick)
+  document.removeEventListener('scroll', updateDropdownDirection, true)
+  window.removeEventListener('resize', updateDropdownDirection)
+})
 </script>

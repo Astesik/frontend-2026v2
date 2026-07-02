@@ -26,11 +26,16 @@ const props = withDefaults(defineProps<{
   title?: string
   description?: string
   compact?: boolean
+  contentClass?: string
 }>(), {
   title: undefined,
   description: undefined,
   compact: false,
+  contentClass: undefined,
 })
 
-const contentClasses = computed(() => props.compact ? 'p-4' : 'p-5')
+const contentClasses = computed(() => [
+  props.compact ? 'p-4' : 'p-5',
+  props.contentClass,
+])
 </script>

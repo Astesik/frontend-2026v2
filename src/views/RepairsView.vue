@@ -1295,6 +1295,7 @@ async function initializeRepairMap() {
     repairMap = new googleRef.maps.Map(mapElement.value, {
       center: { lat: 52.1, lng: 19.4 },
       zoom: 6,
+      gestureHandling: 'greedy',
       fullscreenControl: false,
       mapTypeControl: false,
       streetViewControl: false,

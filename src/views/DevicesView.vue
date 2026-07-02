@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-5">
+  <div class="space-y-5 xl:flex xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:flex-col xl:space-y-0 xl:gap-4 xl:overflow-hidden">
     <header class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div>
         <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Telematyka</p>
@@ -21,49 +21,49 @@
       </div>
     </header>
 
-    <AppCard compact>
-      <div class="mb-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+    <AppCard compact class="xl:min-h-0 xl:flex-1 xl:overflow-hidden" content-class="xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+      <div class="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
         <span>{{ filteredDevices.length }} z {{ deviceStore.devices.length }} urządzeń</span>
         <span v-if="deviceStore.isLoading">Pobieranie danych...</span>
       </div>
 
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
         <table class="w-full min-w-[1120px] text-left text-sm">
           <thead class="border-b border-slate-100 text-xs uppercase text-slate-500 dark:border-app-border dark:text-slate-400">
             <tr>
-              <th class="w-12 py-3 pr-3 font-medium">#</th>
-              <th v-for="column in sortableColumns" :key="column.key" class="py-3 pr-3 font-medium">
+              <th class="w-12 py-2 pr-3 font-medium">#</th>
+              <th v-for="column in sortableColumns" :key="column.key" class="py-2 pr-3 font-medium">
                 <button type="button" class="inline-flex items-center gap-1.5 transition hover:text-slate-950 dark:hover:text-slate-50" @click="setSort(column.key)">
                   {{ column.label }}
                   <component :is="sortIcon(column.key)" class="h-3.5 w-3.5" />
                 </button>
               </th>
-              <th class="sticky right-0 z-10 w-16 bg-white py-3 pr-1 text-right font-medium shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] dark:bg-app-panel">Akcje</th>
+              <th class="sticky right-0 z-10 w-16 bg-white py-2 pr-1 text-right font-medium shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] dark:bg-app-panel">Akcje</th>
             </tr>
           </thead>
           <tbody>
             <tr
-              v-for="(device, index) in sortedDevices"
+              v-for="(device, index) in paginatedDevices"
               :key="device.id"
               class="group border-b border-slate-100 transition last:border-0 hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
             >
-              <td class="py-3 pr-3 text-slate-500 dark:text-slate-400">{{ index + 1 }}.</td>
-              <td class="py-3 pr-3">
+              <td class="py-1.5 pr-3 text-slate-500 dark:text-slate-400">{{ (currentPage - 1) * pageSize + index + 1 }}.</td>
+              <td class="py-1.5 pr-3">
                 <RouterLink class="font-semibold text-slate-950 transition hover:text-slate-600 dark:text-slate-50 dark:hover:text-slate-300" :to="{ name: 'device-detail', params: { id: device.id } }">
                   {{ device.deviceName || `Urządzenie #${device.id}` }}
                 </RouterLink>
                 <span class="ml-2 text-xs font-medium text-slate-400 dark:text-app-muted">#{{ device.id }}</span>
               </td>
-              <td class="py-3 pr-3 font-mono text-xs text-slate-700 dark:text-slate-200">{{ device.serialNumber }}</td>
-              <td class="py-3 pr-3"><AppBadge variant="neutral">{{ deviceTypeLabel(device.type) }}</AppBadge></td>
-              <td class="py-3 pr-3"><AppBadge :variant="device.status === 'ACTIVE' ? 'success' : 'neutral'">{{ deviceStatusLabel(device.status) }}</AppBadge></td>
-              <td class="py-3 pr-3 text-slate-700 dark:text-slate-200">{{ providerLabel(device.provider) }}</td>
-              <td class="py-3 pr-3"><AppBadge :variant="device.assignedToVehicle ? 'info' : 'neutral'">{{ device.assignedToVehicle ? 'Przypisane' : 'Wolne' }}</AppBadge></td>
-              <td class="py-3 pr-3 font-medium" :class="lastPositionClasses(device.lastPositionAt)">{{ formatDateTime(device.lastPositionAt) }}</td>
-              <td class="py-3 pr-3 text-slate-700 dark:text-slate-200">{{ formatDateTime(device.createdAt) }}</td>
-              <td class="sticky right-0 z-10 bg-white py-3 pr-1 text-right shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] transition group-hover:bg-slate-50 dark:bg-app-panel dark:group-hover:bg-app-elevated">
+              <td class="py-1.5 pr-3 font-mono text-xs text-slate-700 dark:text-slate-200">{{ device.serialNumber }}</td>
+              <td class="py-1.5 pr-3"><AppBadge variant="neutral">{{ deviceTypeLabel(device.type) }}</AppBadge></td>
+              <td class="py-1.5 pr-3"><AppBadge :variant="device.status === 'ACTIVE' ? 'success' : 'neutral'">{{ deviceStatusLabel(device.status) }}</AppBadge></td>
+              <td class="py-1.5 pr-3 text-slate-700 dark:text-slate-200">{{ providerLabel(device.provider) }}</td>
+              <td class="py-1.5 pr-3"><AppBadge :variant="device.assignedToVehicle ? 'info' : 'neutral'">{{ device.assignedToVehicle ? 'Przypisane' : 'Wolne' }}</AppBadge></td>
+              <td class="py-1.5 pr-3 font-medium" :class="lastPositionClasses(device.lastPositionAt)">{{ formatDateTime(device.lastPositionAt) }}</td>
+              <td class="py-1.5 pr-3 text-slate-700 dark:text-slate-200">{{ formatDateTime(device.createdAt) }}</td>
+              <td class="sticky right-0 z-10 bg-white py-1.5 pr-1 text-right shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] transition group-hover:bg-slate-50 dark:bg-app-panel dark:group-hover:bg-app-elevated">
                 <RouterLink
-                  class="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
                   :to="{ name: 'device-detail', params: { id: device.id } }"
                   aria-label="Szczegóły urządzenia"
                 >
@@ -78,17 +78,23 @@
           </tbody>
         </table>
       </div>
+      <AppPagination
+        v-model:page="currentPage"
+        v-model:page-size="pageSize"
+        :total="filteredDevices.length"
+      />
     </AppCard>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, type Component } from 'vue'
+import { computed, onMounted, ref, watch, type Component } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowDown, ArrowUp, ArrowUpDown, SquarePen } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppPagination from '@/components/ui/AppPagination.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import { useDeviceStore } from '@/stores/deviceStore'
 import type { DeviceListItem, DeviceProvider, DeviceStatus, DeviceType } from '@/types/device'
@@ -103,6 +109,8 @@ const statusFilter = ref<'all' | DeviceStatus>('all')
 const providerFilter = ref<'all' | DeviceProvider>('all')
 const sortKey = ref<DeviceSortKey>('deviceName')
 const sortDirection = ref<SortDirection>('asc')
+const currentPage = ref(1)
+const pageSize = ref(10)
 
 const typeOptions: AppSelectOption[] = [
   { label: 'Wszystkie typy', value: 'all' },
@@ -156,6 +164,15 @@ const filteredDevices = computed(() => {
 const sortedDevices = computed(() => {
   const direction = sortDirection.value === 'asc' ? 1 : -1
   return [...filteredDevices.value].sort((first, second) => compareDeviceValues(first, second, sortKey.value) * direction)
+})
+
+const paginatedDevices = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return sortedDevices.value.slice(start, start + pageSize.value)
+})
+
+watch([searchQuery, typeFilter, statusFilter, providerFilter], () => {
+  currentPage.value = 1
 })
 
 function sortIcon(column: DeviceSortKey): Component {

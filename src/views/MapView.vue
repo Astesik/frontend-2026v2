@@ -2676,6 +2676,7 @@ async function initializeGoogleMap() {
     googleMap.value = markRaw(new google.maps.Map(mapElement.value, {
       center: { lat: 52.1, lng: 19.4 },
       zoom: 6,
+      gestureHandling: 'greedy',
       mapTypeId: mapSettings.map.mapType,
       mapTypeControl: false,
       zoomControl: false,

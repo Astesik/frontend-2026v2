@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-5">
+  <div class="space-y-5 xl:flex xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:flex-col xl:space-y-0 xl:gap-4 xl:overflow-hidden">
     <header class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div>
         <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Flota</p>
@@ -42,49 +42,49 @@
       </div>
     </header>
 
-    <AppCard compact>
-      <div class="mb-3 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+    <AppCard compact class="xl:min-h-0 xl:flex-1 xl:overflow-hidden" content-class="xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+      <div class="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
         <span>{{ filteredVehicles.length }} z {{ fleetStore.apiVehicles.length }} pojazdów</span>
         <span v-if="fleetStore.isVehiclesLoading">Pobieranie danych...</span>
       </div>
 
-      <div class="overflow-x-auto">
+      <div class="overflow-x-auto xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
         <table class="w-full min-w-[980px] text-left text-sm">
           <thead class="border-b border-slate-100 text-xs uppercase text-slate-500 dark:border-app-border dark:text-slate-400">
             <tr>
-              <th class="w-12 py-3 pr-3 font-medium">#</th>
-              <th class="py-3 pr-3 font-medium">
+              <th class="w-12 py-2 pr-3 font-medium">#</th>
+              <th class="py-2 pr-3 font-medium">
                 <SortButton label="Numer rejestracyjny" column="licensePlate" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
               </th>
-              <th class="py-3 pr-3 font-medium">
+              <th class="py-2 pr-3 font-medium">
                 <SortButton label="Typ pojazdu" column="type" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
               </th>
-              <th class="py-3 pr-3 font-medium">
+              <th class="py-2 pr-3 font-medium">
                 <SortButton label="Marka" column="make" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
               </th>
-              <th class="py-3 pr-3 font-medium">
+              <th class="py-2 pr-3 font-medium">
                 <SortButton label="Rok produkcji" column="productionYear" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
               </th>
-              <th class="py-3 pr-3 font-medium">
+              <th class="py-2 pr-3 font-medium">
                 <SortButton label="Przegląd techniczny" column="technicalInspection" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
               </th>
-              <th class="py-3 pr-3 font-medium">
+              <th class="py-2 pr-3 font-medium">
                 <SortButton label="Legalizacja tachografu" column="tachographInspection" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
               </th>
-              <th class="py-3 pr-3 font-medium">
+              <th class="py-2 pr-3 font-medium">
                 <SortButton label="Winieta UK" column="vignetteUk" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
               </th>
-              <th class="sticky right-0 z-10 w-16 bg-white py-3 pr-1 text-right font-medium shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] dark:bg-app-panel">Akcje</th>
+              <th class="sticky right-0 z-10 w-16 bg-white py-2 pr-1 text-right font-medium shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] dark:bg-app-panel">Akcje</th>
             </tr>
           </thead>
           <tbody>
             <tr
-              v-for="(vehicle, index) in sortedVehicles"
+              v-for="(vehicle, index) in paginatedVehicles"
               :key="vehicle.id"
               class="group border-b border-slate-100 transition last:border-0 hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
             >
-              <td class="py-3 pr-3 text-slate-500 dark:text-slate-400">{{ index + 1 }}.</td>
-              <td class="py-3 pr-3">
+              <td class="py-1.5 pr-3 text-slate-500 dark:text-slate-400">{{ (currentPage - 1) * pageSize + index + 1 }}.</td>
+              <td class="py-1.5 pr-3">
                 <RouterLink
                   class="font-semibold text-slate-950 transition hover:text-slate-600 dark:text-slate-50 dark:hover:text-slate-300"
                   :to="{ name: 'vehicle-detail', params: { id: vehicle.id } }"
@@ -93,17 +93,17 @@
                 </RouterLink>
                 <span class="ml-2 text-xs font-medium text-slate-400 dark:text-app-muted">#{{ vehicle.id }}</span>
               </td>
-              <td class="py-3 pr-3">
+              <td class="py-1.5 pr-3">
                 <AppBadge :variant="vehicleTypeVariant(vehicle.type)">{{ vehicleTypeLabel(vehicle.type) }}</AppBadge>
               </td>
-              <td class="py-3 pr-3 text-slate-700 dark:text-slate-200">{{ vehicle.make || '-' }}</td>
-              <td class="py-3 pr-3 text-slate-700 dark:text-slate-200">{{ vehicle.productionYear || '-' }}</td>
-              <td class="py-3 pr-3"><DateCell :date="vehicle.technicalInspection" /></td>
-              <td class="py-3 pr-3"><DateCell :date="vehicle.tachographInspection" /></td>
-              <td class="py-3 pr-3"><DateCell :date="vehicle.vignetteUk" /></td>
-              <td class="sticky right-0 z-10 bg-white py-3 pr-1 text-right shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] transition group-hover:bg-slate-50 dark:bg-app-panel dark:group-hover:bg-app-elevated">
+              <td class="py-1.5 pr-3 text-slate-700 dark:text-slate-200">{{ vehicle.make || '-' }}</td>
+              <td class="py-1.5 pr-3 text-slate-700 dark:text-slate-200">{{ vehicle.productionYear || '-' }}</td>
+              <td class="py-1.5 pr-3"><DateCell :date="vehicle.technicalInspection" /></td>
+              <td class="py-1.5 pr-3"><DateCell :date="vehicle.tachographInspection" /></td>
+              <td class="py-1.5 pr-3"><DateCell :date="vehicle.vignetteUk" /></td>
+              <td class="sticky right-0 z-10 bg-white py-1.5 pr-1 text-right shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] transition group-hover:bg-slate-50 dark:bg-app-panel dark:group-hover:bg-app-elevated">
                 <RouterLink
-                  class="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
                   :to="{ name: 'vehicle-detail', params: { id: vehicle.id } }"
                   aria-label="Szczegóły pojazdu"
                 >
@@ -120,6 +120,11 @@
           </tbody>
         </table>
       </div>
+      <AppPagination
+        v-model:page="currentPage"
+        v-model:page-size="pageSize"
+        :total="filteredVehicles.length"
+      />
     </AppCard>
 
     <Teleport to="body">
@@ -175,7 +180,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, onMounted, reactive, ref, type PropType } from 'vue'
+import { computed, defineComponent, h, onMounted, reactive, ref, watch, type PropType } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, SquarePen, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
@@ -183,6 +188,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppPagination from '@/components/ui/AppPagination.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import { vehicleService, type VehiclePayload } from '@/services/vehicleService'
 import { useFleetStore } from '@/stores/fleetStore'
@@ -208,6 +214,8 @@ const statusFilter = ref('all')
 const ownershipFilter = ref('all')
 const sortKey = ref<VehicleSortKey>('licensePlate')
 const sortDirection = ref<SortDirection>('asc')
+const currentPage = ref(1)
+const pageSize = ref(10)
 const isCreateModalOpen = ref(false)
 const isCreatingVehicle = ref(false)
 
@@ -280,6 +288,15 @@ const sortedVehicles = computed(() => {
   return [...filteredVehicles.value].sort((first, second) => (
     compareVehicleValues(first, second, sortKey.value) * direction
   ))
+})
+
+const paginatedVehicles = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return sortedVehicles.value.slice(start, start + pageSize.value)
+})
+
+watch([searchQuery, typeFilter, statusFilter, ownershipFilter], () => {
+  currentPage.value = 1
 })
 
 const SortButton = defineComponent({
