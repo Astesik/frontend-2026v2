@@ -1,12 +1,15 @@
 <template>
-  <div class="flex min-h-full flex-col gap-5">
-    <header class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+  <div
+    class="flex min-h-full w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden"
+    :class="activeTab === 'columns' ? 'xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:overflow-hidden' : ''"
+  >
+    <header class="flex w-full min-w-0 shrink-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div>
         <h1 class="text-2xl font-semibold text-slate-950 dark:text-slate-50">Naprawy</h1>
       </div>
 
-      <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <div class="flex items-end gap-2">
+      <div class="flex min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:items-end">
+        <div class="flex min-w-0 max-w-full items-end gap-2">
           <button
             type="button"
             class="icon-button"
@@ -18,7 +21,7 @@
           </button>
           <AppSelect
             v-model="selectedWeekKey"
-            class="w-full sm:w-72"
+            class="min-w-0 flex-1 sm:w-72 sm:flex-none"
             label="Zakres tygodnia"
             :options="weekOptions"
             size="sm"
@@ -52,7 +55,7 @@
       size="sm"
     />
 
-    <div class="hidden flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel md:flex">
+    <div class="hidden w-full min-w-0 shrink-0 flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel md:flex">
       <button
         v-for="tab in tabs"
         :key="tab.value"
@@ -70,11 +73,11 @@
       Pobieranie napraw...
     </div>
 
-    <section v-else-if="activeTab === 'columns'" class="grid min-h-[calc(100vh-220px)] gap-4 xl:grid-cols-3">
+    <section v-else-if="activeTab === 'columns'" class="grid w-full min-w-0 max-w-full min-h-[calc(100vh-220px)] gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[repeat(3,minmax(0,1fr))]">
       <div
         v-for="column in repairColumns"
         :key="column.key"
-        class="flex min-h-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel"
+        class="flex w-full min-w-0 max-w-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel"
         :class="dragOverColumn === column.key ? 'ring-2 ring-slate-300 dark:ring-app-muted' : ''"
         @dragenter.prevent="dragOverColumn = column.key"
         @dragover.prevent="dragOverColumn = column.key"
@@ -89,12 +92,12 @@
           <AppBadge>{{ column.repairs.length }}</AppBadge>
         </header>
 
-        <div class="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+        <div class="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-3">
           <article
             v-for="repair in column.repairs"
             :key="repair.id"
             draggable="true"
-            class="cursor-grab rounded-2xl border border-slate-100 bg-white p-3 transition hover:bg-slate-50 active:cursor-grabbing dark:border-app-border dark:bg-app-dark dark:hover:bg-app-elevated"
+            class="max-w-full min-w-0 cursor-grab overflow-hidden rounded-2xl border border-slate-100 bg-white p-3 transition hover:bg-slate-50 active:cursor-grabbing dark:border-app-border dark:bg-app-dark dark:hover:bg-app-elevated"
             :class="draggedRepairId === repair.id ? 'opacity-20' : ''"
             @dragstart="startRepairDrag(repair, $event)"
             @drag="updateRepairDragPreview"
@@ -584,7 +587,7 @@ const RepairCardContent = defineComponent({
       const openFaults = faults.filter((fault) => fault.status !== 'DONE')
       const totalFaults = props.repair.totalFaults || faults.length
 
-      return h('div', [
+      return h('div', { class: 'min-w-0 max-w-full' }, [
         h('div', { class: 'flex items-start justify-between gap-2' }, [
           h('p', { class: 'min-w-0 truncate text-base font-semibold text-slate-950 dark:text-slate-50' }, repairVehicleLabel(props.repair)),
           h('div', { class: 'flex shrink-0 items-center gap-1.5' }, [
