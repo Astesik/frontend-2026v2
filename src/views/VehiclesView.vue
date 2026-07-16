@@ -164,6 +164,8 @@
             <AppDatePicker v-model="createForm.technicalInspection" label="Przegląd techniczny" />
             <AppDatePicker v-model="createForm.tachographInspection" label="Legalizacja tachografu" />
             <AppDatePicker v-model="createForm.vignetteUk" label="Winieta UK" />
+            <AppDatePicker v-model="createForm.vignetteLuxembourg" label="Winieta Luksemburg" />
+            <AppDatePicker v-model="createForm.vignetteDenmark" label="Winieta Dania" />
             <AppInput v-model="createForm.fuelTank" label="Zbiornik paliwa" type="number" />
             <AppSelect v-model="createForm.status" label="Status" :options="vehicleStatusFormOptions" />
           </div>
@@ -526,6 +528,8 @@ function createEmptyVehicleForm() {
     technicalInspection: '',
     tachographInspection: '',
     vignetteUk: '',
+    vignetteLuxembourg: '',
+    vignetteDenmark: '',
     fuelTank: '',
     status: 'ACTIVE',
   }
@@ -565,6 +569,8 @@ function createPayloadFromForm(): VehiclePayload {
     technicalInspection: nullableText(createForm.technicalInspection),
     tachographInspection: nullableText(createForm.tachographInspection),
     vignetteUk: nullableText(createForm.vignetteUk),
+    vignetteLuxembourg: nullableText(createForm.vignetteLuxembourg),
+    vignetteDenmark: nullableText(createForm.vignetteDenmark),
     fuelTank: nullableNumber(createForm.fuelTank),
     status: createForm.status || null,
   }

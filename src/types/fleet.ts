@@ -16,6 +16,8 @@ export interface ApiVehicle {
   technicalInspection: string | null
   tachographInspection: string | null
   vignetteUk: string | null
+  vignetteLuxembourg: string | null
+  vignetteDenmark: string | null
   assignedDeviceId: number | null
   fuelTank: number | null
   intermodalSideCode?: string | null
@@ -112,6 +114,8 @@ export interface Vehicle {
   technicalInspection: string | null
   tachographInspection: string | null
   vignetteUk: string | null
+  vignetteLuxembourg: string | null
+  vignetteDenmark: string | null
   assignedDeviceId: number | null
   ignitionState: string | null
   heading: number | null

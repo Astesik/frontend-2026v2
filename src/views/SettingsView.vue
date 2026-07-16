@@ -5,7 +5,13 @@
       <h1 class="mt-1 text-2xl font-semibold text-slate-950 dark:text-slate-50">Ustawienia</h1>
     </header>
 
-    <AppCard title="Floty" description="Zarządzanie grupami pojazdów używanymi na mapie i listach.">
+    <div class="flex flex-wrap gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel">
+      <button v-for="tab in settingsTabs" :key="tab.value" type="button" class="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-medium transition" :class="activeTab === tab.value ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-app-dark' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-app-elevated'" @click="activeTab = tab.value">
+        <component :is="tab.icon" class="h-4 w-4" />{{ tab.label }}
+      </button>
+    </div>
+
+    <AppCard v-if="activeTab === 'fleet'" title="Floty" description="Zarządzanie grupami pojazdów używanymi na mapie i listach.">
       <form class="mb-5 grid gap-3 rounded-2xl border border-slate-100 p-3 dark:border-app-border sm:grid-cols-[1fr_auto]" @submit.prevent="createGroup">
         <AppInput v-model="newGroupName" label="Nowa flota" placeholder="Nazwa floty" />
         <AppButton class="self-end" type="submit" :loading="isGroupMutating">
@@ -53,6 +59,9 @@
       </div>
     </AppCard>
 
+    <MailSettingsPanel v-else-if="activeTab === 'mail'" />
+    <CountryNotificationsPanel v-else />
+
     <Teleport to="body">
       <div
         v-if="groupToDelete"
@@ -77,8 +86,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
-import { Plus, Trash2 } from 'lucide-vue-next'
+import { onMounted, reactive, ref, watch, type Component } from 'vue'
+import { BellRing, Mail, Plus, Trash2, Truck } from 'lucide-vue-next'
+import CountryNotificationsPanel from '@/components/settings/CountryNotificationsPanel.vue'
+import MailSettingsPanel from '@/components/settings/MailSettingsPanel.vue'
 import VehicleTagInput from '@/components/selects/VehicleTagInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
@@ -93,6 +104,12 @@ const newGroupName = ref('')
 const groupToDelete = ref<VehicleGroup | null>(null)
 const isGroupMutating = ref(false)
 const groupNameForms = reactive<Record<string, string>>({})
+const activeTab = ref<'fleet' | 'mail' | 'countries'>('fleet')
+const settingsTabs: Array<{ value: 'fleet' | 'mail' | 'countries'; label: string; icon: Component }> = [
+  { value: 'fleet', label: 'Floty', icon: Truck },
+  { value: 'mail', label: 'Email / SMTP', icon: Mail },
+  { value: 'countries', label: 'Powiadomienia krajowe', icon: BellRing },
+]
 
 function syncGroupForms() {
   fleetStore.vehicleGroups.forEach((group) => {

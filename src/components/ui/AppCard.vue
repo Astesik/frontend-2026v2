@@ -1,6 +1,6 @@
 <template>
   <section class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-    <div v-if="title || description || $slots.actions" class="flex items-start justify-between gap-4 border-b border-slate-100 px-5 py-4 dark:border-app-border">
+    <div v-if="title || description || $slots.actions" :class="headerClasses">
       <div>
         <h2 v-if="title" class="text-base font-semibold text-slate-950 dark:text-slate-50">
           {{ title }}
@@ -37,5 +37,10 @@ const props = withDefaults(defineProps<{
 const contentClasses = computed(() => [
   props.compact ? 'p-4' : 'p-5',
   props.contentClass,
+])
+
+const headerClasses = computed(() => [
+  'flex items-start justify-between gap-4 border-b border-slate-100 dark:border-app-border',
+  props.compact ? 'px-4 py-3' : 'px-5 py-4',
 ])
 </script>

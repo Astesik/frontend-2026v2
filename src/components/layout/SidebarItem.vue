@@ -2,8 +2,8 @@
   <RouterLink
     :to="to"
     :title="collapsed ? label : undefined"
-    class="group flex h-11 items-center gap-3 rounded-2xl text-sm font-medium transition"
-    :class="[collapsed ? 'mx-auto w-10 justify-center px-0' : 'w-full px-3', isActive ? activeClasses : inactiveClasses]"
+    class="group flex items-center gap-3 text-sm font-medium transition"
+    :class="[collapsed ? 'mx-auto h-10 w-8 justify-center rounded-xl px-0' : 'h-11 w-full rounded-2xl px-3', isActive ? activeClasses : inactiveClasses]"
   >
     <component :is="icon" class="h-5 w-5 shrink-0" />
     <span v-if="!collapsed" class="truncate">{{ label }}</span>

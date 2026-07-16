@@ -62,6 +62,8 @@
               <InspectionRow label="Przegląd techniczny" :date="vehicle.technicalInspection" />
               <InspectionRow label="Legalizacja tachografu" :date="vehicle.tachographInspection" />
               <InspectionRow label="Winieta UK" :date="vehicle.vignetteUk" />
+              <InspectionRow label="Winieta Luksemburg" :date="vehicle.vignetteLuxembourg" />
+              <InspectionRow label="Winieta Dania" :date="vehicle.vignetteDenmark" />
             </div>
           </AppCard>
 
@@ -268,6 +270,8 @@
             <AppDatePicker v-model="editForm.technicalInspection" label="Przegląd techniczny" />
             <AppDatePicker v-model="editForm.tachographInspection" label="Legalizacja tachografu" />
             <AppDatePicker v-model="editForm.vignetteUk" label="Winieta UK" />
+            <AppDatePicker v-model="editForm.vignetteLuxembourg" label="Winieta Luksemburg" />
+            <AppDatePicker v-model="editForm.vignetteDenmark" label="Winieta Dania" />
             <AppInput v-model="editForm.fuelTank" label="Zbiornik paliwa" type="number" />
             <AppSelect v-model="editForm.status" label="Status" :options="vehicleStatusFormOptions" />
           </div>
@@ -452,6 +456,8 @@ function createEmptyVehicleForm() {
     technicalInspection: '',
     tachographInspection: '',
     vignetteUk: '',
+    vignetteLuxembourg: '',
+    vignetteDenmark: '',
     fuelTank: '',
     status: 'ACTIVE',
   }
@@ -471,6 +477,8 @@ function resetFormFromVehicle(form: VehicleForm, source: ApiVehicle) {
     technicalInspection: dateInputValue(source.technicalInspection),
     tachographInspection: dateInputValue(source.tachographInspection),
     vignetteUk: dateInputValue(source.vignetteUk),
+    vignetteLuxembourg: dateInputValue(source.vignetteLuxembourg),
+    vignetteDenmark: dateInputValue(source.vignetteDenmark),
     fuelTank: source.fuelTank ? String(source.fuelTank) : '',
     status: source.status || 'ACTIVE',
   })
@@ -506,6 +514,8 @@ function payloadFromForm(form: VehicleForm): VehiclePayload {
     technicalInspection: nullableText(form.technicalInspection),
     tachographInspection: nullableText(form.tachographInspection),
     vignetteUk: nullableText(form.vignetteUk),
+    vignetteLuxembourg: nullableText(form.vignetteLuxembourg),
+    vignetteDenmark: nullableText(form.vignetteDenmark),
     fuelTank: nullableNumber(form.fuelTank),
     status: form.status || null,
   }
@@ -754,7 +764,7 @@ function repairStatus(repair: RepairHistoryLike) {
     new: 'Nowa',
     planned: 'Zaplanowana',
     ready_to_be_repaired: 'Gotowa',
-    in_progress: 'W trakcie',
+    at_location: 'W lokalizacji',
     IN_FIELD: 'W terenie',
     in_field: 'W terenie',
     done: 'Zakończona',
@@ -775,7 +785,7 @@ function repairStatusVariant(repair: RepairHistoryLike): BadgeVariant {
     return 'error'
   }
 
-  if (status === 'in_progress' || status === 'in_field') {
+  if (status === 'at_location' || status === 'in_field') {
     return 'warning'
   }
 

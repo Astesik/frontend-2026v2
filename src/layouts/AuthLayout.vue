@@ -1,6 +1,6 @@
 <template>
-  <main class="min-h-screen bg-app-light text-slate-950 dark:bg-app-dark dark:text-slate-50">
-    <div class="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-4 py-5">
+  <main class="h-screen overflow-y-auto bg-app-light text-slate-950 dark:bg-app-dark dark:text-slate-50">
+    <div class="mx-auto flex min-h-full w-full max-w-6xl flex-col px-4 py-5">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
           <div class="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">

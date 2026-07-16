@@ -1,7 +1,7 @@
 <template>
   <div
     class="flex min-h-full w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden"
-    :class="activeTab === 'columns' ? 'xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:overflow-hidden' : ''"
+    :class="isKanbanTab ? 'xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:overflow-hidden' : ''"
   >
     <header class="flex w-full min-w-0 shrink-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div>
@@ -57,7 +57,7 @@
 
     <div class="hidden w-full min-w-0 shrink-0 flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel md:flex">
       <button
-        v-for="tab in tabs"
+        v-for="tab in visibleTabs"
         :key="tab.value"
         type="button"
         class="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-medium transition"
@@ -69,11 +69,53 @@
       </button>
     </div>
 
+    <section v-if="!isLoading && isKanbanTab" class="grid shrink-0 grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+      <article class="repair-stat-tile">
+        <div class="repair-stat-icon">
+          <ListChecks class="h-4 w-4" />
+        </div>
+        <div class="min-w-0">
+          <p class="repair-stat-label">Wszystkie</p>
+          <p class="repair-stat-value">{{ weeklyStats.total }}</p>
+        </div>
+      </article>
+
+      <article class="repair-stat-tile">
+        <div class="repair-stat-icon">
+          <Building2 class="h-4 w-4" />
+        </div>
+        <div class="min-w-0">
+          <p class="repair-stat-label">Aktywne</p>
+          <p class="repair-stat-value">{{ weeklyStats.location }}</p>
+        </div>
+      </article>
+
+      <article class="repair-stat-tile">
+        <div class="repair-stat-icon text-success-600 dark:text-success-400">
+          <CircleCheck class="h-4 w-4" />
+        </div>
+        <div class="min-w-0">
+          <p class="repair-stat-label">Ukończone</p>
+          <p class="repair-stat-value">{{ weeklyStats.completed }}</p>
+        </div>
+      </article>
+
+      <article class="repair-stat-tile">
+        <div class="repair-stat-icon">
+          <Percent class="h-4 w-4" />
+        </div>
+        <div class="min-w-0">
+          <p class="repair-stat-label">Ukończenie</p>
+          <p class="repair-stat-value">{{ weeklyStats.completionPercent }}%</p>
+        </div>
+      </article>
+    </section>
+
     <div v-if="isLoading" class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-400">
       Pobieranie napraw...
     </div>
 
-    <section v-else-if="activeTab === 'columns'" class="grid w-full min-w-0 max-w-full min-h-[calc(100vh-220px)] gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[repeat(3,minmax(0,1fr))]">
+    <section v-else-if="isKanbanTab" class="grid w-full min-w-0 max-w-full min-h-[calc(100vh-220px)] gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[repeat(3,minmax(0,1fr))]">
       <div
         v-for="column in repairColumns"
         :key="column.key"
@@ -104,7 +146,7 @@
             @dragend="endRepairDrag"
             @click="openRepairDetails(repair)"
             >
-              <RepairCardContent :repair="repair" />
+              <RepairCardContent :repair="repair" show-place />
             </article>
 
           <div v-if="!column.repairs.length" class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
@@ -130,7 +172,7 @@
           class="cursor-pointer rounded-2xl border border-slate-100 bg-white p-3 transition hover:bg-slate-50 dark:border-app-border dark:bg-app-dark dark:hover:bg-app-elevated"
           @click="openRepairDetails(repair)"
         >
-          <RepairCardContent :repair="repair" />
+          <RepairCardContent :repair="repair" show-place />
         </article>
 
         <div v-if="!fieldRepairs.length" class="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500 dark:border-app-border dark:text-slate-400 xl:col-span-3">
@@ -190,66 +232,137 @@
     <Teleport to="body">
       <div
         v-if="isCreateModalOpen"
-        class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 p-3 sm:p-6"
+        class="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-slate-950/55 p-3 sm:p-6"
         @click.self="closeCreateModal"
       >
         <form
-          class="my-auto flex max-h-[calc(100vh-2rem)] w-[min(52rem,calc(100vw-1.5rem))] max-w-none flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel sm:max-h-[calc(100vh-3rem)] sm:w-[min(52rem,calc(100vw-3rem))]"
+          class="flex h-[calc(100dvh-1.5rem)] w-[min(74rem,calc(100vw-1.5rem))] max-w-none flex-col overflow-hidden rounded-2xl border border-slate-300 bg-slate-100 shadow-2xl dark:border-app-border dark:bg-app-dark sm:h-[calc(100dvh-3rem)] sm:w-[min(74rem,calc(100vw-3rem))]"
           @submit.prevent="submitCreateRepair"
         >
-          <header class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <div>
+          <header class="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 dark:border-app-border dark:bg-app-panel">
+            <div class="min-w-0">
               <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Dodaj nową naprawę</h2>
-              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Usterki zostaną dodane osobnymi requestami po utworzeniu naprawy.</p>
             </div>
             <button type="button" class="icon-button" aria-label="Zamknij modal" @click="closeCreateModal">
               <X class="h-4 w-4" />
             </button>
           </header>
 
-          <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-            <div class="grid gap-4 lg:grid-cols-2">
-              <AppSearchSelect v-model="createForm.vehicleId" label="Pojazd" placeholder="Wybierz pojazd" :options="vehicleOptions" />
-              <AppSearchSelect v-model="createForm.placeId" label="Miejsce" placeholder="Wybierz miejsce" :options="placeOptions" />
-              <AppSelect v-model="createForm.status" label="Status" :options="repairStatusOptions" />
-              <AppDateTimePicker v-model="createForm.arrivalAt" label="Planowany przyjazd" default-time="08:00" />
-              <AppDateTimePicker v-model="createForm.departureAt" label="Planowany wyjazd" default-time="16:00" />
-              <label class="block lg:col-span-2">
-                <span class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Opis</span>
-                <textarea
-                  v-model="createForm.description"
-                  class="min-h-28 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-app-border dark:bg-app-panel dark:text-slate-50 dark:placeholder:text-app-muted dark:focus:border-app-muted dark:focus:ring-app-elevated"
-                  placeholder="Zakres naprawy"
-                ></textarea>
-              </label>
-            </div>
+          <div class="min-h-0 flex-1 overflow-y-auto bg-slate-100/80 p-3 dark:bg-app-dark sm:p-4 xl:overflow-hidden">
+            <div class="grid min-h-full gap-3 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)]">
+              <section class="self-start rounded-2xl border border-slate-300 bg-white p-3 shadow-sm dark:border-app-border dark:bg-app-panel">
+                <div class="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h3 class="text-sm font-semibold text-slate-950 dark:text-slate-50">Dane naprawy</h3>
+                  </div>
+                  <AppBadge>1</AppBadge>
+                </div>
 
-            <section class="mt-5 rounded-2xl border border-slate-100 p-4 dark:border-app-border">
-              <div class="mb-3 flex items-center justify-between gap-3">
-                <h3 class="text-sm font-semibold text-slate-950 dark:text-slate-50">Usterki</h3>
-                <AppButton type="button" size="sm" variant="secondary" @click="addDraftFault">
-                  <Plus class="h-4 w-4" />
-                  Dodaj usterkę
-                </AppButton>
-              </div>
+                <div class="space-y-2.5">
+                  <AppSearchSelect v-model="createForm.vehicleId" label="Pojazd" placeholder="Wybierz pojazd" :options="vehicleOptions" size="sm" />
+                  <AppSearchSelect v-model="createForm.placeId" label="Miejsce" placeholder="Wybierz miejsce" :options="placeOptions" size="sm" />
+                  <AppSelect v-model="createForm.status" label="Status" :options="repairStatusOptions" size="sm" />
+                  <AppDateTimePicker v-model="createForm.arrivalAt" label="Planowany przyjazd" default-time="08:00" size="sm" />
+                  <AppDateTimePicker v-model="createForm.departureAt" label="Planowany wyjazd" default-time="16:00" size="sm" />
+                  <label class="block">
+                    <span class="mb-1.5 block text-xs font-medium text-slate-700 dark:text-slate-200">Uwagi</span>
+                    <textarea
+                      v-model="createForm.description"
+                      class="min-h-16 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-app-border dark:bg-app-dark dark:text-slate-50 dark:placeholder:text-app-muted dark:focus:border-app-muted dark:focus:ring-app-elevated"
+                      placeholder="Uwagi do naprawy"
+                    ></textarea>
+                  </label>
+                </div>
+              </section>
 
-              <div class="space-y-3">
-                <div
-                  v-for="(fault, index) in draftFaults"
-                  :key="fault.id"
-                  class="grid gap-2 rounded-2xl border border-slate-100 p-3 dark:border-app-border lg:grid-cols-[1fr_16rem_auto]"
-                >
-                  <AppInput v-model="fault.description" :label="`Usterka ${index + 1}`" placeholder="Opis usterki" />
-                  <AppSearchSelect v-model="fault.assignedMechanicId" label="Mechanik" placeholder="Brak mechanika" :options="mechanicOptionsWithEmpty" show-all-on-open />
-                  <button type="button" class="icon-button self-end" aria-label="Usuń usterkę" @click="removeDraftFault(fault.id)">
-                    <Trash2 class="h-4 w-4" />
+              <section class="flex min-h-0 flex-col rounded-2xl border border-slate-300 bg-white p-3 shadow-sm dark:border-app-border dark:bg-app-panel xl:overflow-hidden">
+                <div class="mb-3 flex shrink-0 items-center justify-between gap-3">
+                  <div>
+                    <h3 class="text-sm font-semibold text-slate-950 dark:text-slate-50">Kolejka usterek</h3>
+                  </div>
+                  <AppBadge>{{ draftFaults.length }}</AppBadge>
+                </div>
+
+                <div class="max-h-[48dvh] min-h-0 space-y-2.5 overflow-y-auto pr-1 xl:max-h-none xl:flex-1">
+                  <article
+                    v-for="(fault, index) in draftFaults"
+                    :key="fault.id"
+                    class="rounded-2xl border border-slate-200 bg-slate-50 p-2.5 shadow-sm ring-1 ring-slate-200/70 dark:border-app-border dark:bg-app-dark dark:ring-white/5"
+                  >
+                    <div class="mb-2.5 flex items-center justify-between gap-3">
+                      <div class="flex min-w-0 items-center gap-2">
+                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-950 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-50">
+                          {{ index + 1 }}
+                        </span>
+                      </div>
+                      <button type="button" class="icon-button shrink-0" aria-label="Usuń usterkę" @click="removeDraftFault(fault.id)">
+                        <Trash2 class="h-4 w-4" />
+                      </button>
+                    </div>
+                    <AppInput v-model="fault.description" label="Opis usterki" placeholder="Np. Wymiana klocków, światła, plandeka..." size="sm" />
+
+                    <section class="mt-2 rounded-2xl border border-slate-200 bg-white p-2 dark:border-app-border dark:bg-app-panel">
+                      <div class="mb-2 flex items-center justify-between gap-2">
+                        <div class="flex min-w-0 items-center gap-2">
+                          <ImagePlus class="h-4 w-4 shrink-0 text-slate-400" />
+                          <h4 class="truncate text-xs font-semibold text-slate-950 dark:text-slate-50">Zdjęcia</h4>
+                        </div>
+                        <AppBadge>{{ fault.photos.length }}</AppBadge>
+                      </div>
+
+                      <label class="flex min-h-16 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-center text-xs font-semibold text-slate-500 transition hover:bg-slate-100 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated">
+                        <input
+                          type="file"
+                          class="sr-only"
+                          accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
+                          multiple
+                          :disabled="isMutating"
+                          @change="handleDraftFaultPhotoSelection(fault.id, $event)"
+                        />
+                        <ImagePlus class="h-4 w-4" />
+                        Dodaj zdjęcia
+                      </label>
+
+                      <p v-if="fault.photoError" class="mt-2 text-xs font-medium text-danger-600 dark:text-danger-400">
+                        {{ fault.photoError }}
+                      </p>
+
+                      <div v-if="fault.photos.length" class="mt-2 grid max-h-28 grid-cols-[repeat(auto-fill,minmax(3.75rem,1fr))] gap-2 overflow-y-auto pr-1">
+                        <article
+                          v-for="photo in fault.photos"
+                          :key="photo.id"
+                          class="group relative aspect-square overflow-hidden rounded-xl border border-slate-100 bg-slate-100 dark:border-app-border dark:bg-app-elevated"
+                        >
+                          <img :src="photo.objectUrl" :alt="photo.file.name" class="h-full w-full object-cover" />
+                          <button
+                            type="button"
+                            class="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-950/70 text-white transition hover:bg-slate-950"
+                            aria-label="Usuń zdjęcie z dodawanej usterki"
+                            @click="removeDraftFaultPhoto(fault.id, photo.id)"
+                          >
+                            <X class="h-3 w-3" />
+                          </button>
+                        </article>
+                      </div>
+                    </section>
+                  </article>
+
+                  <button
+                    type="button"
+                    class="flex min-h-24 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center text-sm font-semibold text-slate-500 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
+                    @click="addDraftFault"
+                  >
+                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 dark:border-app-border dark:bg-app-panel">
+                      <Plus class="h-5 w-5" />
+                    </span>
+                    Dodaj kolejną usterkę
                   </button>
                 </div>
-              </div>
-            </section>
+              </section>
+            </div>
           </div>
 
-          <footer class="flex justify-end gap-2 border-t border-slate-100 px-5 py-4 dark:border-app-border">
+          <footer class="flex flex-col-reverse gap-2 border-t border-slate-200 bg-white px-5 py-4 dark:border-app-border dark:bg-app-panel sm:flex-row sm:justify-end">
             <AppButton type="button" variant="secondary" @click="closeCreateModal">Anuluj</AppButton>
             <AppButton type="submit" :loading="isMutating">Zapisz naprawę</AppButton>
           </footer>
@@ -361,7 +474,7 @@
         class="pointer-events-none fixed z-[80] w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-app-border dark:bg-app-panel"
         :style="{ left: `${dragPreview.x}px`, top: `${dragPreview.y}px`, transform: 'translate(-50%, -12px)' }"
       >
-        <RepairCardContent :repair="draggedRepair" preview />
+        <RepairCardContent :repair="draggedRepair" preview show-place />
       </div>
     </Teleport>
   </div>
@@ -372,15 +485,19 @@ import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, rea
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import {
+  Building2,
   Check,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  CircleCheck,
   Clock,
   Columns3,
+  ImagePlus,
   ListChecks,
   MapPinned,
+  Percent,
   Plus,
   SquarePen,
   Trash2,
@@ -401,13 +518,20 @@ import { useUiStore } from '@/stores/uiStore'
 import type { Mechanic, Repair, RepairStatus, RepairWeek } from '@/types/repair'
 import type { Vehicle } from '@/types/fleet'
 
-type TabKey = 'columns' | 'field' | 'map'
+type TabKey = 'repairs' | 'base' | 'other' | 'field' | 'map'
 type RepairColumnKey = 'new' | 'progress' | 'done'
 
 interface DraftFault {
   id: string
   description: string
-  assignedMechanicId: string
+  photos: DraftFaultPhotoDraft[]
+  photoError: string
+}
+
+interface DraftFaultPhotoDraft {
+  id: string
+  file: File
+  objectUrl: string
 }
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
@@ -424,13 +548,14 @@ const {
   isLoading,
   isMutating,
 } = storeToRefs(repairStore)
-const activeTab = ref<TabKey>('columns')
+const activeTab = ref<TabKey>('repairs')
 const selectedWeekKey = ref('')
 const draggedRepairId = ref<number | null>(null)
 const draggedRepair = ref<Repair | null>(null)
 const dragPreview = reactive({ x: 0, y: 0 })
 const dragOverColumn = ref<RepairColumnKey | null>(null)
 const collapsedRepairIds = ref<Set<number>>(new Set())
+const nowTick = ref(Date.now())
 const isCreateModalOpen = ref(false)
 const isMechanicsModalOpen = ref(false)
 const mechanicToDelete = ref<Mechanic | null>(null)
@@ -453,14 +578,21 @@ const mechanicForm = reactive({
 let googleRef: any = null
 let repairMap: any = null
 let repairMarkers: any[] = []
+let clockInterval: number | null = null
+
+const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+const MAX_PHOTO_SIZE = 20 * 1024 * 1024
 
 const tabs: Array<{ value: TabKey; label: string; icon: Component }> = [
-  { value: 'columns', label: 'Kolumny', icon: Columns3 },
+  { value: 'repairs', label: 'Naprawy', icon: Columns3 },
+  { value: 'other', label: 'Pozostałe', icon: Columns3 },
   { value: 'field', label: 'W terenie', icon: Wrench },
   { value: 'map', label: 'Mapa', icon: MapPinned },
 ]
 
-const tabOptions = computed<AppSelectOption[]>(() => tabs.map((tab) => ({
+const visibleTabs = computed(() => tabs.filter((tab) => tab.value !== 'other'))
+
+const tabOptions = computed<AppSelectOption[]>(() => visibleTabs.value.map((tab) => ({
   value: tab.value,
   label: tab.label,
 })))
@@ -469,7 +601,7 @@ const repairStatusOptions: AppSelectOption[] = [
   { label: 'Nowa', value: 'new' },
   { label: 'Zaplanowana', value: 'planned' },
   { label: 'Gotowa do naprawy', value: 'ready_to_be_repaired' },
-  { label: 'W trakcie', value: 'in_progress' },
+  { label: 'W lokalizacji', value: 'at_location' },
   { label: 'W terenie', value: 'IN_FIELD' },
   { label: 'Zakończona', value: 'done' },
   { label: 'Anulowana', value: 'cancelled' },
@@ -484,9 +616,12 @@ const selectedWeekIndex = computed(() => weeks.value.findIndex((week) => weekKey
 const canSelectPreviousWeek = computed(() => selectedWeekIndex.value > 0)
 const canSelectNextWeek = computed(() => selectedWeekIndex.value >= 0 && selectedWeekIndex.value < weeks.value.length - 1)
 const selectedWeek = computed(() => weeks.value[selectedWeekIndex.value] || weeks.value[0] || null)
+const isKanbanTab = computed(() => activeTab.value === 'repairs')
 const selectedWeekLabel = computed(() => selectedWeek.value
   ? `Tydzień ${selectedWeek.value.week}: ${formatDate(selectedWeek.value.start)} - ${formatDate(selectedWeek.value.end)}`
   : 'Brak danych tygodnia')
+
+const kanbanLocationStatLabel = computed(() => activeTab.value === 'base' ? 'Na bazie' : 'Pozostałe')
 
 const vehicleOptions = computed<AppSearchSelectOption[]>(() => fleetStore.apiVehicles.map((vehicle) => ({
   value: String(vehicle.id),
@@ -500,31 +635,48 @@ const placeOptions = computed<AppSearchSelectOption[]>(() => places.value.map((p
   label: place.name,
 })))
 
-const mechanicOptions = computed<AppSearchSelectOption[]>(() => mechanics.value.map((mechanic) => ({
-  value: String(mechanic.id),
-  label: mechanic.fullName || [mechanic.firstName, mechanic.lastName].filter(Boolean).join(' '),
-  searchText: [mechanic.fullName, mechanic.firstName, mechanic.lastName].filter(Boolean).join(' '),
-})))
-
-const mechanicOptionsWithEmpty = computed<AppSearchSelectOption[]>(() => [
-  { value: '', label: 'Brak mechanika' },
-  ...mechanicOptions.value,
-])
-
 const selectedWeekRepairs = computed(() => selectedWeek.value?.repairs?.length
   ? uniqueRepairs(selectedWeek.value.repairs)
   : uniqueRepairs(repairs.value.filter((repair) => selectedWeek.value ? isRepairInWeek(repair, selectedWeek.value) : true)))
 
-const sortedWeekRepairs = computed(() => [...selectedWeekRepairs.value].sort((first, second) => repairTimestamp(first) - repairTimestamp(second)))
+const baseWeekRepairs = computed(() => selectedWeekRepairs.value.filter((repair) => (
+  normalizeRepairStatus(repair.status) !== 'IN_FIELD'
+  && isBaseRepair(repair)
+)))
+
+const otherWeekRepairs = computed(() => selectedWeekRepairs.value.filter((repair) => (
+  normalizeRepairStatus(repair.status) !== 'IN_FIELD'
+  && !isBaseRepair(repair)
+)))
+
+const activeKanbanRepairs = computed(() => selectedWeekRepairs.value.filter((repair) => normalizeRepairStatus(repair.status) !== 'IN_FIELD'))
+
+const sortedKanbanRepairs = computed(() => [...activeKanbanRepairs.value].sort((first, second) => repairTimestamp(first) - repairTimestamp(second)))
+
+const weeklyStats = computed(() => {
+  const total = activeKanbanRepairs.value.length
+  const completed = activeKanbanRepairs.value.filter((repair) => normalizeRepairStatus(repair.status) === 'done').length
+  const location = activeKanbanRepairs.value.filter((repair) => {
+    const status = normalizeRepairStatus(repair.status)
+    return status !== 'IN_FIELD' && status !== 'done' && status !== 'cancelled'
+  }).length
+
+  return {
+    total,
+    location,
+    completed,
+    completionPercent: total ? Math.round((completed / total) * 100) : 0,
+  }
+})
 
 const repairColumns = computed(() => {
   const columns: Array<{ key: RepairColumnKey; label: string; icon: Component; targetStatus: RepairStatus; repairs: Repair[] }> = [
-    { key: 'new', label: 'Do zaplanowania', icon: ListChecks, targetStatus: 'planned', repairs: [] },
-    { key: 'progress', label: 'W trakcie', icon: Clock, targetStatus: 'in_progress', repairs: [] },
+    { key: 'new', label: 'Nowe naprawy', icon: ListChecks, targetStatus: 'planned', repairs: [] },
+    { key: 'progress', label: 'Gotowe do naprawy', icon: Clock, targetStatus: 'at_location', repairs: [] },
     { key: 'done', label: 'Zakończone', icon: CheckCircle2, targetStatus: 'done', repairs: [] },
   ]
 
-  sortedWeekRepairs.value.forEach((repair) => {
+  sortedKanbanRepairs.value.forEach((repair) => {
     const column = columns.find((item) => item.key === columnKeyForRepair(repair))
     column?.repairs.push(repair)
   })
@@ -579,24 +731,41 @@ const RepairCardContent = defineComponent({
       type: Boolean,
       default: false,
     },
+    showPlace: {
+      type: Boolean,
+      default: true,
+    },
   },
   setup(props) {
     return () => {
+      void nowTick.value
       const isExpanded = props.preview || !collapsedRepairIds.value.has(props.repair.id)
       const faults = props.repair.faults || []
-      const openFaults = faults.filter((fault) => fault.status !== 'DONE')
       const totalFaults = props.repair.totalFaults || faults.length
+      const isDone = normalizeRepairStatus(props.repair.status) === 'done'
+      const departureCountdown = departureCountdownLabel(props.repair.plannedDepartureAt)
 
       return h('div', { class: 'min-w-0 max-w-full' }, [
         h('div', { class: 'flex items-start justify-between gap-2' }, [
           h('p', { class: 'min-w-0 truncate text-base font-semibold text-slate-950 dark:text-slate-50' }, repairVehicleLabel(props.repair)),
           h('div', { class: 'flex shrink-0 items-center gap-1.5' }, [
+            isDone ? h(CircleCheck, { class: 'h-5 w-5 text-success-600 dark:text-success-400' }) : null,
             h(AppBadge, { variant: statusVariant(props.repair.status) }, () => statusLabel(props.repair.status)),
           ]),
         ]),
         h('div', { class: 'mt-2 space-y-1 text-xs leading-5 text-slate-600 dark:text-slate-300' }, [
-          h('p', { class: 'truncate' }, `Miejsce naprawy: ${repairPlaceLabel(props.repair)}`),
-          h('p', `Przyjazd: ${formatDateTime(props.repair.plannedArrivalAt)}`),
+          props.showPlace ? h('p', { class: 'truncate' }, `Miejsce naprawy: ${repairPlaceLabel(props.repair)}`) : null,
+          h('p', [
+            h('span', { class: 'text-slate-500 dark:text-slate-400' }, 'Planowany przyjazd: '),
+            h('span', { class: 'font-medium text-slate-700 dark:text-slate-200' }, formatDateTime(props.repair.plannedArrivalAt)),
+          ]),
+          h('p', { class: 'flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1' }, [
+            h('span', { class: 'min-w-0' }, [
+              h('span', { class: 'text-slate-500 dark:text-slate-400' }, 'Planowany odjazd: '),
+              h('span', { class: 'font-medium text-slate-700 dark:text-slate-200' }, formatDateTime(props.repair.plannedDepartureAt)),
+            ]),
+            h('span', { class: departureCountdown.className }, departureCountdown.label),
+          ]),
         ]),
         totalFaults
           ? h('button', {
@@ -612,14 +781,14 @@ const RepairCardContent = defineComponent({
           ])
           : null,
         isExpanded
-          ? h('div', { class: 'mt-2 space-y-1 rounded-xl border border-slate-100 bg-slate-50 p-2 dark:border-app-border dark:bg-app-dark' }, openFaults.length
-            ? openFaults.map((fault) => h('div', { key: fault.id, class: 'flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200' }, [
+          ? h('div', { class: 'mt-2 space-y-1 rounded-xl border border-slate-100 bg-slate-50 p-2 dark:border-app-border dark:bg-app-dark' }, faults.length
+            ? faults.map((fault) => h('div', { key: fault.id, class: 'flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200' }, [
               fault.status === 'DONE'
-                ? h(CheckCircle2, { class: 'h-3.5 w-3.5 shrink-0 text-success-600 dark:text-success-400' })
+                ? h(CircleCheck, { class: 'h-3.5 w-3.5 shrink-0 text-success-600 dark:text-success-400' })
                 : h('span', { class: 'h-3.5 w-3.5 shrink-0 rounded-full border border-slate-300 dark:border-app-muted' }),
               h('span', { class: 'truncate' }, fault.description),
             ]))
-            : [h('p', { class: 'text-xs text-slate-500 dark:text-slate-400' }, 'Brak otwartych usterek.')])
+            : [h('p', { class: 'text-xs text-slate-500 dark:text-slate-400' }, 'Brak danych o usterkach.')])
           : null,
       ])
     }
@@ -638,8 +807,8 @@ function normalizeRepairStatus(status: string | null | undefined): RepairStatus 
     return 'ready_to_be_repaired'
   }
 
-  if (lower === 'in_progress') {
-    return 'in_progress'
+  if (lower === 'at_location') {
+    return 'at_location'
   }
 
   if (['new', 'planned', 'done', 'cancelled'].includes(lower)) {
@@ -654,7 +823,7 @@ function statusLabel(status: string | null | undefined) {
     new: 'Nowa',
     planned: 'Zaplanowana',
     ready_to_be_repaired: 'Gotowa',
-    in_progress: 'W trakcie',
+    at_location: 'W lokalizacji',
     IN_FIELD: 'W terenie',
     done: 'Zakończona',
     cancelled: 'Anulowana',
@@ -678,7 +847,7 @@ function statusVariant(status: string | null | undefined): 'neutral' | 'success'
     return 'info'
   }
 
-  if (normalized === 'in_progress' || normalized === 'ready_to_be_repaired') {
+  if (normalized === 'at_location' || normalized === 'ready_to_be_repaired') {
     return 'warning'
   }
 
@@ -692,7 +861,7 @@ function columnKeyForRepair(repair: Repair): RepairColumnKey | null {
     return null
   }
 
-  if (status === 'in_progress') {
+  if (status === 'at_location') {
     return 'progress'
   }
 
@@ -709,6 +878,62 @@ function repairVehicleLabel(repair: Repair) {
 
 function repairPlaceLabel(repair: Repair) {
   return repair.place?.name || repair.placeName || (repair.placeId ? `Miejsce #${repair.placeId}` : 'Brak miejsca')
+}
+
+function repairPlaceName(repair: Repair) {
+  return repair.place?.name || repair.placeName || ''
+}
+
+function isBaseRepair(repair: Repair) {
+  return repairPlaceName(repair).trim().toLocaleLowerCase('pl-PL') === 'baza'
+}
+
+function formatCompactDuration(milliseconds: number) {
+  const totalMinutes = Math.max(0, Math.floor(milliseconds / 60000))
+  const days = Math.floor(totalMinutes / 1440)
+  const hours = Math.floor((totalMinutes % 1440) / 60)
+  const minutes = totalMinutes % 60
+
+  if (days > 0) {
+    return `${days}d ${hours}h`
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}min`
+  }
+
+  return `${minutes}min`
+}
+
+function departureCountdownLabel(value: string | null | undefined) {
+  if (!value) {
+    return {
+      label: 'Brak odjazdu',
+      className: 'rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:border-app-border dark:bg-app-elevated dark:text-slate-300',
+    }
+  }
+
+  const timestamp = new Date(value).getTime()
+
+  if (Number.isNaN(timestamp)) {
+    return {
+      label: '-',
+      className: 'rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:border-app-border dark:bg-app-elevated dark:text-slate-300',
+    }
+  }
+
+  const diff = timestamp - nowTick.value
+  const isOverdue = diff < 0
+  const label = isOverdue
+    ? `${formatCompactDuration(Math.abs(diff))} po terminie`
+    : `za ${formatCompactDuration(diff)}`
+
+  return {
+    label,
+    className: isOverdue
+      ? 'rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-300'
+      : 'rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:border-app-border dark:bg-app-elevated dark:text-slate-200',
+  }
 }
 
 function parseDateOnly(value: string | null | undefined) {
@@ -811,11 +1036,19 @@ function createDraftFault(): DraftFault {
   return {
     id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
     description: '',
-    assignedMechanicId: '',
+    photos: [],
+    photoError: '',
   }
 }
 
+function clearDraftFaultPhotoDrafts(faults = draftFaults.value) {
+  faults.forEach((fault) => {
+    fault.photos.forEach((photo) => URL.revokeObjectURL(photo.objectUrl))
+  })
+}
+
 function resetCreateForm() {
+  clearDraftFaultPhotoDrafts()
   Object.assign(createForm, {
     vehicleId: '',
     placeId: '',
@@ -841,21 +1074,80 @@ function nullableDescription(value: string) {
   return normalized || null
 }
 
-function mechanicIdValue(value: string) {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) && value !== '' ? parsed : null
-}
-
 function addDraftFault() {
   draftFaults.value = [...draftFaults.value, createDraftFault()]
 }
 
 function removeDraftFault(id: string) {
+  const removedFault = draftFaults.value.find((fault) => fault.id === id)
+  if (removedFault) {
+    clearDraftFaultPhotoDrafts([removedFault])
+  }
+
   draftFaults.value = draftFaults.value.filter((fault) => fault.id !== id)
 
   if (!draftFaults.value.length) {
     draftFaults.value = [createDraftFault()]
   }
+}
+
+function validateRepairPhoto(file: File) {
+  if (!ALLOWED_PHOTO_TYPES.has(file.type)) {
+    return 'Dozwolone formaty: JPG, PNG, GIF i WEBP.'
+  }
+
+  if (file.size > MAX_PHOTO_SIZE) {
+    return 'Zdjęcie może mieć maksymalnie 20 MB.'
+  }
+
+  return null
+}
+
+function handleDraftFaultPhotoSelection(faultId: string, event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  const fault = draftFaults.value.find((item) => item.id === faultId)
+  input.value = ''
+
+  if (!fault) {
+    return
+  }
+
+  fault.photoError = ''
+
+  files.forEach((file) => {
+    const validationError = validateRepairPhoto(file)
+
+    if (validationError) {
+      fault.photoError = validationError
+      return
+    }
+
+    fault.photos = [
+      ...fault.photos,
+      {
+        id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(16).slice(2)}`,
+        file,
+        objectUrl: URL.createObjectURL(file),
+      },
+    ]
+  })
+}
+
+function removeDraftFaultPhoto(faultId: string, photoId: string) {
+  const fault = draftFaults.value.find((item) => item.id === faultId)
+
+  if (!fault) {
+    return
+  }
+
+  const removedPhoto = fault.photos.find((photo) => photo.id === photoId)
+
+  if (removedPhoto) {
+    URL.revokeObjectURL(removedPhoto.objectUrl)
+  }
+
+  fault.photos = fault.photos.filter((photo) => photo.id !== photoId)
 }
 
 function openCreateModal() {
@@ -866,6 +1158,7 @@ function openCreateModal() {
 
 function closeCreateModal() {
   if (!isMutating.value) {
+    clearDraftFaultPhotoDrafts()
     isCreateModalOpen.value = false
   }
 }
@@ -1101,7 +1394,7 @@ async function submitCreateRepair() {
   isMutating.value = true
 
   try {
-    const createdRepair = await repairStore.createRepairWithFaults({
+    const createResult = await repairStore.createRepairWithFaults({
       vehicleId: Number(createForm.vehicleId),
       placeId: Number(createForm.placeId),
       plannedArrivalAt: toIsoDateTime(createForm.arrivalAt),
@@ -1110,15 +1403,19 @@ async function submitCreateRepair() {
       description: nullableDescription(createForm.description),
     }, draftFaults.value.map((fault) => ({
       description: fault.description,
-      assignedMechanicId: mechanicIdValue(fault.assignedMechanicId),
+      assignedMechanicId: null,
+      photos: fault.photos.map((photo) => photo.file),
     })))
 
     await refreshAfterMutation()
     uiStore.addToast({
-      type: 'success',
+      type: createResult.photoUploadFailures ? 'warning' : 'success',
       title: 'Naprawa dodana',
-      message: `Dodano naprawę dla ${repairVehicleLabel(createdRepair)}.`,
+      message: createResult.photoUploadFailures
+        ? `Dodano naprawę dla ${repairVehicleLabel(createResult.repair)}, ale nie udało się wysłać zdjęć: ${createResult.photoUploadFailures}.`
+        : `Dodano naprawę dla ${repairVehicleLabel(createResult.repair)}.`,
     })
+    clearDraftFaultPhotoDrafts()
     isCreateModalOpen.value = false
   } catch {
     uiStore.addToast({
@@ -1344,6 +1641,10 @@ watch([selectedWeekKey, mapRepairVehicles], () => {
 })
 
 onMounted(async () => {
+  clockInterval = window.setInterval(() => {
+    nowTick.value = Date.now()
+  }, 60000)
+
   await loadData()
 
   if (activeTab.value === 'map') {
@@ -1353,6 +1654,11 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   clearRepairMarkers()
+  clearDraftFaultPhotoDrafts()
+
+  if (clockInterval) {
+    window.clearInterval(clockInterval)
+  }
 })
 </script>
 
@@ -1388,6 +1694,47 @@ onBeforeUnmount(() => {
 :global(.dark) .icon-button:hover:not(:disabled) {
   background: #48484d;
   color: rgb(248 250 252);
+}
+
+.repair-stat-tile {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid rgb(var(--rw-app-border));
+  border-radius: 1rem;
+  background: rgb(var(--rw-app-panel));
+  padding: 0.75rem;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.repair-stat-icon {
+  display: inline-flex;
+  height: 2rem;
+  width: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: rgb(var(--rw-app-elevated));
+  color: rgb(var(--rw-app-muted));
+}
+
+.repair-stat-label {
+  overflow: hidden;
+  color: rgb(var(--rw-app-muted));
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repair-stat-value {
+  color: rgb(var(--rw-app-text));
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.5rem;
 }
 </style>
 

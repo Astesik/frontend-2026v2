@@ -3,6 +3,8 @@ import type {
   Repair,
   RepairComment,
   RepairFault,
+  RepairFaultComment,
+  RepairFaultPhoto,
   RepairFaultStatus,
   RepairFaultPayload,
   RepairFaultUpdatePayload,
@@ -36,6 +38,35 @@ function normalizeComment(comment: RepairComment): RepairComment {
   }
 }
 
+function normalizeFaultComment(comment: RepairFaultComment): RepairFaultComment {
+  const rawComment = comment as RepairFaultComment & {
+    content?: string | null
+    createdByUsername?: string | null
+    username?: string | null
+    createdBy?: number | { id?: number; username?: string | null } | null
+  }
+  const createdBy = rawComment.createdBy
+  const createdById = typeof createdBy === 'number'
+    ? createdBy
+    : typeof createdBy === 'object' && createdBy
+      ? Number(createdBy.id)
+      : null
+
+  return {
+    ...comment,
+    userId: comment.userId ?? createdById,
+    username: comment.username || rawComment.createdByUsername || (typeof createdBy === 'object' && createdBy ? createdBy.username || null : null),
+    text: comment.text || rawComment.content || '',
+  }
+}
+
+function normalizeFaultPhoto(photo: RepairFaultPhoto): RepairFaultPhoto {
+  return {
+    ...photo,
+    uploadedBy: photo.uploadedBy || null,
+  }
+}
+
 function normalizeRepairStatus(status: string | null | undefined): RepairStatus {
   const normalized = String(status || 'new').trim()
   const lower = normalized.toLowerCase()
@@ -48,8 +79,8 @@ function normalizeRepairStatus(status: string | null | undefined): RepairStatus 
     return 'ready_to_be_repaired'
   }
 
-  if (lower === 'in_progress') {
-    return 'in_progress'
+  if (lower === 'at_location') {
+    return 'at_location'
   }
 
   if (['new', 'planned', 'done', 'cancelled'].includes(lower)) {
@@ -91,6 +122,8 @@ function normalizeFault(fault: RepairFault): RepairFault {
     performedByMechanic?: unknown
     repairedAt?: string | null
     updatedAt?: string | null
+    comments?: RepairFaultComment[] | null
+    photos?: RepairFaultPhoto[] | null
   }
   const assignedMechanic = rawFault.assignedMechanic
   const completedMechanic = rawFault.completedByMechanic || rawFault.performedByMechanic
@@ -106,6 +139,8 @@ function normalizeFault(fault: RepairFault): RepairFault {
     resolvedAt: fault.resolvedAt || rawFault.repairedAt || null,
     repairedAt: rawFault.repairedAt || null,
     updatedAt: rawFault.updatedAt || null,
+    comments: Array.isArray(rawFault.comments) ? rawFault.comments.map(normalizeFaultComment) : [],
+    photos: Array.isArray(rawFault.photos) ? rawFault.photos.map(normalizeFaultPhoto) : [],
   }
 }
 
@@ -252,5 +287,38 @@ export const repairService = {
 
   async deleteRepairFault(repairId: number | string, faultId: number | string) {
     await api.delete(`/api/repairs/${repairId}/faults/${faultId}`)
+  },
+
+  async getRepairFaultComments(repairId: number | string, faultId: number | string, options?: { silent?: boolean }) {
+    const { data } = await api.get<RepairFaultComment[]>(`/api/repairs/${repairId}/faults/${faultId}/comments`, {
+      skipErrorToast: options?.silent,
+    })
+    return Array.isArray(data) ? data.map(normalizeFaultComment) : []
+  },
+
+  async addRepairFaultComment(repairId: number | string, faultId: number | string, text: string) {
+    const { data } = await api.post<RepairFaultComment>(`/api/repairs/${repairId}/faults/${faultId}/comments`, { text })
+    return normalizeFaultComment(data)
+  },
+
+  async uploadRepairFaultPhoto(repairId: number | string, faultId: number | string, file: File) {
+    const formData = new FormData()
+    formData.append('file', file, file.name)
+
+    const { data } = await api.post<RepairFaultPhoto>(`/api/repairs/${repairId}/faults/${faultId}/photos`, formData)
+    return normalizeFaultPhoto(data)
+  },
+
+  async loadRepairFaultPhoto(photo: RepairFaultPhoto, options?: { silent?: boolean }) {
+    const response = await api.get<Blob>(photo.url, {
+      responseType: 'blob',
+      skipErrorToast: options?.silent,
+    })
+
+    return URL.createObjectURL(response.data)
+  },
+
+  async deleteRepairFaultPhoto(repairId: number | string, faultId: number | string, photoId: number | string) {
+    await api.delete(`/api/repairs/${repairId}/faults/${faultId}/photos/${photoId}`)
   },
 }

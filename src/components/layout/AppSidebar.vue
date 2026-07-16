@@ -17,7 +17,10 @@
         class="flex min-w-0 items-center gap-3"
         :class="displaySidebarCollapsed ? 'justify-center' : ''"
       >
-        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-50">
+        <div
+          class="flex shrink-0 items-center justify-center border border-slate-200 bg-white text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-50"
+          :class="displaySidebarCollapsed ? 'h-8 w-8 rounded-xl' : 'h-10 w-10 rounded-2xl'"
+        >
           <Route class="h-5 w-5" />
         </div>
         <p v-if="!displaySidebarCollapsed" class="truncate text-sm font-semibold text-slate-950 dark:text-slate-50">
@@ -27,7 +30,8 @@
 
       <button
         type="button"
-        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-slate-50"
+        class="flex shrink-0 items-center justify-center border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-slate-50"
+        :class="displaySidebarCollapsed ? 'h-8 w-8 rounded-xl' : 'h-9 w-9 rounded-2xl'"
         aria-label="Przelacz menu"
         @click="handleSidebarToggle"
       >
@@ -59,7 +63,10 @@
         :title="displaySidebarCollapsed ? authStore.displayName : undefined"
         @click="isUserMenuOpen = !isUserMenuOpen"
       >
-        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-sm font-semibold text-slate-700 dark:bg-app-panel dark:text-slate-200">
+        <div
+          class="flex shrink-0 items-center justify-center rounded-full bg-white font-semibold text-slate-700 dark:bg-app-panel dark:text-slate-200"
+          :class="displaySidebarCollapsed ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm'"
+        >
           {{ initials }}
         </div>
         <div v-if="!displaySidebarCollapsed" class="min-w-0 flex-1 text-left">
@@ -156,7 +163,7 @@ const sidebarClasses = computed(() => {
   const mobileState = uiStore.mobileSidebarOpen
     ? 'fixed inset-y-0 left-0 z-50 flex w-screen px-3'
     : 'pointer-events-none fixed inset-y-0 left-0 z-50 w-screen -translate-x-full px-3'
-  const desktopState = uiStore.sidebarCollapsed ? 'md:w-24 md:px-2' : 'md:w-72 md:px-3'
+  const desktopState = uiStore.sidebarCollapsed ? 'md:w-[50px] md:px-2' : 'md:w-72 md:px-3'
 
   return `${mobileState} md:pointer-events-auto md:relative md:inset-auto md:z-30 md:flex md:translate-x-0 ${desktopState}`
 })

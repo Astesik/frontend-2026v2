@@ -4,10 +4,10 @@
       v-if="vehiclePanelCollapsed"
       type="button"
       class="absolute left-3 top-3 z-40 inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated md:hidden"
-      :aria-label="activeMode === 'history' ? 'Pokaż historię' : 'Pokaż listę pojazdów'"
+      aria-label="Pokaż panel mapy"
       @click.stop="toggleVehiclePanel"
     >
-      <component :is="activeMode === 'history' ? History : List" class="h-4 w-4" />
+      <component :is="activeModeIcon" class="h-4 w-4" />
     </button>
 
     <button
@@ -41,18 +41,28 @@
 
       <div class="border-b border-slate-200 p-3 pr-11 dark:border-app-border md:pr-3">
         <div class="flex items-center gap-2">
-          <div class="grid min-w-0 flex-1 grid-cols-3 gap-2">
-          <button
-            v-for="item in modes"
-            :key="item.value"
-            type="button"
-            class="inline-flex h-8 items-center justify-center gap-1.5 rounded-xl border text-xs font-medium transition"
-            :class="activeMode === item.value ? activeModeClasses : inactiveModeClasses"
-            @click="activeMode = item.value"
-          >
-            <component :is="item.icon" class="h-3.5 w-3.5" />
-            {{ item.label }}
-          </button>
+          <div v-if="activeMode === 'places'" class="flex h-9 min-w-0 flex-1 items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-2.5 dark:border-app-border dark:bg-app-panel">
+            <span class="flex min-w-0 items-center gap-2 font-semibold text-slate-950 dark:text-slate-50">
+              <MapPin class="h-4 w-4 shrink-0" />
+              <span class="truncate">Edycja stref</span>
+            </span>
+            <button type="button" class="shrink-0 rounded-lg px-2 py-1 text-[11px] font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-slate-50" @click="finishPlaceEditing">
+              Gotowe
+            </button>
+          </div>
+
+          <div v-else class="grid min-w-0 flex-1 grid-cols-3 gap-2">
+            <button
+              v-for="item in modes"
+              :key="item.value"
+              type="button"
+              class="inline-flex h-8 min-w-0 items-center justify-center gap-1 rounded-xl border px-1 text-[11px] font-medium transition"
+              :class="activeMode === item.value ? activeModeClasses : inactiveModeClasses"
+              @click="activeMode = item.value"
+            >
+              <component :is="item.icon" class="h-3.5 w-3.5" />
+              {{ item.label }}
+            </button>
           </div>
 
           <button
@@ -174,6 +184,68 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div v-else-if="activeMode === 'places'" class="flex min-h-0 flex-1 flex-col">
+        <div class="space-y-2 border-b border-slate-200 p-3 dark:border-app-border">
+          <AppButton full-width size="sm" :variant="isPlacePlacementMode ? 'secondary' : 'primary'" @click="togglePlacePlacementMode">
+            <X v-if="isPlacePlacementMode" class="h-3.5 w-3.5" />
+            <MapPinPlus v-else class="h-3.5 w-3.5" />
+            {{ isPlacePlacementMode ? 'Anuluj wskazywanie' : 'Dodaj miejsce na mapie' }}
+          </AppButton>
+          <p v-if="!isPlacePlacementMode" class="px-1 text-[11px] leading-4 text-slate-500 dark:text-app-muted">
+            Przeciągnij punkt centralny, aby zmienić położenie strefy.
+          </p>
+          <p v-if="isPlacePlacementMode" class="rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-[11px] font-medium text-slate-600 dark:border-app-border dark:bg-app-panel dark:text-slate-300">
+            Kliknij na mapie, aby wskazać środek nowej strefy.
+          </p>
+        </div>
+
+        <div class="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2.5">
+          <div v-if="arePlacesLoading" class="p-3 text-center text-xs text-slate-500 dark:text-app-muted">
+            Pobieranie miejsc...
+          </div>
+
+          <article
+            v-for="place in places"
+            :key="place.id"
+            class="rounded-2xl border border-slate-200 bg-white p-2.5 shadow-sm dark:border-app-border dark:bg-app-panel"
+          >
+            <button type="button" class="flex w-full min-w-0 items-start gap-2 text-left" @click="focusPlace(place)">
+              <span class="mt-0.5 h-3 w-3 shrink-0 rounded-full border border-white shadow-sm" :style="{ backgroundColor: place.color }"></span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate text-xs font-semibold text-slate-950 dark:text-slate-50">{{ place.name }}</span>
+                <span class="mt-0.5 block truncate text-[11px] text-slate-500 dark:text-app-muted">
+                  {{ place.city || formatPlaceCoordinates(place) }} · {{ place.radiusMeters }} m
+                </span>
+              </span>
+              <AppBadge :variant="place.visible ? 'success' : 'neutral'">{{ place.visible ? 'Widoczne' : 'Ukryte' }}</AppBadge>
+            </button>
+
+            <div class="mt-2 flex justify-end gap-1 border-t border-slate-100 pt-2 dark:border-app-border">
+              <button
+                type="button"
+                class="inline-flex h-8 items-center gap-1 rounded-xl px-2 text-[11px] font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
+                @click="openEditPlace(place)"
+              >
+                <Pencil class="h-3.5 w-3.5" />
+                Edytuj
+              </button>
+              <button
+                type="button"
+                class="inline-flex h-8 items-center gap-1 rounded-xl px-2 text-[11px] font-medium text-slate-500 transition hover:bg-red-50 hover:text-red-700 dark:text-slate-300 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+                @click="placeToDelete = place"
+              >
+                <Trash2 class="h-3.5 w-3.5" />
+                Usuń
+              </button>
+            </div>
+          </article>
+
+          <div v-if="!arePlacesLoading && !places.length" class="rounded-2xl border border-dashed border-slate-200 p-4 text-center text-xs text-slate-500 dark:border-app-border dark:text-slate-400">
+            Brak zapisanych miejsc.
+          </div>
         </div>
       </div>
 
@@ -306,6 +378,18 @@
       <div ref="mapElement" class="h-full w-full"></div>
 
       <div
+        v-if="isPlacePlacementMode"
+        class="absolute left-1/2 top-3 z-30 flex max-w-[calc(100%-7rem)] -translate-x-1/2 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-200"
+        @click.stop
+      >
+        <MapPinPlus class="h-4 w-4 shrink-0" />
+        <span class="truncate">Wskaż środek miejsca</span>
+        <button type="button" class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg transition hover:bg-slate-100 dark:hover:bg-app-elevated" aria-label="Anuluj dodawanie miejsca" @click="togglePlacePlacementMode">
+          <X class="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div
         v-if="activeMode === 'history' && (fleetStore.isRouteHistoryLoading || isHistoryRendering)"
         class="pointer-events-none absolute inset-x-0 top-0 z-50 h-1 overflow-hidden bg-slate-200/80 dark:bg-slate-700/80"
         role="progressbar"
@@ -344,19 +428,31 @@
         </button>
       </div>
 
-      <div class="absolute left-3 top-3 z-20" @click.stop>
-        <button
-          type="button"
-          class="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
-          aria-label="Warstwy mapy"
-          @click="layersMenuOpen = !layersMenuOpen"
-        >
-          <Layers class="h-4 w-4" />
-        </button>
+      <div class="absolute top-3 z-20 transition-[left]" :class="vehiclePanelCollapsed ? 'left-14' : 'left-3'" @click.stop>
+        <div class="flex flex-col gap-2">
+          <button
+            type="button"
+            class="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
+            aria-label="Warstwy mapy"
+            @click="toggleLayersMenu"
+          >
+            <Layers class="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
+            class="inline-flex h-9 w-9 items-center justify-center rounded-2xl border shadow-sm transition"
+            :class="activeMode === 'places' || placesMenuOpen ? activeModeClasses : inactiveModeClasses"
+            aria-label="Strefy na mapie"
+            @click="togglePlacesMenu"
+          >
+            <MapPin class="h-4 w-4" />
+          </button>
+        </div>
 
         <div
           v-if="layersMenuOpen"
-          class="mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2.5 text-xs shadow-sm dark:border-app-border dark:bg-app-panel"
+          class="absolute left-11 top-0 w-56 max-w-[calc(100vw-4rem)] rounded-2xl border border-slate-200 bg-white p-2.5 text-xs shadow-sm dark:border-app-border dark:bg-app-panel"
         >
           <section>
             <p class="mb-1.5 text-[11px] font-semibold uppercase text-slate-500 dark:text-app-muted">Motyw</p>
@@ -378,6 +474,18 @@
             <p class="mb-1.5 text-[11px] font-semibold uppercase text-slate-500 dark:text-app-muted">Warstwy</p>
             <MapSwitch v-model="mapSettings.map.trafficLayer" label="Ruch drogowy" />
           </section>
+        </div>
+
+        <div
+          v-if="placesMenuOpen"
+          class="absolute left-11 top-11 w-56 max-w-[calc(100vw-4rem)] rounded-2xl border border-slate-200 bg-white p-2.5 text-xs shadow-sm dark:border-app-border dark:bg-app-panel"
+        >
+          <p class="mb-2 text-[11px] font-semibold uppercase text-slate-500 dark:text-app-muted">Strefy</p>
+          <MapSwitch v-model="mapSettings.map.showPlaces" label="Pokaż na mapie" />
+          <AppButton class="mt-2" full-width size="sm" variant="secondary" @click="openPlacesPanel">
+            <Pencil class="h-3.5 w-3.5" />
+            Edytuj strefy
+          </AppButton>
         </div>
       </div>
 
@@ -573,30 +681,131 @@
       </div>
     </div>
 
+    <Teleport to="body">
+      <div
+        v-if="isPlaceFormOpen"
+        class="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-slate-950/40 p-3 sm:p-6"
+        @click.self="closePlaceForm"
+      >
+        <form
+          class="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel"
+          @submit.prevent="submitPlaceForm"
+        >
+          <header class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-app-border sm:px-5 sm:py-4">
+            <div class="min-w-0">
+              <h2 class="truncate text-base font-semibold text-slate-950 dark:text-slate-50">
+                {{ placeForm.id ? 'Edytuj miejsce' : 'Dodaj miejsce' }}
+              </h2>
+              <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-app-muted">
+                {{ formatPlaceFormCoordinates }}
+              </p>
+            </div>
+            <button type="button" class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50" aria-label="Zamknij formularz" @click="closePlaceForm">
+              <X class="h-4 w-4" />
+            </button>
+          </header>
+
+          <div class="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
+            <div v-if="placeForm.id" class="flex gap-1 rounded-xl bg-slate-100 p-1 dark:bg-app-elevated">
+              <button type="button" class="h-8 flex-1 rounded-lg text-xs font-semibold transition" :class="placeFormTab === 'data' ? 'bg-white text-slate-950 shadow-sm dark:bg-app-dark dark:text-slate-50' : 'text-slate-500 dark:text-app-muted'" @click="placeFormTab = 'data'">Dane miejsca</button>
+              <button type="button" class="h-8 flex-1 rounded-lg text-xs font-semibold transition" :class="placeFormTab === 'events' ? 'bg-white text-slate-950 shadow-sm dark:bg-app-dark dark:text-slate-50' : 'text-slate-500 dark:text-app-muted'" @click="placeFormTab = 'events'">Zdarzenia</button>
+            </div>
+
+            <template v-if="placeFormTab === 'data'">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <AppInput v-model="placeForm.name" label="Nazwa" placeholder="Np. Baza Warszawa" required />
+              <AppInput v-model="placeForm.city" label="Miasto" placeholder="Warszawa" />
+              <AppInput v-model="placeForm.phone" label="Telefon" placeholder="+48 000 000 000" />
+              <AppInput v-model="placeForm.email" label="E-mail" type="email" placeholder="kontakt@firma.pl" />
+              <AppInput v-model="placeForm.radiusMeters" label="Promień strefy (m)" type="number" min="1" placeholder="100" required />
+
+              <label class="block">
+                <span class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Kolor strefy</span>
+                <div class="flex h-11 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 shadow-sm dark:border-app-border dark:bg-app-dark">
+                  <input v-model="placeForm.color" type="color" class="h-7 w-9 cursor-pointer rounded-lg border-0 bg-transparent p-0" aria-label="Kolor strefy" />
+                  <span class="font-mono text-xs font-medium uppercase text-slate-600 dark:text-slate-300">{{ placeForm.color }}</span>
+                </div>
+              </label>
+            </div>
+
+            <label class="block">
+              <span class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Opis</span>
+              <textarea
+                v-model="placeForm.description"
+                class="min-h-24 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-app-border dark:bg-app-dark dark:text-slate-50 dark:placeholder:text-app-muted dark:focus:border-app-muted dark:focus:ring-app-elevated"
+                maxlength="255"
+                placeholder="Dodatkowe informacje o miejscu"
+              ></textarea>
+            </label>
+
+            <MapSwitch v-model="placeForm.visible" label="Miejsce widoczne na mapie" />
+
+            <p v-if="placeFormError" class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-300">
+              {{ placeFormError }}
+            </p>
+            </template>
+
+            <PlaceEventsPanel v-else-if="placeForm.id" :place-id="placeForm.id" />
+          </div>
+
+          <footer v-if="placeFormTab === 'data'" class="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-4 py-3 dark:border-app-border sm:px-5 sm:py-4">
+            <AppButton type="button" variant="secondary" @click="closePlaceForm">Anuluj</AppButton>
+            <AppButton type="submit" :loading="isPlaceMutating">
+              {{ placeForm.id ? 'Zapisz zmiany' : 'Dodaj miejsce' }}
+            </AppButton>
+          </footer>
+        </form>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
+        v-if="placeToDelete"
+        class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/40 p-4"
+        @click.self="placeToDelete = null"
+      >
+        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
+          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
+            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Usunąć miejsce?</h2>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Strefa „{{ placeToDelete.name }}” zniknie z mapy.
+            </p>
+          </header>
+          <footer class="flex justify-end gap-2 px-5 py-4">
+            <AppButton variant="secondary" @click="placeToDelete = null">Anuluj</AppButton>
+            <AppButton variant="danger" :loading="isPlaceMutating" @click="confirmDeletePlace">Usuń</AppButton>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
+
   </div>
 </template>
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, defineComponent, h, markRaw, onBeforeUnmount, onMounted, reactive, ref, render, shallowRef, watch, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowDown, ArrowUp, ArrowUpDown, CircleAlert, Container, Copy, Flag, Gauge, GlobeOff, History, Layers, List, LocateFixed, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, Settings, TriangleAlert, Truck, Wrench, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowUp, ArrowUpDown, CircleAlert, Container, Copy, Flag, Gauge, GlobeOff, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, Settings, Trash2, TriangleAlert, Truck, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import VehicleSearchSelect from '@/components/selects/VehicleSearchSelect.vue'
+import PlaceEventsPanel from '@/components/places/PlaceEventsPanel.vue'
 import { usePositionHistory, type RouteLatLng } from '@/composables/usePositionHistory'
 import { loadGoogleMaps } from '@/services/googleMapsLoader'
 import type { ApiPositionHistoryPoint } from '@/services/positionService'
 import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
+import { usePlaceStore } from '@/stores/placeStore'
 import { useRepairStore } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
 import type { Vehicle } from '@/types/fleet'
+import type { Place, PlacePayload } from '@/types/place'
 import type { Repair } from '@/types/repair'
 
-type MapMode = 'list' | 'history' | 'settings'
+type MapMode = 'list' | 'history' | 'places' | 'settings'
 type MapState = 'missing-key' | 'loading' | 'ready' | 'error'
 type FuelUnit = 'auto' | 'liters' | 'percent'
 type MapTheme = 'light' | 'dark'
@@ -625,6 +834,19 @@ type AlertTooltip = {
   x: number
   y: number
   pinned: boolean
+}
+type PlaceFormState = {
+  id: number | null
+  name: string
+  phone: string
+  radiusMeters: string
+  color: string
+  latitude: number | null
+  longitude: number | null
+  visible: boolean
+  city: string
+  email: string
+  description: string
 }
 const MAP_SETTINGS_KEY = 'routewise.map.settings'
 const MAP_SELECTED_FLEET_KEY_PREFIX = 'routewise.map.selectedFleet'
@@ -765,6 +987,7 @@ const defaultMapSettings = {
     mapTheme: 'light' as MapTheme,
     mapType: 'roadmap' as GoogleMapType,
     trafficLayer: false,
+    showPlaces: true,
     fuelUnit: 'percent' as FuelUnit,
   },
 }
@@ -832,6 +1055,22 @@ function readMapSettings() {
   } catch {
     localStorage.removeItem(MAP_SETTINGS_KEY)
     return defaultMapSettings
+  }
+}
+
+function emptyPlaceForm(): PlaceFormState {
+  return {
+    id: null,
+    name: '',
+    phone: '',
+    radiusMeters: '100',
+    color: '#7093ff',
+    latitude: null,
+    longitude: null,
+    visible: true,
+    city: '',
+    email: '',
+    description: '',
   }
 }
 
@@ -927,8 +1166,14 @@ const fleetStore = useFleetStore()
 const uiStore = useUiStore()
 const authStore = useAuthStore()
 const repairStore = useRepairStore()
+const placeStore = usePlaceStore()
 const router = useRouter()
 const { repairs } = storeToRefs(repairStore)
+const {
+  places,
+  isLoading: arePlacesLoading,
+  isMutating: isPlaceMutating,
+} = storeToRefs(placeStore)
 const positionHistory = usePositionHistory()
 const activeMode = ref<MapMode>('list')
 const selectedFleetId = ref(readSelectedFleet())
@@ -945,6 +1190,13 @@ const todayRoutePointMarkers = new Map<string, any>()
 const positionRefreshTimer = ref<number | null>(null)
 const activeAlertTooltip = ref<AlertTooltip | null>(null)
 const layersMenuOpen = ref(false)
+const placesMenuOpen = ref(false)
+const isPlacePlacementMode = ref(false)
+const isPlaceFormOpen = ref(false)
+const placeFormTab = ref<'data' | 'events'>('data')
+const placeToDelete = ref<Place | null>(null)
+const placeFormError = ref('')
+const placeForm = reactive<PlaceFormState>(emptyPlaceForm())
 const isHistoryRendering = ref(false)
 const historyRenderProgress = ref(0)
 const mapSettings = reactive(readMapSettings())
@@ -974,12 +1226,19 @@ let routeZoomListener: any | null = null
 let routeZoomRefreshFrameId: number | null = null
 let renderedRoutePositionCount = 0
 let isRouteRenderComplete = false
+let placeMapClickListener: any | null = null
+const placeCircles = new Map<number, any>()
+const placeMarkers = new Map<number, any>()
 
 const modes: Array<{ value: MapMode; label: string; icon: Component }> = [
   { value: 'list', label: 'Lista', icon: List },
   { value: 'history', label: 'Historia', icon: History },
-  { value: 'settings', label: 'Ustawienia', icon: Settings },
+  { value: 'settings', label: 'Opcje', icon: Settings },
 ]
+
+const activeModeIcon = computed(() => activeMode.value === 'places'
+  ? MapPin
+  : modes.find((mode) => mode.value === activeMode.value)?.icon || List)
 
 const historyPresetOptions = [
   { value: 'today', label: 'Dziś' },
@@ -1018,6 +1277,11 @@ const selectedVehicle = computed(() => (
     ? fleetStore.vehicles.find((vehicle) => vehicle.id === selectedVehicleId.value) || null
     : null
 ))
+
+const formatPlaceFormCoordinates = computed(() => {
+  if (placeForm.latitude === null || placeForm.longitude === null) return 'Brak współrzędnych'
+  return `${placeForm.latitude.toFixed(6)}, ${placeForm.longitude.toFixed(6)}`
+})
 
 const filteredVehicles = computed(() => {
   const query = vehicleSearch.value.trim().toLowerCase()
@@ -1138,6 +1402,14 @@ const selectedVehicleLifecycleItems = computed(() => {
     {
       label: 'Winieta UK',
       date: selectedVehicle.value.vignetteUk,
+    },
+    {
+      label: 'Winieta Luksemburg',
+      date: selectedVehicle.value.vignetteLuxembourg,
+    },
+    {
+      label: 'Winieta Dania',
+      date: selectedVehicle.value.vignetteDenmark,
     },
   ].map((item) => {
     const daysLeft = daysUntilDate(item.date)
@@ -1609,7 +1881,7 @@ function repairStatusLabel(status: Repair['status']) {
     new: 'Nowa',
     planned: 'Zaplanowana',
     ready_to_be_repaired: 'Gotowa',
-    in_progress: 'W trakcie',
+    at_location: 'W lokalizacji',
     in_field: 'W terenie',
     infield: 'W terenie',
   }
@@ -1751,8 +2023,184 @@ function hidePinnedOverlays() {
   cancelAlertTooltipHide()
   activeAlertTooltip.value = null
   layersMenuOpen.value = false
+  placesMenuOpen.value = false
   if (routeInfoWindowPinned) {
     closeRouteInfoWindow()
+  }
+}
+
+function toggleLayersMenu() {
+  layersMenuOpen.value = !layersMenuOpen.value
+  placesMenuOpen.value = false
+}
+
+function togglePlacesMenu() {
+  placesMenuOpen.value = !placesMenuOpen.value
+  layersMenuOpen.value = false
+}
+
+function openPlacesPanel() {
+  activeMode.value = 'places'
+  vehiclePanelCollapsed.value = false
+  selectedVehicleId.value = null
+  vehicleDetailsDrawerOpen.value = false
+  clearTodayRoute()
+  clearPositionHistoryData()
+  layersMenuOpen.value = false
+  placesMenuOpen.value = false
+}
+
+function finishPlaceEditing() {
+  isPlacePlacementMode.value = false
+  applyPlacePlacementCursor()
+  activeMode.value = 'list'
+}
+
+function applyPlacePlacementCursor() {
+  googleMap.value?.setOptions?.({
+    draggableCursor: isPlacePlacementMode.value ? 'crosshair' : null,
+  })
+}
+
+function togglePlacePlacementMode() {
+  isPlacePlacementMode.value = !isPlacePlacementMode.value
+  placeFormError.value = ''
+
+  if (isPlacePlacementMode.value) {
+    mapSettings.map.showPlaces = true
+    layersMenuOpen.value = false
+    collapseVehiclePanelOnMobile()
+  }
+
+  applyPlacePlacementCursor()
+}
+
+function openCreatePlaceAt(latitude: number, longitude: number) {
+  Object.assign(placeForm, emptyPlaceForm(), { latitude, longitude })
+  placeFormError.value = ''
+  isPlacePlacementMode.value = false
+  placeFormTab.value = 'data'
+  isPlaceFormOpen.value = true
+  applyPlacePlacementCursor()
+}
+
+function openEditPlace(place: Place) {
+  Object.assign(placeForm, {
+    id: place.id,
+    name: place.name,
+    phone: place.phone || '',
+    radiusMeters: String(place.radiusMeters),
+    color: place.color || '#7093ff',
+    latitude: place.latitude,
+    longitude: place.longitude,
+    visible: place.visible,
+    city: place.city || '',
+    email: place.email || '',
+    description: place.description || '',
+  })
+  placeFormError.value = ''
+  placeFormTab.value = 'data'
+  isPlacePlacementMode.value = false
+  isPlaceFormOpen.value = true
+  applyPlacePlacementCursor()
+}
+
+function closePlaceForm() {
+  if (isPlaceMutating.value) return
+  isPlaceFormOpen.value = false
+  placeFormError.value = ''
+}
+
+function nullablePlaceValue(value: string) {
+  const normalized = value.trim()
+  return normalized || null
+}
+
+async function submitPlaceForm() {
+  const name = placeForm.name.trim()
+  const radiusMeters = Number(placeForm.radiusMeters)
+
+  if (!name) {
+    placeFormError.value = 'Podaj nazwę miejsca.'
+    return
+  }
+
+  if (placeForm.latitude === null || placeForm.longitude === null) {
+    placeFormError.value = 'Wskaż punkt miejsca na mapie.'
+    return
+  }
+
+  if (!Number.isFinite(radiusMeters) || radiusMeters <= 0) {
+    placeFormError.value = 'Promień musi być liczbą większą od zera.'
+    return
+  }
+
+  const payload: PlacePayload = {
+    name,
+    phone: nullablePlaceValue(placeForm.phone),
+    radiusMeters,
+    color: placeForm.color,
+    latitude: placeForm.latitude,
+    longitude: placeForm.longitude,
+    visible: placeForm.visible,
+    city: nullablePlaceValue(placeForm.city),
+    email: nullablePlaceValue(placeForm.email),
+    description: nullablePlaceValue(placeForm.description),
+  }
+
+  try {
+    if (placeForm.id) {
+      await placeStore.updatePlace(placeForm.id, payload)
+      uiStore.addToast({ type: 'success', title: 'Miejsce zaktualizowane', message: 'Zapisano zmiany miejsca.' })
+    } else {
+      await placeStore.createPlace(payload)
+      uiStore.addToast({ type: 'success', title: 'Miejsce dodane', message: 'Nowa strefa jest dostępna na mapie.' })
+    }
+
+    isPlaceFormOpen.value = false
+    mapSettings.map.showPlaces = true
+    void repairStore.loadDictionaries()
+  } catch {
+    // Global API interceptor displays the backend error.
+  }
+}
+
+async function confirmDeletePlace() {
+  if (!placeToDelete.value) return
+
+  const placeId = placeToDelete.value.id
+
+  try {
+    await placeStore.deletePlace(placeId)
+    placeToDelete.value = null
+    uiStore.addToast({ type: 'success', title: 'Miejsce usunięte', message: 'Usunięto miejsce i jego strefę z mapy.' })
+    void repairStore.loadDictionaries()
+  } catch {
+    // Keep the confirmation open; the global interceptor displays the API error.
+  }
+}
+
+function formatPlaceCoordinates(place: Place) {
+  return `${place.latitude.toFixed(5)}, ${place.longitude.toFixed(5)}`
+}
+
+function focusPlace(place: Place) {
+  if (!googleMap.value) return
+  googleMap.value.panTo({ lat: place.latitude, lng: place.longitude })
+  collapseVehiclePanelOnMobile()
+}
+
+async function movePlace(place: Place, latitude: number, longitude: number) {
+  try {
+    await placeStore.updatePlace(place.id, { latitude, longitude })
+    uiStore.addToast({
+      type: 'success',
+      title: 'Położenie zapisane',
+      message: `Zaktualizowano środek strefy „${place.name}”.`,
+    })
+  } catch {
+    await placeStore.loadPlaces({ silent: true }).catch(() => undefined)
+    renderPlaceOverlays()
   }
 }
 
@@ -1808,6 +2256,76 @@ function applyGoogleMapOptions() {
 
   googleTrafficLayer.value.setMap(mapSettings.map.trafficLayer ? googleMap.value : null)
   refreshRouteInfoWindowContent()
+}
+
+function clearPlaceOverlays() {
+  placeCircles.forEach((circle) => {
+    window.google?.maps?.event?.clearInstanceListeners?.(circle)
+    circle.setMap(null)
+  })
+  placeMarkers.forEach((marker) => {
+    window.google?.maps?.event?.clearInstanceListeners?.(marker)
+    marker.setMap(null)
+  })
+  placeCircles.clear()
+  placeMarkers.clear()
+}
+
+function renderPlaceOverlays() {
+  clearPlaceOverlays()
+
+  if (!googleMap.value || !window.google?.maps || !mapSettings.map.showPlaces) return
+
+  const isEditingPlaces = activeMode.value === 'places'
+
+  places.value.forEach((place) => {
+    if (!place.visible || !Number.isFinite(place.latitude) || !Number.isFinite(place.longitude)) return
+
+    const center = { lat: place.latitude, lng: place.longitude }
+    const circle = new window.google.maps.Circle({
+      map: googleMap.value,
+      center,
+      radius: Math.max(1, place.radiusMeters),
+      strokeColor: place.color,
+      strokeOpacity: 0.9,
+      strokeWeight: 2,
+      fillColor: place.color,
+      fillOpacity: 0.16,
+      clickable: isEditingPlaces,
+    })
+    const marker = new window.google.maps.Marker({
+      map: googleMap.value,
+      position: center,
+      title: place.name,
+      clickable: isEditingPlaces,
+      draggable: isEditingPlaces,
+      cursor: isEditingPlaces ? 'grab' : 'default',
+      icon: {
+        path: window.google.maps.SymbolPath.CIRCLE,
+        scale: 6,
+        fillColor: place.color,
+        fillOpacity: 1,
+        strokeColor: '#ffffff',
+        strokeOpacity: 1,
+        strokeWeight: 2,
+      },
+      zIndex: 20,
+    })
+
+    if (isEditingPlaces) {
+      circle.addListener('click', () => openEditPlace(place))
+      marker.addListener('click', () => openEditPlace(place))
+      marker.addListener('drag', (event: any) => {
+        if (event.latLng) circle.setCenter(event.latLng)
+      })
+      marker.addListener('dragend', (event: any) => {
+        if (!event.latLng) return
+        void movePlace(place, event.latLng.lat(), event.latLng.lng())
+      })
+    }
+    placeCircles.set(place.id, circle)
+    placeMarkers.set(place.id, marker)
+  })
 }
 
 function clearMarkers() {
@@ -2686,11 +3204,21 @@ async function initializeGoogleMap() {
         position: google.maps.ControlPosition.LEFT_BOTTOM,
       },
     }))
+    placeMapClickListener = googleMap.value.addListener('click', (event: any) => {
+      if (!isPlacePlacementMode.value || !event.latLng) {
+        hidePinnedOverlays()
+        return
+      }
+
+      openCreatePlaceAt(event.latLng.lat(), event.latLng.lng())
+    })
     routeZoomListener = googleMap.value.addListener('zoom_changed', scheduleRouteMarkersForZoom)
     applyGoogleMapOptions()
+    applyPlacePlacementCursor()
 
     mapState.value = 'ready'
     renderMarkers()
+    renderPlaceOverlays()
     void renderTodayRoute()
   } catch {
     mapState.value = 'error'
@@ -2733,6 +3261,18 @@ watch(activeMode, (mode, previousMode) => {
   clearTodayRoute()
   positionHistory.clear()
 
+  if (mode !== 'places' && isPlacePlacementMode.value) {
+    isPlacePlacementMode.value = false
+    applyPlacePlacementCursor()
+  }
+
+  if (mode === 'places') {
+    selectedVehicleId.value = null
+    vehicleDetailsDrawerOpen.value = false
+  }
+
+  renderPlaceOverlays()
+
   if (mode === 'history') {
     fleetStore.clearPositionHistory()
     vehicleDetailsDrawerOpen.value = false
@@ -2774,6 +3314,10 @@ watch(mapSettings, (value) => {
   localStorage.setItem(MAP_SETTINGS_KEY, JSON.stringify(value))
   applyGoogleMapOptions()
   renderMarkers()
+}, { deep: true })
+
+watch([places, () => mapSettings.map.showPlaces], () => {
+  renderPlaceOverlays()
 }, { deep: true })
 
 watch(selectedFleetId, (fleetId) => {
@@ -2822,6 +3366,7 @@ watch(() => mapSettings.map.historyMarkersByZoom, () => {
 
 onMounted(() => {
   void initializeGoogleMap()
+  void placeStore.loadPlaces({ silent: true }).catch(() => undefined)
   void repairStore.loadRepairs({ silent: true }).catch(() => undefined)
   startPositionRefresh()
 })
@@ -2835,10 +3380,13 @@ onBeforeUnmount(() => {
   }
 
   clearMarkers()
+  clearPlaceOverlays()
   clearTodayRoute()
   positionHistory.clear()
   routeZoomListener?.remove?.()
   routeZoomListener = null
+  placeMapClickListener?.remove?.()
+  placeMapClickListener = null
   disposeRouteInfoWindow()
   googleTrafficLayer.value?.setMap(null)
   window.google?.maps?.event?.clearInstanceListeners?.(googleTrafficLayer.value)

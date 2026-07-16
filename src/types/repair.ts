@@ -2,7 +2,7 @@ export type RepairStatus =
   | 'new'
   | 'planned'
   | 'ready_to_be_repaired'
-  | 'in_progress'
+  | 'at_location'
   | 'IN_FIELD'
   | 'done'
   | 'cancelled'
@@ -33,6 +33,8 @@ export interface RepairFault {
   repairedAt?: string | null
   updatedAt?: string | null
   createdAt: string
+  comments: RepairFaultComment[]
+  photos: RepairFaultPhoto[]
 }
 
 export interface RepairComment {
@@ -52,6 +54,16 @@ export interface RepairCreatedBy {
 
 export type RepairPhotoContentType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
 
+export interface RepairFaultComment {
+  id: number
+  repairId: number
+  faultId: number
+  userId: number | null
+  username: string | null
+  text: string
+  createdAt: string
+}
+
 export interface RepairPhoto {
   id: number
   repairId: number
@@ -61,6 +73,10 @@ export interface RepairPhoto {
   createdAt: string
   uploadedBy: RepairCreatedBy | null
   url: string
+}
+
+export interface RepairFaultPhoto extends RepairPhoto {
+  faultId?: number
 }
 
 export interface Repair {
@@ -141,4 +157,6 @@ export interface Mechanic {
 export interface PlaceSelectItem {
   id: number
   name: string
+  visible?: boolean
+  color?: string
 }

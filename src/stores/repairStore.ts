@@ -9,13 +9,26 @@ import type {
   PlaceSelectItem,
   Repair,
   RepairComment,
+  RepairFault,
+  RepairFaultComment,
   RepairFaultPayload,
   RepairFaultUpdatePayload,
+  RepairFaultPhoto,
   RepairPayload,
   RepairPhoto,
   RepairUpdatePayload,
   RepairWeek,
 } from '@/types/repair'
+
+interface RepairFaultCreatePayload extends RepairFaultPayload {
+  photos?: File[]
+}
+
+interface RepairCreateResult {
+  repair: Repair
+  faults: RepairFault[]
+  photoUploadFailures: number
+}
 
 export const useRepairStore = defineStore('repairs', () => {
   const repairs = ref<Repair[]>([])
@@ -35,6 +48,40 @@ export const useRepairStore = defineStore('repairs', () => {
   const isPhotoMutating = ref(false)
 
   const repairById = computed(() => new Map(repairs.value.map((repair) => [repair.id, repair])))
+
+  function updateRepairFaultCollections(repairId: number | string, faultId: number | string, updater: (fault: RepairFault) => RepairFault) {
+    const repairKey = String(repairId)
+    const faultKey = String(faultId)
+
+    const patchRepair = (repair: Repair) => {
+      if (String(repair.id) !== repairKey) {
+        return repair
+      }
+
+      return {
+        ...repair,
+        faults: (repair.faults || []).map((fault) => String(fault.id) === faultKey ? updater(fault) : fault),
+      }
+    }
+
+    repairs.value = repairs.value.map(patchRepair)
+    weeks.value = weeks.value.map((week) => ({
+      ...week,
+      repairs: week.repairs.map(patchRepair),
+    }))
+    fieldAndUnassigned.value = fieldAndUnassigned.value.map(patchRepair)
+
+    if (String(currentRepair.value?.id) === repairKey && currentRepair.value) {
+      currentRepair.value = patchRepair(currentRepair.value)
+    }
+
+    if (repairDetailsById.value[repairKey]) {
+      repairDetailsById.value = {
+        ...repairDetailsById.value,
+        [repairKey]: patchRepair(repairDetailsById.value[repairKey]),
+      }
+    }
+  }
 
   function upsertRepair(nextRepair: Repair) {
     const index = repairs.value.findIndex((repair) => repair.id === nextRepair.id)
@@ -160,7 +207,7 @@ export const useRepairStore = defineStore('repairs', () => {
 
     try {
       const details = await repairService.getRepair(repairId, options)
-      const comments = await repairService.getRepairComments(repairId, { silent: true }).catch(() => details.comments || [])
+      const comments = details.comments || []
       currentRepairComments.value = comments
       currentRepair.value = {
         ...details,
@@ -248,11 +295,13 @@ export const useRepairStore = defineStore('repairs', () => {
     }
   }
 
-  async function createRepairWithFaults(payload: RepairPayload, faults: RepairFaultPayload[]) {
+  async function createRepairWithFaults(payload: RepairPayload, faults: RepairFaultCreatePayload[]): Promise<RepairCreateResult> {
     isMutating.value = true
 
     try {
       const createdRepair = await repairService.createRepair(payload)
+      const createdFaults: RepairFault[] = []
+      let photoUploadFailures = 0
 
       for (const fault of faults) {
         const description = fault.description.trim()
@@ -261,14 +310,27 @@ export const useRepairStore = defineStore('repairs', () => {
           continue
         }
 
-        await repairService.addRepairFault(createdRepair.id, {
+        const createdFault = await repairService.addRepairFault(createdRepair.id, {
           description,
           assignedMechanicId: fault.assignedMechanicId,
         })
+        createdFaults.push(createdFault)
+
+        for (const file of fault.photos || []) {
+          try {
+            await repairService.uploadRepairFaultPhoto(createdRepair.id, createdFault.id, file)
+          } catch {
+            photoUploadFailures += 1
+          }
+        }
       }
 
       await loadRepairs({ silent: true })
-      return createdRepair
+      return {
+        repair: createdRepair,
+        faults: createdFaults,
+        photoUploadFailures,
+      }
     } finally {
       isMutating.value = false
     }
@@ -346,6 +408,59 @@ export const useRepairStore = defineStore('repairs', () => {
       await loadRepairDetail(repairId, { silent: true })
     } finally {
       isMutating.value = false
+    }
+  }
+
+  async function loadRepairFaultComments(repairId: number | string, faultId: number | string, options?: { silent?: boolean }) {
+    const comments = await repairService.getRepairFaultComments(repairId, faultId, options)
+    updateRepairFaultCollections(repairId, faultId, (fault) => ({
+      ...fault,
+      comments,
+    }))
+    return comments
+  }
+
+  async function addRepairFaultComment(repairId: number | string, faultId: number | string, text: string) {
+    isMutating.value = true
+
+    try {
+      const comment = await repairService.addRepairFaultComment(repairId, faultId, text)
+      updateRepairFaultCollections(repairId, faultId, (fault) => ({
+        ...fault,
+        comments: [...(fault.comments || []), comment],
+      }))
+      return comment
+    } finally {
+      isMutating.value = false
+    }
+  }
+
+  async function uploadRepairFaultPhoto(repairId: number | string, faultId: number | string, file: File) {
+    isPhotoMutating.value = true
+
+    try {
+      const photo = await repairService.uploadRepairFaultPhoto(repairId, faultId, file)
+      updateRepairFaultCollections(repairId, faultId, (fault) => ({
+        ...fault,
+        photos: [...(fault.photos || []), photo],
+      }))
+      return photo
+    } finally {
+      isPhotoMutating.value = false
+    }
+  }
+
+  async function deleteRepairFaultPhoto(repairId: number | string, faultId: number | string, photoId: number | string) {
+    isPhotoMutating.value = true
+
+    try {
+      await repairService.deleteRepairFaultPhoto(repairId, faultId, photoId)
+      updateRepairFaultCollections(repairId, faultId, (fault) => ({
+        ...fault,
+        photos: (fault.photos || []).filter((photo) => String(photo.id) !== String(photoId)),
+      }))
+    } finally {
+      isPhotoMutating.value = false
     }
   }
 
@@ -448,6 +563,10 @@ export const useRepairStore = defineStore('repairs', () => {
     addRepairFault,
     updateRepairFault,
     deleteRepairFault,
+    loadRepairFaultComments,
+    addRepairFaultComment,
+    uploadRepairFaultPhoto,
+    deleteRepairFaultPhoto,
     addRepairComment,
     loadVehicleRepairHistory,
   }
