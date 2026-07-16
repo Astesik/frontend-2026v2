@@ -429,7 +429,7 @@
       </div>
 
       <div class="absolute top-3 z-20 transition-[left]" :class="vehiclePanelCollapsed ? 'left-14' : 'left-3'" @click.stop>
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-row items-center gap-2">
           <button
             type="button"
             class="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
@@ -452,7 +452,7 @@
 
         <div
           v-if="layersMenuOpen"
-          class="absolute left-11 top-0 w-56 max-w-[calc(100vw-4rem)] rounded-2xl border border-slate-200 bg-white p-2.5 text-xs shadow-sm dark:border-app-border dark:bg-app-panel"
+          class="absolute left-0 top-11 w-56 max-w-[calc(100vw-4rem)] rounded-2xl border border-slate-200 bg-white p-2.5 text-xs shadow-sm dark:border-app-border dark:bg-app-panel"
         >
           <section>
             <p class="mb-1.5 text-[11px] font-semibold uppercase text-slate-500 dark:text-app-muted">Motyw</p>
@@ -478,7 +478,7 @@
 
         <div
           v-if="placesMenuOpen"
-          class="absolute left-11 top-11 w-56 max-w-[calc(100vw-4rem)] rounded-2xl border border-slate-200 bg-white p-2.5 text-xs shadow-sm dark:border-app-border dark:bg-app-panel"
+          class="absolute left-0 top-11 w-56 max-w-[calc(100vw-4rem)] rounded-2xl border border-slate-200 bg-white p-2.5 text-xs shadow-sm dark:border-app-border dark:bg-app-panel"
         >
           <p class="mb-2 text-[11px] font-semibold uppercase text-slate-500 dark:text-app-muted">Strefy</p>
           <MapSwitch v-model="mapSettings.map.showPlaces" label="Pokaż na mapie" />
@@ -1402,14 +1402,6 @@ const selectedVehicleLifecycleItems = computed(() => {
     {
       label: 'Winieta UK',
       date: selectedVehicle.value.vignetteUk,
-    },
-    {
-      label: 'Winieta Luksemburg',
-      date: selectedVehicle.value.vignetteLuxembourg,
-    },
-    {
-      label: 'Winieta Dania',
-      date: selectedVehicle.value.vignetteDenmark,
     },
   ].map((item) => {
     const daysLeft = daysUntilDate(item.date)

@@ -1,7 +1,7 @@
 <template>
-  <div class="flex h-screen overflow-hidden bg-app-content text-slate-950 dark:text-slate-50">
+  <div class="flex h-dvh overflow-hidden bg-app-content text-slate-950 dark:text-slate-50">
     <AppSidebar />
-    <main class="flex h-screen min-w-0 flex-1 flex-col overflow-hidden bg-app-content">
+    <main class="flex h-dvh min-w-0 flex-1 flex-col overflow-hidden bg-app-content">
       <header class="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-app-light px-3 dark:border-app-border dark:bg-app-dark md:hidden">
         <button
           type="button"
@@ -37,7 +37,7 @@ const uiStore = useUiStore()
 
 const contentClasses = computed(() => route.meta.fullBleed
   ? 'h-full w-full'
-  : 'w-full px-5 py-6 lg:px-8')
+  : 'w-full px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-6 lg:px-8')
 
 onMounted(() => {
   void fleetStore.loadFleetData()

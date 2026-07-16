@@ -62,8 +62,6 @@
               <InspectionRow label="Przegląd techniczny" :date="vehicle.technicalInspection" />
               <InspectionRow label="Legalizacja tachografu" :date="vehicle.tachographInspection" />
               <InspectionRow label="Winieta UK" :date="vehicle.vignetteUk" />
-              <InspectionRow label="Winieta Luksemburg" :date="vehicle.vignetteLuxembourg" />
-              <InspectionRow label="Winieta Dania" :date="vehicle.vignetteDenmark" />
             </div>
           </AppCard>
 
@@ -270,8 +268,6 @@
             <AppDatePicker v-model="editForm.technicalInspection" label="Przegląd techniczny" />
             <AppDatePicker v-model="editForm.tachographInspection" label="Legalizacja tachografu" />
             <AppDatePicker v-model="editForm.vignetteUk" label="Winieta UK" />
-            <AppDatePicker v-model="editForm.vignetteLuxembourg" label="Winieta Luksemburg" />
-            <AppDatePicker v-model="editForm.vignetteDenmark" label="Winieta Dania" />
             <AppInput v-model="editForm.fuelTank" label="Zbiornik paliwa" type="number" />
             <AppSelect v-model="editForm.status" label="Status" :options="vehicleStatusFormOptions" />
           </div>

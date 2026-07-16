@@ -134,7 +134,7 @@
           <AppBadge>{{ column.repairs.length }}</AppBadge>
         </header>
 
-        <div class="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-3">
+        <div class="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
           <article
             v-for="repair in column.repairs"
             :key="repair.id"
