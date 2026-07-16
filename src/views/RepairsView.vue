@@ -8,7 +8,15 @@
         <h1 class="text-2xl font-semibold text-slate-950 dark:text-slate-50">Naprawy</h1>
       </div>
 
-      <div class="flex min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:items-end">
+      <div class="flex min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+        <AppInput
+          v-model="repairSearch"
+          class="min-w-0 sm:w-64"
+          label="Szukaj"
+          placeholder="Tablica, miejsce, usterka"
+          size="sm"
+          clearable
+        />
         <div class="flex min-w-0 max-w-full items-end gap-2">
           <button
             type="button"
@@ -120,21 +128,40 @@
         v-for="column in repairColumns"
         :key="column.key"
         class="flex w-full min-w-0 max-w-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel"
-        :class="dragOverColumn === column.key ? 'ring-2 ring-slate-300 dark:ring-app-muted' : ''"
+        :class="[
+          dragOverColumn === column.key ? 'ring-2 ring-slate-300 dark:ring-app-muted' : '',
+          isRepairColumnCollapsed(column.key) ? 'self-start' : '',
+        ]"
         @dragenter.prevent="dragOverColumn = column.key"
         @dragover.prevent="dragOverColumn = column.key"
         @dragleave="dragOverColumn = null"
         @drop="dropRepairOnColumn(column)"
       >
-        <header class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-app-border">
-          <div class="flex min-w-0 items-center gap-2">
-            <component :is="column.icon" class="h-4 w-4 text-slate-400" />
-            <h2 class="text-sm font-semibold text-slate-950 dark:text-slate-50">{{ column.label }}</h2>
-          </div>
+        <button
+          type="button"
+          class="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
+          :aria-expanded="!isRepairColumnCollapsed(column.key)"
+          :aria-label="isRepairColumnCollapsed(column.key) ? `Rozwiń sekcję ${column.label}` : `Zwiń sekcję ${column.label}`"
+          @click="toggleRepairColumn(column.key)"
+        >
+          <span
+            class="flex min-w-0 items-center gap-2"
+            :aria-expanded="!isRepairColumnCollapsed(column.key)"
+          >
+            <component :is="column.icon" class="h-4 w-4 shrink-0 text-slate-400" />
+            <h2 class="truncate text-sm font-semibold text-slate-950 dark:text-slate-50">{{ column.label }}</h2>
+            <ChevronDown
+              class="h-3.5 w-3.5 shrink-0 text-slate-400 transition"
+              :class="isRepairColumnCollapsed(column.key) ? '-rotate-90' : 'rotate-0'"
+            />
+          </span>
           <AppBadge>{{ column.repairs.length }}</AppBadge>
-        </header>
+        </button>
 
-        <div class="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+        <div
+          v-if="!isRepairColumnCollapsed(column.key)"
+          class="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
+        >
           <article
             v-for="repair in column.repairs"
             :key="repair.id"
@@ -156,7 +183,7 @@
       </div>
     </section>
 
-    <section v-else-if="activeTab === 'field'" class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
+    <section v-else-if="activeTab === 'field'" class="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
       <header class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-app-border">
         <div>
           <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Naprawy w terenie</h2>
@@ -165,17 +192,17 @@
         <AppBadge>{{ fieldRepairs.length }}</AppBadge>
       </header>
 
-      <div class="grid gap-3 p-4 xl:grid-cols-3">
+      <div class="grid min-w-0 max-w-full grid-cols-1 gap-3 p-4 lg:grid-cols-2 2xl:grid-cols-3">
         <article
           v-for="repair in fieldRepairs"
           :key="repair.id"
-          class="cursor-pointer rounded-2xl border border-slate-100 bg-white p-3 transition hover:bg-slate-50 dark:border-app-border dark:bg-app-dark dark:hover:bg-app-elevated"
+          class="min-w-0 max-w-full cursor-pointer overflow-hidden rounded-2xl border border-slate-100 bg-white p-3 transition hover:bg-slate-50 dark:border-app-border dark:bg-app-dark dark:hover:bg-app-elevated"
           @click="openRepairDetails(repair)"
         >
           <RepairCardContent :repair="repair" show-place />
         </article>
 
-        <div v-if="!fieldRepairs.length" class="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500 dark:border-app-border dark:text-slate-400 xl:col-span-3">
+        <div v-if="!fieldRepairs.length" class="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500 dark:border-app-border dark:text-slate-400 lg:col-span-2 2xl:col-span-3">
           Brak napraw w terenie.
         </div>
       </div>
@@ -496,7 +523,6 @@ import {
   Columns3,
   ImagePlus,
   ListChecks,
-  MapPinned,
   Percent,
   Plus,
   SquarePen,
@@ -518,7 +544,7 @@ import { useUiStore } from '@/stores/uiStore'
 import type { Mechanic, Repair, RepairStatus, RepairWeek } from '@/types/repair'
 import type { Vehicle } from '@/types/fleet'
 
-type TabKey = 'repairs' | 'base' | 'other' | 'field' | 'map'
+type TabKey = 'base' | 'other' | 'field' | 'map'
 type RepairColumnKey = 'new' | 'progress' | 'done'
 
 interface DraftFault {
@@ -548,12 +574,15 @@ const {
   isLoading,
   isMutating,
 } = storeToRefs(repairStore)
-const activeTab = ref<TabKey>('repairs')
+const activeTab = ref<TabKey>('base')
 const selectedWeekKey = ref('')
+const repairSearch = ref('')
+const normalizedRepairSearch = computed(() => normalizeSearchValue(repairSearch.value))
 const draggedRepairId = ref<number | null>(null)
 const draggedRepair = ref<Repair | null>(null)
 const dragPreview = reactive({ x: 0, y: 0 })
 const dragOverColumn = ref<RepairColumnKey | null>(null)
+const collapsedRepairColumnKeys = ref<Set<RepairColumnKey>>(new Set())
 const collapsedRepairIds = ref<Set<number>>(new Set())
 const nowTick = ref(Date.now())
 const isCreateModalOpen = ref(false)
@@ -584,13 +613,12 @@ const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'im
 const MAX_PHOTO_SIZE = 20 * 1024 * 1024
 
 const tabs: Array<{ value: TabKey; label: string; icon: Component }> = [
-  { value: 'repairs', label: 'Naprawy', icon: Columns3 },
+  { value: 'base', label: 'Naprawy na bazie', icon: Columns3 },
   { value: 'other', label: 'Pozostałe', icon: Columns3 },
   { value: 'field', label: 'W terenie', icon: Wrench },
-  { value: 'map', label: 'Mapa', icon: MapPinned },
 ]
 
-const visibleTabs = computed(() => tabs.filter((tab) => tab.value !== 'other'))
+const visibleTabs = computed(() => tabs)
 
 const tabOptions = computed<AppSelectOption[]>(() => visibleTabs.value.map((tab) => ({
   value: tab.value,
@@ -616,12 +644,10 @@ const selectedWeekIndex = computed(() => weeks.value.findIndex((week) => weekKey
 const canSelectPreviousWeek = computed(() => selectedWeekIndex.value > 0)
 const canSelectNextWeek = computed(() => selectedWeekIndex.value >= 0 && selectedWeekIndex.value < weeks.value.length - 1)
 const selectedWeek = computed(() => weeks.value[selectedWeekIndex.value] || weeks.value[0] || null)
-const isKanbanTab = computed(() => activeTab.value === 'repairs')
+const isKanbanTab = computed(() => activeTab.value === 'base' || activeTab.value === 'other')
 const selectedWeekLabel = computed(() => selectedWeek.value
   ? `Tydzień ${selectedWeek.value.week}: ${formatDate(selectedWeek.value.start)} - ${formatDate(selectedWeek.value.end)}`
   : 'Brak danych tygodnia')
-
-const kanbanLocationStatLabel = computed(() => activeTab.value === 'base' ? 'Na bazie' : 'Pozostałe')
 
 const vehicleOptions = computed<AppSearchSelectOption[]>(() => fleetStore.apiVehicles.map((vehicle) => ({
   value: String(vehicle.id),
@@ -639,17 +665,19 @@ const selectedWeekRepairs = computed(() => selectedWeek.value?.repairs?.length
   ? uniqueRepairs(selectedWeek.value.repairs)
   : uniqueRepairs(repairs.value.filter((repair) => selectedWeek.value ? isRepairInWeek(repair, selectedWeek.value) : true)))
 
-const baseWeekRepairs = computed(() => selectedWeekRepairs.value.filter((repair) => (
+const filteredSelectedWeekRepairs = computed(() => selectedWeekRepairs.value.filter((repair) => repairMatchesSearch(repair)))
+
+const baseWeekRepairs = computed(() => filteredSelectedWeekRepairs.value.filter((repair) => (
   normalizeRepairStatus(repair.status) !== 'IN_FIELD'
   && isBaseRepair(repair)
 )))
 
-const otherWeekRepairs = computed(() => selectedWeekRepairs.value.filter((repair) => (
+const otherWeekRepairs = computed(() => filteredSelectedWeekRepairs.value.filter((repair) => (
   normalizeRepairStatus(repair.status) !== 'IN_FIELD'
   && !isBaseRepair(repair)
 )))
 
-const activeKanbanRepairs = computed(() => selectedWeekRepairs.value.filter((repair) => normalizeRepairStatus(repair.status) !== 'IN_FIELD'))
+const activeKanbanRepairs = computed(() => activeTab.value === 'other' ? otherWeekRepairs.value : baseWeekRepairs.value)
 
 const sortedKanbanRepairs = computed(() => [...activeKanbanRepairs.value].sort((first, second) => repairTimestamp(first) - repairTimestamp(second)))
 
@@ -687,12 +715,12 @@ const repairColumns = computed(() => {
 const fieldRepairs = computed(() => uniqueRepairs([
   ...repairs.value,
   ...fieldAndUnassigned.value,
-]).filter((repair) => normalizeRepairStatus(repair.status) === 'IN_FIELD'))
+]).filter((repair) => normalizeRepairStatus(repair.status) === 'IN_FIELD' && repairMatchesSearch(repair)))
 
 const mapSourceRepairs = computed(() => uniqueRepairs([
-  ...selectedWeekRepairs.value,
+  ...filteredSelectedWeekRepairs.value,
   ...fieldAndUnassigned.value,
-]))
+]).filter((repair) => repairMatchesSearch(repair)))
 
 const mapFilteredRepairs = computed(() => mapSourceRepairs.value
   .filter((repair) => normalizeRepairStatus(repair.status) !== 'done'))
@@ -745,26 +773,26 @@ const RepairCardContent = defineComponent({
       const isDone = normalizeRepairStatus(props.repair.status) === 'done'
       const departureCountdown = departureCountdownLabel(props.repair.plannedDepartureAt)
 
-      return h('div', { class: 'min-w-0 max-w-full' }, [
-        h('div', { class: 'flex items-start justify-between gap-2' }, [
+      return h('div', { class: 'min-w-0 max-w-full overflow-hidden' }, [
+        h('div', { class: 'flex min-w-0 items-start justify-between gap-2' }, [
           h('p', { class: 'min-w-0 truncate text-base font-semibold text-slate-950 dark:text-slate-50' }, repairVehicleLabel(props.repair)),
-          h('div', { class: 'flex shrink-0 items-center gap-1.5' }, [
+          h('div', { class: 'flex min-w-0 shrink-0 items-center gap-1.5' }, [
             isDone ? h(CircleCheck, { class: 'h-5 w-5 text-success-600 dark:text-success-400' }) : null,
             h(AppBadge, { variant: statusVariant(props.repair.status) }, () => statusLabel(props.repair.status)),
           ]),
         ]),
-        h('div', { class: 'mt-2 space-y-1 text-xs leading-5 text-slate-600 dark:text-slate-300' }, [
+        h('div', { class: 'mt-2 min-w-0 space-y-1 text-xs leading-5 text-slate-600 dark:text-slate-300' }, [
           props.showPlace ? h('p', { class: 'truncate' }, `Miejsce naprawy: ${repairPlaceLabel(props.repair)}`) : null,
-          h('p', [
+          h('p', { class: 'min-w-0 break-words' }, [
             h('span', { class: 'text-slate-500 dark:text-slate-400' }, 'Planowany przyjazd: '),
             h('span', { class: 'font-medium text-slate-700 dark:text-slate-200' }, formatDateTime(props.repair.plannedArrivalAt)),
           ]),
-          h('p', { class: 'flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1' }, [
-            h('span', { class: 'min-w-0' }, [
+          h('p', { class: 'flex min-w-0 max-w-full flex-wrap items-center gap-x-2 gap-y-1 overflow-hidden' }, [
+            h('span', { class: 'min-w-0 break-words' }, [
               h('span', { class: 'text-slate-500 dark:text-slate-400' }, 'Planowany odjazd: '),
               h('span', { class: 'font-medium text-slate-700 dark:text-slate-200' }, formatDateTime(props.repair.plannedDepartureAt)),
             ]),
-            h('span', { class: departureCountdown.className }, departureCountdown.label),
+            h('span', { class: `${departureCountdown.className} max-w-full whitespace-normal break-words` }, departureCountdown.label),
           ]),
         ]),
         totalFaults
@@ -781,12 +809,12 @@ const RepairCardContent = defineComponent({
           ])
           : null,
         isExpanded
-          ? h('div', { class: 'mt-2 space-y-1 rounded-xl border border-slate-100 bg-slate-50 p-2 dark:border-app-border dark:bg-app-dark' }, faults.length
-            ? faults.map((fault) => h('div', { key: fault.id, class: 'flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200' }, [
+          ? h('div', { class: 'mt-2 min-w-0 max-w-full space-y-1 overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-2 dark:border-app-border dark:bg-app-dark' }, faults.length
+            ? faults.map((fault) => h('div', { key: fault.id, class: 'flex min-w-0 items-center gap-2 text-xs text-slate-700 dark:text-slate-200' }, [
               fault.status === 'DONE'
                 ? h(CircleCheck, { class: 'h-3.5 w-3.5 shrink-0 text-success-600 dark:text-success-400' })
                 : h('span', { class: 'h-3.5 w-3.5 shrink-0 rounded-full border border-slate-300 dark:border-app-muted' }),
-              h('span', { class: 'truncate' }, fault.description),
+              h('span', { class: 'min-w-0 truncate' }, fault.description),
             ]))
             : [h('p', { class: 'text-xs text-slate-500 dark:text-slate-400' }, 'Brak danych o usterkach.')])
           : null,
@@ -886,6 +914,36 @@ function repairPlaceName(repair: Repair) {
 
 function isBaseRepair(repair: Repair) {
   return repairPlaceName(repair).trim().toLocaleLowerCase('pl-PL') === 'baza'
+}
+
+function normalizeSearchValue(value: unknown) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pl-PL')
+}
+
+function repairMatchesSearch(repair: Repair) {
+  const query = normalizedRepairSearch.value
+
+  if (!query) {
+    return true
+  }
+
+  const createdBy = repair.createdBy as { username?: string | null } | null | undefined
+  const searchText = [
+    repair.id,
+    repairVehicleLabel(repair),
+    repairPlaceLabel(repair),
+    statusLabel(repair.status),
+    repair.description,
+    repair.plannedArrivalAt,
+    repair.plannedDepartureAt,
+    createdBy?.username,
+    ...(repair.faults || []).map((fault) => fault.description),
+  ].join(' ')
+
+  return normalizeSearchValue(searchText).includes(query)
 }
 
 function formatCompactDuration(milliseconds: number) {
@@ -1274,6 +1332,22 @@ function toggleRepairFaults(repairId: number) {
   }
 
   collapsedRepairIds.value = nextCollapsedIds
+}
+
+function isRepairColumnCollapsed(columnKey: RepairColumnKey) {
+  return collapsedRepairColumnKeys.value.has(columnKey)
+}
+
+function toggleRepairColumn(columnKey: RepairColumnKey) {
+  const nextCollapsedKeys = new Set(collapsedRepairColumnKeys.value)
+
+  if (nextCollapsedKeys.has(columnKey)) {
+    nextCollapsedKeys.delete(columnKey)
+  } else {
+    nextCollapsedKeys.add(columnKey)
+  }
+
+  collapsedRepairColumnKeys.value = nextCollapsedKeys
 }
 
 function updateRepairDragPreview(event: DragEvent) {

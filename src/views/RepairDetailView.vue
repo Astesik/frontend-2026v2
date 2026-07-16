@@ -199,17 +199,26 @@
             <article
               v-for="fault in repair.faults"
               :key="fault.id"
+              :data-fault-card-id="fault.id"
               class="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm ring-1 ring-slate-200/70 dark:border-app-border dark:bg-app-dark dark:ring-white/5"
             >
               <div
-                class="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 px-2 py-2 sm:px-3 md:grid-cols-[2rem_minmax(10rem,1fr)_12rem] md:gap-2"
+                class="grid cursor-pointer grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 px-2 py-2 transition hover:bg-slate-50 sm:px-3 md:grid-cols-[2rem_minmax(10rem,1fr)_12rem] md:gap-2 dark:hover:bg-app-elevated"
+                role="button"
+                tabindex="0"
+                :aria-expanded="isFaultExpanded(fault.id)"
+                :aria-label="isFaultExpanded(fault.id) ? 'Zwiń usterkę' : 'Rozwiń usterkę'"
+                @click="toggleFaultDetails(fault.id)"
+                @keydown.enter.self.prevent="toggleFaultDetails(fault.id)"
+                @keydown.space.self.prevent="toggleFaultDetails(fault.id)"
               >
                 <button
                   type="button"
                   class="inline-flex h-8 w-8 self-center items-center justify-center rounded-xl text-slate-300 transition hover:bg-slate-50 hover:text-success-600 dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-success-400"
                   :aria-label="fault.status === 'DONE' ? 'Oznacz jako niezrobione' : 'Oznacz jako zrobione'"
                   :disabled="isMutating"
-                  @click="toggleFaultDone(fault)"
+                  @click.stop="toggleFaultDone(fault)"
+                  @keydown.stop
                 >
                   <CircleCheck v-if="fault.status === 'DONE'" class="h-5 w-5 text-success-600 dark:text-success-400" />
                   <Circle v-else class="h-5 w-5" />
@@ -221,6 +230,8 @@
                     v-model="faultEditRows[fault.id].description"
                     size="sm"
                     placeholder="Opis usterki"
+                    @click.stop
+                    @keydown.stop
                   />
                   <template v-else>
                     <div class="fault-description-scroll flex min-h-8 min-w-0 items-center overflow-x-auto">
@@ -234,6 +245,9 @@
                 <div
                   v-if="isFaultExpanded(fault.id)"
                   class="col-span-full grid gap-2 border-t border-slate-100 bg-slate-50/80 p-2 dark:border-app-border dark:bg-app-dark/80 lg:grid-cols-[minmax(16rem,0.78fr)_minmax(0,1fr)]"
+                  :data-fault-details-id="fault.id"
+                  @click.stop
+                  @keydown.stop
                 >
                   <section class="min-w-0 rounded-xl border border-slate-100 bg-white p-2 dark:border-app-border dark:bg-app-panel">
                   <header class="mb-2 flex items-center justify-between gap-2">
@@ -252,7 +266,8 @@
                         accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                         multiple
                         :disabled="isPhotoMutating"
-                        @change="handleFaultPhotoSelection(fault.id, $event)"
+                    @change="handleFaultPhotoSelection(fault.id, $event)"
+                    @click.stop
                       />
                       <LoaderCircle v-if="isPhotoMutating" class="h-4 w-4 animate-spin" />
                       <ImagePlus v-else class="h-4 w-4" />
@@ -269,7 +284,7 @@
                         type="button"
                         class="block h-full w-full cursor-zoom-in"
                         :aria-label="`Powiększ zdjęcie ${photo.originalFilename}`"
-                        @click="photoPreview = { ...photo, faultId: fault.id }"
+                        @click.stop="photoPreview = { ...photo, faultId: fault.id }"
                       >
                         <img :src="photoObjectUrls[photo.id]" :alt="photo.originalFilename" class="h-full w-full object-cover" />
                       </button>
@@ -282,7 +297,7 @@
                         class="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-950/70 text-white transition hover:bg-slate-950"
                         :disabled="isPhotoMutating"
                         aria-label="Usuń zdjęcie"
-                        @click="photoToDelete = { ...photo, faultId: fault.id }"
+                        @click.stop="photoToDelete = { ...photo, faultId: fault.id }"
                       >
                         <X class="h-3 w-3" />
                       </button>
@@ -326,13 +341,14 @@
                       type="text"
                       class="min-w-0 flex-1 bg-transparent px-2 text-xs text-slate-950 outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-app-muted"
                       placeholder="Dodaj komentarz"
+                      @click.stop
                       @keydown.enter.prevent="addFaultComment(fault.id)"
                     />
                     <button
                       type="button"
                       class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-app-dark dark:hover:bg-white"
                       aria-label="Dodaj komentarz"
-                      @click="addFaultComment(fault.id)"
+                      @click.stop="addFaultComment(fault.id)"
                     >
                       <Send class="h-3.5 w-3.5" />
                     </button>
@@ -346,7 +362,7 @@
                     class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
                     :aria-label="isFaultExpanded(fault.id) ? 'Zwiń usterkę' : 'Rozwiń usterkę'"
                     :aria-expanded="isFaultExpanded(fault.id)"
-                    @click="toggleFaultDetails(fault.id)"
+                    @click.stop="toggleFaultDetails(fault.id)"
                   >
                     <ChevronDown class="h-4 w-4 transition" :class="isFaultExpanded(fault.id) ? 'rotate-180' : ''" />
                     <span class="hidden sm:inline">{{ isFaultExpanded(fault.id) ? 'Zwiń' : 'Rozwiń' }}</span>
@@ -357,7 +373,7 @@
                     class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
                     aria-label="Edytuj usterkę"
                     :disabled="isMutating"
-                    @click="startFaultEdit(fault)"
+                    @click.stop="startFaultEdit(fault)"
                   >
                     <SquarePen class="h-4 w-4" />
                     <span class="hidden sm:inline">Edytuj</span>
@@ -368,7 +384,7 @@
                     class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
                     aria-label="Anuluj edycję usterki"
                     :disabled="isMutating"
-                    @click="cancelFaultEdit"
+                    @click.stop="cancelFaultEdit"
                   >
                     <X class="h-4 w-4" />
                     <span class="hidden sm:inline">Anuluj</span>
@@ -379,7 +395,7 @@
                     class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
                     aria-label="Zapisz usterkę"
                     :disabled="isMutating"
-                    @click="saveFaultRow(fault)"
+                    @click.stop="saveFaultRow(fault)"
                   >
                     <Check class="h-4 w-4" />
                     <span class="hidden sm:inline">Zapisz</span>
@@ -389,7 +405,7 @@
                     class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
                     aria-label="Usuń usterkę"
                     :disabled="isMutating"
-                    @click="faultToDelete = fault"
+                    @click.stop="faultToDelete = fault"
                   >
                     <Trash2 class="h-4 w-4" />
                     <span class="hidden sm:inline">Usuń</span>
@@ -762,7 +778,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch, type Component, type PropType } from 'vue'
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type Component, type PropType } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, BadgeCheck, CalendarCheck, CalendarClock, Check, ChevronDown, Circle, CircleCheck, FileText, ImageOff, ImagePlus, LoaderCircle, MapPin, MessageSquare, Plus, Send, SquarePen, Trash2, Truck, UserRound, X } from 'lucide-vue-next'
@@ -1330,10 +1346,56 @@ function isFaultExpanded(faultId: number) {
   return expandedFaultIds.value.has(faultId)
 }
 
+async function scrollExpandedFaultIntoView(faultId: number) {
+  await nextTick()
+
+  const cardElement = document.querySelector<HTMLElement>(`[data-fault-card-id="${faultId}"]`)
+
+  if (!cardElement) {
+    return
+  }
+
+  const faults = repair.value?.faults || []
+  const isLastFault = faults[faults.length - 1]?.id === faultId
+
+  if (isLastFault) {
+    const scrollParent = findScrollableParent(cardElement)
+
+    scrollParent.scrollTo({
+      top: scrollParent.scrollHeight,
+      behavior: 'smooth',
+    })
+    return
+  }
+
+  cardElement.scrollIntoView({
+    behavior: 'smooth',
+    block: 'center',
+  })
+}
+
+function findScrollableParent(element: HTMLElement) {
+  let currentElement = element.parentElement
+
+  while (currentElement) {
+    const style = window.getComputedStyle(currentElement)
+    const canScroll = /(auto|scroll)/.test(style.overflowY)
+
+    if (canScroll && currentElement.scrollHeight > currentElement.clientHeight) {
+      return currentElement
+    }
+
+    currentElement = currentElement.parentElement
+  }
+
+  return document.scrollingElement as HTMLElement
+}
+
 function toggleFaultDetails(faultId: number) {
   const nextIds = new Set(expandedFaultIds.value)
+  const willExpand = !nextIds.has(faultId)
 
-  if (nextIds.has(faultId)) {
+  if (!willExpand) {
     nextIds.delete(faultId)
   } else {
     nextIds.add(faultId)
@@ -1343,6 +1405,10 @@ function toggleFaultDetails(faultId: number) {
   }
 
   expandedFaultIds.value = nextIds
+
+  if (willExpand) {
+    void scrollExpandedFaultIntoView(faultId)
+  }
 }
 
 async function addFaultComment(faultId: number) {
