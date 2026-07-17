@@ -14,7 +14,7 @@
         <p class="text-sm font-semibold text-slate-950 dark:text-slate-50">Routewise</p>
         <span class="h-10 w-10" aria-hidden="true"></span>
       </header>
-      <div class="min-h-0 flex-1 overflow-y-auto">
+        <div class="min-h-0 flex-1 overflow-y-auto">
       <div :class="contentClasses">
         <RouterView />
       </div>

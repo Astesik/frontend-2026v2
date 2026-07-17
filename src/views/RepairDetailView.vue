@@ -199,7 +199,6 @@
             <article
               v-for="fault in repair.faults"
               :key="fault.id"
-              :data-fault-card-id="fault.id"
               class="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm ring-1 ring-slate-200/70 dark:border-app-border dark:bg-app-dark dark:ring-white/5"
             >
               <div
@@ -245,7 +244,6 @@
                 <div
                   v-if="isFaultExpanded(fault.id)"
                   class="col-span-full grid gap-2 border-t border-slate-100 bg-slate-50/80 p-2 dark:border-app-border dark:bg-app-dark/80 lg:grid-cols-[minmax(16rem,0.78fr)_minmax(0,1fr)]"
-                  :data-fault-details-id="fault.id"
                   @click.stop
                   @keydown.stop
                 >
@@ -259,20 +257,16 @@
                   </header>
 
                   <div class="grid max-h-48 grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] gap-2 overflow-y-auto pr-1">
-                    <label class="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-200 text-center text-[10px] font-semibold text-slate-500 transition hover:bg-slate-50 dark:border-app-border dark:text-slate-400 dark:hover:bg-app-elevated">
-                      <input
-                        type="file"
-                        class="sr-only"
-                        accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
-                        multiple
-                        :disabled="isPhotoMutating"
-                    @change="handleFaultPhotoSelection(fault.id, $event)"
-                    @click.stop
-                      />
+                    <button
+                      type="button"
+                      class="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-200 text-center text-[10px] font-semibold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:text-slate-400 dark:hover:bg-app-elevated"
+                      :disabled="isPhotoMutating"
+                      @click.stop="openFaultPhotoPicker(fault.id)"
+                    >
                       <LoaderCircle v-if="isPhotoMutating" class="h-4 w-4 animate-spin" />
                       <ImagePlus v-else class="h-4 w-4" />
                       {{ isPhotoMutating ? 'Wysyłanie' : 'Dodaj' }}
-                    </label>
+                    </button>
 
                     <article
                       v-for="photo in fault.photos || []"
@@ -465,19 +459,16 @@
                     </header>
 
                     <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-                      <label class="flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 text-center text-xs font-medium text-slate-500 transition hover:bg-slate-50 dark:border-app-border dark:text-slate-400 dark:hover:bg-app-elevated">
-                        <input
-                          type="file"
-                          class="sr-only"
-                          accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
-                          multiple
-                          :disabled="isPhotoMutating"
-                          @change="handleFaultPhotoSelection(fault.id, $event)"
-                        />
+                      <button
+                        type="button"
+                        class="flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 text-center text-xs font-medium text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:text-slate-400 dark:hover:bg-app-elevated"
+                        :disabled="isPhotoMutating"
+                        @click.stop="openFaultPhotoPicker(fault.id)"
+                      >
                         <LoaderCircle v-if="isPhotoMutating" class="h-5 w-5 animate-spin" />
                         <ImagePlus v-else class="h-5 w-5" />
                         {{ isPhotoMutating ? 'Wysyłanie' : 'Dodaj' }}
-                      </label>
+                      </button>
 
                       <article
                         v-for="photo in fault.photos || []"
@@ -563,18 +554,15 @@
                 <AppBadge>{{ newFaultPhotoDrafts.length }}</AppBadge>
               </div>
 
-              <label class="flex min-h-24 cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-sm font-medium text-slate-500 transition hover:bg-slate-100 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated">
-                <input
-                  type="file"
-                  class="sr-only"
-                  accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
-                  multiple
-                  :disabled="isMutating || isPhotoMutating"
-                  @change="handleNewFaultPhotoSelection"
-                />
+              <button
+                type="button"
+                class="flex min-h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-sm font-medium text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated"
+                :disabled="isMutating || isPhotoMutating"
+                @click="openNewFaultPhotoPicker"
+              >
                 <ImagePlus class="h-5 w-5" />
                 Dodaj zdjęcia
-              </label>
+              </button>
 
               <p v-if="newFaultPhotoError" class="mt-2 text-xs font-medium text-danger-600 dark:text-danger-400">
                 {{ newFaultPhotoError }}
@@ -610,6 +598,24 @@
         </section>
       </div>
     </Teleport>
+
+    <input
+      ref="faultPhotoInput"
+      type="file"
+      class="repair-hidden-file-input"
+      accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
+      multiple
+      @change="handleFaultPhotoInputSelection"
+    />
+
+    <input
+      ref="newFaultPhotoInput"
+      type="file"
+      class="repair-hidden-file-input"
+      accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
+      multiple
+      @change="handleNewFaultPhotoSelection"
+    />
 
     <Teleport to="body">
       <div
@@ -778,7 +784,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type Component, type PropType } from 'vue'
+import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch, type Component, type PropType } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, BadgeCheck, CalendarCheck, CalendarClock, Check, ChevronDown, Circle, CircleCheck, FileText, ImageOff, ImagePlus, LoaderCircle, MapPin, MessageSquare, Plus, Send, SquarePen, Trash2, Truck, UserRound, X } from 'lucide-vue-next'
@@ -821,6 +827,9 @@ const editingFaultId = ref<number | null>(null)
 const isAddFaultModalOpen = ref(false)
 const infoEditMode = ref(false)
 const photoInput = ref<HTMLInputElement | null>(null)
+const faultPhotoInput = ref<HTMLInputElement | null>(null)
+const newFaultPhotoInput = ref<HTMLInputElement | null>(null)
+const selectedFaultPhotoInputId = ref<number | null>(null)
 const photoToDelete = ref<RepairFaultPhoto | null>(null)
 const photoPreview = ref<RepairFaultPhoto | null>(null)
 const photoValidationError = ref('')
@@ -1307,6 +1316,47 @@ function closeAddFaultModal() {
   clearNewFaultPhotoDrafts()
 }
 
+function blurFileInput(input: HTMLInputElement) {
+  window.requestAnimationFrame(() => {
+    if (document.activeElement === input) {
+      input.blur()
+    }
+  })
+}
+
+function openFaultPhotoPicker(faultId: number) {
+  if (isPhotoMutating.value) {
+    return
+  }
+
+  const input = faultPhotoInput.value
+
+  if (!input) {
+    return
+  }
+
+  selectedFaultPhotoInputId.value = faultId
+  input.value = ''
+  input.click()
+  blurFileInput(input)
+}
+
+function openNewFaultPhotoPicker() {
+  if (isMutating.value || isPhotoMutating.value) {
+    return
+  }
+
+  const input = newFaultPhotoInput.value
+
+  if (!input) {
+    return
+  }
+
+  input.value = ''
+  input.click()
+  blurFileInput(input)
+}
+
 function handleNewFaultPhotoSelection(event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
@@ -1332,6 +1382,19 @@ function handleNewFaultPhotoSelection(event: Event) {
   })
 }
 
+async function handleFaultPhotoInputSelection(event: Event) {
+  const faultId = selectedFaultPhotoInputId.value
+  selectedFaultPhotoInputId.value = null
+
+  if (!faultId) {
+    const input = event.target as HTMLInputElement
+    input.value = ''
+    return
+  }
+
+  await handleFaultPhotoSelection(faultId, event)
+}
+
 function removeNewFaultPhotoDraft(draftId: string) {
   const draft = newFaultPhotoDrafts.value.find((item) => item.id === draftId)
 
@@ -1344,51 +1407,6 @@ function removeNewFaultPhotoDraft(draftId: string) {
 
 function isFaultExpanded(faultId: number) {
   return expandedFaultIds.value.has(faultId)
-}
-
-async function scrollExpandedFaultIntoView(faultId: number) {
-  await nextTick()
-
-  const cardElement = document.querySelector<HTMLElement>(`[data-fault-card-id="${faultId}"]`)
-
-  if (!cardElement) {
-    return
-  }
-
-  const faults = repair.value?.faults || []
-  const isLastFault = faults[faults.length - 1]?.id === faultId
-
-  if (isLastFault) {
-    const scrollParent = findScrollableParent(cardElement)
-
-    scrollParent.scrollTo({
-      top: scrollParent.scrollHeight,
-      behavior: 'smooth',
-    })
-    return
-  }
-
-  cardElement.scrollIntoView({
-    behavior: 'smooth',
-    block: 'center',
-  })
-}
-
-function findScrollableParent(element: HTMLElement) {
-  let currentElement = element.parentElement
-
-  while (currentElement) {
-    const style = window.getComputedStyle(currentElement)
-    const canScroll = /(auto|scroll)/.test(style.overflowY)
-
-    if (canScroll && currentElement.scrollHeight > currentElement.clientHeight) {
-      return currentElement
-    }
-
-    currentElement = currentElement.parentElement
-  }
-
-  return document.scrollingElement as HTMLElement
 }
 
 function toggleFaultDetails(faultId: number) {
@@ -1405,10 +1423,6 @@ function toggleFaultDetails(faultId: number) {
   }
 
   expandedFaultIds.value = nextIds
-
-  if (willExpand) {
-    void scrollExpandedFaultIntoView(faultId)
-  }
 }
 
 async function addFaultComment(faultId: number) {
@@ -1432,10 +1446,12 @@ async function addFaultComment(faultId: number) {
 }
 
 async function handleFaultPhotoSelection(faultId: number, event: Event) {
-  if (!repair.value) return
-
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
+  input.value = ''
+
+  if (!repair.value || !files.length) return
+
   delete faultPhotoErrors[faultId]
 
   for (const file of files) {
@@ -1458,8 +1474,6 @@ async function handleFaultPhotoSelection(faultId: number, event: Event) {
       // Global API interceptor shows backend errors, including 413.
     }
   }
-
-  input.value = ''
 }
 
 function clearFaultLocalData(faultId: number) {
@@ -1898,5 +1912,15 @@ onBeforeUnmount(() => {
 .fault-description-scroll::-webkit-scrollbar-thumb {
   border-radius: 9999px;
   background: rgb(var(--rw-app-border));
+}
+
+.repair-hidden-file-input {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 </style>
