@@ -268,6 +268,16 @@
                       {{ isPhotoMutating ? 'Wysyłanie' : 'Dodaj' }}
                     </button>
 
+                    <button
+                      type="button"
+                      class="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-200 text-center text-[10px] font-semibold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:text-slate-400 dark:hover:bg-app-elevated"
+                      :disabled="isPhotoMutating"
+                      @click.stop="openFaultCameraPicker(fault.id)"
+                    >
+                      <Camera class="h-4 w-4" />
+                      Aparat
+                    </button>
+
                     <article
                       v-for="photo in fault.photos || []"
                       :key="photo.id"
@@ -564,6 +574,16 @@
                 Dodaj zdjęcia
               </button>
 
+              <button
+                type="button"
+                class="mt-2 flex min-h-20 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-sm font-medium text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated"
+                :disabled="isMutating || isPhotoMutating"
+                @click="openNewFaultCameraPicker"
+              >
+                <Camera class="h-5 w-5" />
+                Zrob zdjecie
+              </button>
+
               <p v-if="newFaultPhotoError" class="mt-2 text-xs font-medium text-danger-600 dark:text-danger-400">
                 {{ newFaultPhotoError }}
               </p>
@@ -609,11 +629,29 @@
     />
 
     <input
+      ref="faultCameraInput"
+      type="file"
+      class="repair-hidden-file-input"
+      accept="image/*"
+      capture="environment"
+      @change="handleFaultPhotoInputSelection"
+    />
+
+    <input
       ref="newFaultPhotoInput"
       type="file"
       class="repair-hidden-file-input"
       accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
       multiple
+      @change="handleNewFaultPhotoSelection"
+    />
+
+    <input
+      ref="newFaultCameraInput"
+      type="file"
+      class="repair-hidden-file-input"
+      accept="image/*"
+      capture="environment"
       @change="handleNewFaultPhotoSelection"
     />
 
@@ -787,7 +825,7 @@
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch, type Component, type PropType } from 'vue'
 import { storeToRefs } from 'pinia'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, BadgeCheck, CalendarCheck, CalendarClock, Check, ChevronDown, Circle, CircleCheck, FileText, ImageOff, ImagePlus, LoaderCircle, MapPin, MessageSquare, Plus, Send, SquarePen, Trash2, Truck, UserRound, X } from 'lucide-vue-next'
+import { ArrowLeft, BadgeCheck, CalendarCheck, CalendarClock, Camera, Check, ChevronDown, Circle, CircleCheck, FileText, ImageOff, ImagePlus, LoaderCircle, MapPin, MessageSquare, Plus, Send, SquarePen, Trash2, Truck, UserRound, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
@@ -828,7 +866,9 @@ const isAddFaultModalOpen = ref(false)
 const infoEditMode = ref(false)
 const photoInput = ref<HTMLInputElement | null>(null)
 const faultPhotoInput = ref<HTMLInputElement | null>(null)
+const faultCameraInput = ref<HTMLInputElement | null>(null)
 const newFaultPhotoInput = ref<HTMLInputElement | null>(null)
+const newFaultCameraInput = ref<HTMLInputElement | null>(null)
 const selectedFaultPhotoInputId = ref<number | null>(null)
 const photoToDelete = ref<RepairFaultPhoto | null>(null)
 const photoPreview = ref<RepairFaultPhoto | null>(null)
@@ -1341,12 +1381,45 @@ function openFaultPhotoPicker(faultId: number) {
   blurFileInput(input)
 }
 
+function openFaultCameraPicker(faultId: number) {
+  if (isPhotoMutating.value) {
+    return
+  }
+
+  const input = faultCameraInput.value
+
+  if (!input) {
+    return
+  }
+
+  selectedFaultPhotoInputId.value = faultId
+  input.value = ''
+  input.click()
+  blurFileInput(input)
+}
+
 function openNewFaultPhotoPicker() {
   if (isMutating.value || isPhotoMutating.value) {
     return
   }
 
   const input = newFaultPhotoInput.value
+
+  if (!input) {
+    return
+  }
+
+  input.value = ''
+  input.click()
+  blurFileInput(input)
+}
+
+function openNewFaultCameraPicker() {
+  if (isMutating.value || isPhotoMutating.value) {
+    return
+  }
+
+  const input = newFaultCameraInput.value
 
   if (!input) {
     return
