@@ -547,6 +547,11 @@ import type { Vehicle } from '@/types/fleet'
 type TabKey = 'base' | 'other' | 'field' | 'map'
 type RepairColumnKey = 'new' | 'progress' | 'done'
 
+interface RepairsViewState {
+  activeTab?: TabKey
+  selectedWeekKey?: string
+}
+
 interface DraftFault {
   id: string
   description: string
@@ -561,6 +566,7 @@ interface DraftFaultPhotoDraft {
 }
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
+const REPAIRS_VIEW_STATE_KEY = 'routewise.repairs.viewState'
 const router = useRouter()
 const fleetStore = useFleetStore()
 const repairStore = useRepairStore()
@@ -574,8 +580,9 @@ const {
   isLoading,
   isMutating,
 } = storeToRefs(repairStore)
-const activeTab = ref<TabKey>('base')
-const selectedWeekKey = ref('')
+const savedViewState = readRepairsViewState()
+const activeTab = ref<TabKey>(savedViewState.activeTab || 'base')
+const selectedWeekKey = ref(savedViewState.selectedWeekKey || '')
 const repairSearch = ref('')
 const normalizedRepairSearch = computed(() => normalizeSearchValue(repairSearch.value))
 const draggedRepairId = ref<number | null>(null)
@@ -1058,6 +1065,41 @@ function formatDateTime(value: string | null | undefined) {
   })
 }
 
+function isVisibleTabKey(value: unknown): value is TabKey {
+  return value === 'base' || value === 'other' || value === 'field'
+}
+
+function readRepairsViewState(): RepairsViewState {
+  try {
+    const storedState = sessionStorage.getItem(REPAIRS_VIEW_STATE_KEY)
+
+    if (!storedState) {
+      return {}
+    }
+
+    const parsedState = JSON.parse(storedState) as RepairsViewState
+
+    return {
+      activeTab: isVisibleTabKey(parsedState.activeTab) ? parsedState.activeTab : undefined,
+      selectedWeekKey: typeof parsedState.selectedWeekKey === 'string' ? parsedState.selectedWeekKey : undefined,
+    }
+  } catch {
+    sessionStorage.removeItem(REPAIRS_VIEW_STATE_KEY)
+    return {}
+  }
+}
+
+function persistRepairsViewState() {
+  try {
+    sessionStorage.setItem(REPAIRS_VIEW_STATE_KEY, JSON.stringify({
+      activeTab: activeTab.value,
+      selectedWeekKey: selectedWeekKey.value,
+    }))
+  } catch {
+    // Session storage can be unavailable in private modes; the view still works without persistence.
+  }
+}
+
 function weekKey(week: RepairWeek) {
   return `${week.year}-${week.week}`
 }
@@ -1319,6 +1361,7 @@ async function confirmDeleteMechanic() {
 }
 
 function openRepairDetails(repair: Repair) {
+  persistRepairsViewState()
   void router.push({ name: 'repair-detail', params: { id: repair.id } })
 }
 
@@ -1706,6 +1749,10 @@ watch(activeTab, (tab) => {
   if (tab === 'map') {
     void initializeRepairMap()
   }
+})
+
+watch([activeTab, selectedWeekKey], () => {
+  persistRepairsViewState()
 })
 
 watch([selectedWeekKey, mapRepairVehicles], () => {

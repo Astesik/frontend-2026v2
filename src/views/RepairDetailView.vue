@@ -202,7 +202,7 @@
               class="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm ring-1 ring-slate-200/70 dark:border-app-border dark:bg-app-dark dark:ring-white/5"
             >
               <div
-                class="grid cursor-pointer grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 px-2 py-2 transition hover:bg-slate-50 sm:px-3 md:grid-cols-[2rem_minmax(10rem,1fr)_12rem] md:gap-2 dark:hover:bg-app-elevated"
+                class="grid cursor-pointer grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-2 gap-y-2 px-2 py-2 transition hover:bg-slate-50 sm:px-3 md:grid-cols-[2rem_minmax(10rem,1fr)_12rem] md:gap-2 dark:hover:bg-app-elevated"
                 role="button"
                 tabindex="0"
                 :aria-expanded="isFaultExpanded(fault.id)"
@@ -233,8 +233,8 @@
                     @keydown.stop
                   />
                   <template v-else>
-                    <div class="fault-description-scroll flex min-h-8 min-w-0 items-center overflow-x-auto">
-                      <p class="w-max min-w-full whitespace-nowrap text-sm font-semibold text-slate-950 dark:text-slate-50">
+                    <div class="fault-description-scroll flex min-h-8 min-w-0 items-center overflow-visible md:overflow-x-auto">
+                      <p class="w-full whitespace-normal break-words text-sm font-semibold leading-5 text-slate-950 md:w-max md:min-w-full md:whitespace-nowrap dark:text-slate-50">
                         {{ fault.description }}
                       </p>
                     </div>
@@ -243,7 +243,7 @@
 
                 <div
                   v-if="isFaultExpanded(fault.id)"
-                  class="col-span-full grid gap-2 border-t border-slate-100 bg-slate-50/80 p-2 dark:border-app-border dark:bg-app-dark/80 lg:grid-cols-[minmax(16rem,0.78fr)_minmax(0,1fr)]"
+                  class="col-span-full row-start-3 grid gap-2 border-t border-slate-100 bg-slate-50/80 p-2 md:row-auto dark:border-app-border dark:bg-app-dark/80 lg:grid-cols-[minmax(16rem,0.78fr)_minmax(0,1fr)]"
                   @click.stop
                   @keydown.stop
                 >
@@ -305,16 +305,27 @@
                   </p>
                 </section>
 
-                <section class="flex min-h-[10rem] min-w-0 flex-col rounded-xl border border-slate-100 bg-white p-2 dark:border-app-border dark:bg-app-panel">
-                  <header class="mb-2 flex items-center justify-between gap-2">
+                <section class="flex min-w-0 flex-col rounded-xl border border-slate-100 bg-white p-2 dark:border-app-border dark:bg-app-panel">
+                  <button
+                    type="button"
+                    class="flex w-full items-center justify-between gap-2 rounded-xl px-1 py-1 text-left transition hover:bg-slate-50 dark:hover:bg-app-elevated"
+                    :aria-expanded="isFaultCommentsExpanded(fault.id)"
+                    @click.stop="toggleFaultComments(fault)"
+                  >
                     <div class="flex min-w-0 items-center gap-2">
                       <MessageSquare class="h-4 w-4 shrink-0 text-slate-400" />
-                      <h3 class="truncate text-xs font-semibold text-slate-950 dark:text-slate-50">Komentarze</h3>
+                      <span class="truncate text-xs font-semibold text-slate-950 dark:text-slate-50">Komentarze</span>
                     </div>
-                    <AppBadge>{{ fault.comments?.length || 0 }}</AppBadge>
-                  </header>
+                    <span class="flex shrink-0 items-center gap-2">
+                      <span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-1.5 text-[11px] font-semibold text-slate-600 dark:border-app-border dark:bg-app-elevated dark:text-slate-200">
+                        {{ fault.comments?.length || 0 }}
+                      </span>
+                      <ChevronDown class="h-4 w-4 text-slate-400 transition" :class="isFaultCommentsExpanded(fault.id) ? 'rotate-180' : ''" />
+                    </span>
+                  </button>
 
-                  <div class="max-h-[7.75rem] min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
+                  <template v-if="isFaultCommentsExpanded(fault.id)">
+                  <div class="mt-2 max-h-[7.75rem] min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
                     <article v-for="comment in fault.comments || []" :key="comment.id">
                       <div class="flex items-center justify-between gap-2 px-1">
                         <p class="truncate text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ comment.username || `Użytkownik #${comment.userId}` }}</p>
@@ -347,10 +358,11 @@
                       <Send class="h-3.5 w-3.5" />
                     </button>
                   </div>
+                  </template>
                 </section>
                 </div>
 
-                <div class="col-start-3 row-start-1 flex self-center justify-end gap-1 md:col-start-3 md:justify-end">
+                <div class="col-span-full row-start-2 flex self-center justify-end gap-1 md:col-span-auto md:col-start-3 md:row-start-1 md:justify-end">
                   <button
                     type="button"
                     class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
@@ -907,6 +919,7 @@ const newFaultPhotoDrafts = ref<NewFaultPhotoDraft[]>([])
 const newFaultPhotoError = ref('')
 const faultEditRows = reactive<Record<number, { description: string }>>({})
 const expandedFaultIds = ref<Set<number>>(new Set())
+const expandedFaultCommentIds = ref<Set<number>>(new Set())
 const faultCommentDrafts = reactive<Record<number, string>>({})
 const faultPhotoErrors = reactive<Record<number, string>>({})
 const editForm = reactive({
@@ -1324,19 +1337,48 @@ function syncFaultEditRows(faults: RepairFault[]) {
   })
 }
 
-function syncFaultExpandedRows(faults: RepairFault[], expandMissing = false) {
+function faultHasPhotos(fault: RepairFault) {
+  return (fault.photos || []).length > 0
+}
+
+function shouldAutoExpandFault(fault: RepairFault) {
+  return fault.status !== 'DONE' && faultHasPhotos(fault)
+}
+
+function faultHasComments(fault: RepairFault) {
+  return (fault.comments || []).length > 0
+}
+
+function syncFaultExpandedRows(faults: RepairFault[], applyDefaults = false) {
   const activeIds = new Set(faults.map((fault) => fault.id))
   const nextIds = new Set(Array.from(expandedFaultIds.value).filter((id) => activeIds.has(id)))
 
-  if (expandMissing) {
+  if (applyDefaults) {
     faults.forEach((fault) => {
-      if (!expandedFaultIds.value.has(fault.id) && fault.status !== 'DONE') {
+      if (shouldAutoExpandFault(fault)) {
         nextIds.add(fault.id)
       }
     })
   }
 
   expandedFaultIds.value = nextIds
+}
+
+function syncFaultCommentExpandedRows(faults: RepairFault[], applyDefaults = false) {
+  const activeIds = new Set(faults.map((fault) => fault.id))
+  const nextIds = new Set(Array.from(expandedFaultCommentIds.value).filter((id) => activeIds.has(id)))
+
+  if (applyDefaults) {
+    faults.forEach((fault) => {
+      if (faultHasComments(fault)) {
+        nextIds.add(fault.id)
+      } else {
+        nextIds.delete(fault.id)
+      }
+    })
+  }
+
+  expandedFaultCommentIds.value = nextIds
 }
 
 function isFaultEditing(faultId: number) {
@@ -1563,6 +1605,10 @@ function isFaultExpanded(faultId: number) {
   return expandedFaultIds.value.has(faultId)
 }
 
+function isFaultCommentsExpanded(faultId: number) {
+  return expandedFaultCommentIds.value.has(faultId)
+}
+
 function toggleFaultDetails(faultId: number) {
   const nextIds = new Set(expandedFaultIds.value)
   const willExpand = !nextIds.has(faultId)
@@ -1579,6 +1625,22 @@ function toggleFaultDetails(faultId: number) {
   expandedFaultIds.value = nextIds
 }
 
+function toggleFaultComments(fault: RepairFault) {
+  const nextIds = new Set(expandedFaultCommentIds.value)
+  const willExpand = !nextIds.has(fault.id)
+
+  if (!willExpand) {
+    nextIds.delete(fault.id)
+  } else {
+    nextIds.add(fault.id)
+    if (repair.value) {
+      void repairStore.loadRepairFaultComments(repair.value.id, fault.id, { silent: true }).catch(() => undefined)
+    }
+  }
+
+  expandedFaultCommentIds.value = nextIds
+}
+
 async function addFaultComment(faultId: number) {
   if (!repair.value) return
 
@@ -1589,6 +1651,7 @@ async function addFaultComment(faultId: number) {
   try {
     await repairStore.addRepairFaultComment(repair.value.id, faultId, content)
     faultCommentDrafts[faultId] = ''
+    expandedFaultCommentIds.value = new Set([...expandedFaultCommentIds.value, faultId])
     uiStore.addToast({
       type: 'success',
       title: 'Komentarz dodany',
@@ -1619,6 +1682,11 @@ async function handleFaultPhotoSelection(faultId: number, event: Event) {
     try {
       const photo = await repairStore.uploadRepairFaultPhoto(repair.value.id, faultId, file)
       await loadPhotoObjectUrl(photo)
+      const nextFault = repair.value.faults.find((item) => item.id === faultId)
+
+      if (nextFault && shouldAutoExpandFault(nextFault)) {
+        expandedFaultIds.value = new Set([...expandedFaultIds.value, faultId])
+      }
       uiStore.addToast({
         type: 'success',
         title: 'Zdjęcie dodane',
@@ -1644,6 +1712,12 @@ function clearFaultLocalData(faultId: number) {
     const nextIds = new Set(expandedFaultIds.value)
     nextIds.delete(faultId)
     expandedFaultIds.value = nextIds
+  }
+
+  if (expandedFaultCommentIds.value.has(faultId)) {
+    const nextIds = new Set(expandedFaultCommentIds.value)
+    nextIds.delete(faultId)
+    expandedFaultCommentIds.value = nextIds
   }
 }
 
@@ -1688,6 +1762,7 @@ async function loadRepair() {
       resetEditForm(details)
       syncFaultEditRows(details.faults || [])
       syncFaultExpandedRows(details.faults || [], true)
+      syncFaultCommentExpandedRows(details.faults || [], true)
     }
   } catch {
     showMutationError('Nie udało się pobrać naprawy', 'Spróbuj odświeżyć stronę.')
@@ -1701,6 +1776,7 @@ async function refreshRepair() {
     resetEditForm(details)
     syncFaultEditRows(details.faults || [])
     syncFaultExpandedRows(details.faults || [])
+    syncFaultCommentExpandedRows(details.faults || [])
   }
 }
 
@@ -1838,7 +1914,6 @@ async function confirmReopenFault() {
       assignedMechanicId: null,
       completedByMechanicId: null,
     })
-    expandedFaultIds.value = new Set([...expandedFaultIds.value, faultToReopen.value.id])
     faultToReopen.value = null
     uiStore.addToast({
       type: 'success',
@@ -1957,16 +2032,21 @@ async function addFaultToDetail() {
       description: newDetailFault.description.trim(),
       assignedMechanicId: null,
     })
-    expandedFaultIds.value = new Set([...expandedFaultIds.value, createdFault.id])
     let failedUploads = 0
+    let uploadedPhotos = 0
 
     for (const draft of newFaultPhotoDrafts.value) {
       try {
         const photo = await repairStore.uploadRepairFaultPhoto(repair.value.id, createdFault.id, draft.file)
         await loadPhotoObjectUrl(photo)
+        uploadedPhotos += 1
       } catch {
         failedUploads += 1
       }
+    }
+
+    if (uploadedPhotos > 0 && shouldAutoExpandFault(createdFault)) {
+      expandedFaultIds.value = new Set([...expandedFaultIds.value, createdFault.id])
     }
 
     newDetailFault.description = ''

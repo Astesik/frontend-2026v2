@@ -14,23 +14,26 @@ export interface LoginPayload {
 export interface AuthSession {
   token: string
   user: AuthUser | null
+  accessTokenExpiresAt?: string | number | null
 }
 
-export type LoginResponse = AuthSession | {
+export interface AuthSessionState {
   token?: string
   accessToken?: string
   access_token?: string
   jwt?: string
   bearerToken?: string
   bearer_token?: string
-  user?: AuthUser
-  data?: {
-    token?: string
-    accessToken?: string
-    access_token?: string
-    jwt?: string
-    bearerToken?: string
-    bearer_token?: string
-    user?: AuthUser
-  }
+  accessTokenExpiresAt?: string | number | null
+  access_token_expires_at?: string | number | null
+  expiresAt?: string | number | null
+  expires_at?: string | number | null
+  user?: AuthUser | null
+  data?: AuthSessionState
 }
+
+export type LoginResponse = AuthSession | AuthSessionState
+
+export type RefreshResponse = AuthSessionState
+
+export type SessionResponse = Partial<AuthSessionState>
