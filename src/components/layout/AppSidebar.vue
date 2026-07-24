@@ -148,7 +148,7 @@ const router = useRouter()
 const isUserMenuOpen = ref(false)
 const userMenuElement = ref<HTMLElement | null>(null)
 
-const navigation: Array<{ to: string; label: string; icon: Component }> = [
+const baseNavigation: Array<{ to: string; label: string; icon: Component }> = [
   { to: '/map', label: 'Mapa', icon: MapPinned },
   { to: '/route-calculator', label: 'Kalkulator tras - BETA', icon: Calculator },
   { to: '/vehicles', label: 'Pojazdy', icon: Truck },
@@ -157,6 +157,40 @@ const navigation: Array<{ to: string; label: string; icon: Component }> = [
   { to: '/settings', label: 'Ustawienia', icon: Settings },
 ]
 
+function hasPermissionPrefix(prefix: string) {
+  const normalizedPrefix = prefix.toLowerCase()
+  return authStore.canManageCompany || authStore.activeCompanyPermissions.some((permission) => (
+    permission.toLowerCase().startsWith(normalizedPrefix)
+  ))
+}
+
+function canSeeNavigationItem(path: string) {
+  if (path === '/vehicles') {
+    return hasPermissionPrefix('vehicles.')
+  }
+
+  if (path === '/devices') {
+    return hasPermissionPrefix('devices.')
+  }
+
+  if (path === '/repairs') {
+    return hasPermissionPrefix('repairs.')
+  }
+
+  if (path === '/settings') {
+    return (
+      authStore.canManageCompany ||
+      hasPermissionPrefix('settings.') ||
+      hasPermissionPrefix('vehicle_groups.') ||
+      hasPermissionPrefix('notifications.') ||
+      hasPermissionPrefix('vignettes.')
+    )
+  }
+
+  return true
+}
+
+const navigation = computed(() => baseNavigation.filter((item) => canSeeNavigationItem(item.to)))
 const initials = computed(() => authStore.displayName.slice(0, 2).toUpperCase())
 const displaySidebarCollapsed = computed(() => uiStore.sidebarCollapsed && !uiStore.mobileSidebarOpen)
 const sidebarClasses = computed(() => {

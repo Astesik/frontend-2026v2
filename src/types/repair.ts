@@ -25,6 +25,7 @@ export interface RepairFault {
   description: string
   status: RepairFaultStatus
   note: string | null
+  createdBy?: RepairCreatedBy | null
   assignedMechanicId: number | null
   assignedMechanicFullName: string | null
   performedByMechanicId: number | null
@@ -62,6 +63,7 @@ export interface RepairFaultComment {
   username: string | null
   text: string
   createdAt: string
+  updatedAt?: string | null
 }
 
 export interface RepairPhoto {
@@ -141,9 +143,12 @@ export interface RepairFaultPayload {
 export interface RepairFaultUpdatePayload {
   description?: string
   assignedMechanicId?: number | null
-  status?: 'open' | 'done'
   note?: string | null
   completedByMechanicId?: number | null
+}
+
+export interface RepairFaultStatusPayload {
+  status: 'open' | 'done'
 }
 
 export interface Mechanic {

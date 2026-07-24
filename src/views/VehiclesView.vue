@@ -34,7 +34,12 @@
           placeholder="Szukaj po rejestracji, marce, VIN, roku"
           size="sm"
         />
-        <AppButton size="sm" @click="openCreateModal">
+        <AppButton
+          size="sm"
+          :disabled="!canCreateVehicles"
+          :title="!canCreateVehicles ? 'Brak uprawnienia: vehicles.create' : undefined"
+          @click="openCreateModal"
+        >
           <Plus class="h-4 w-4" />
           Dodaj pojazd
         </AppButton>
@@ -192,6 +197,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import { vehicleService, type VehiclePayload } from '@/services/vehicleService'
+import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
 import { useUiStore } from '@/stores/uiStore'
 import type { ApiVehicle } from '@/types/fleet'
@@ -208,6 +214,7 @@ type VehicleSortKey =
 type SortDirection = 'asc' | 'desc'
 
 const fleetStore = useFleetStore()
+const authStore = useAuthStore()
 const uiStore = useUiStore()
 const searchQuery = ref('')
 const typeFilter = ref('all')
@@ -219,6 +226,7 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const isCreateModalOpen = ref(false)
 const isCreatingVehicle = ref(false)
+const canCreateVehicles = computed(() => hasPermission('vehicles.create'))
 
 const createForm = reactive(createEmptyVehicleForm())
 
@@ -576,7 +584,15 @@ function createPayloadFromForm(): VehiclePayload {
   }
 }
 
+function hasPermission(permission: string) {
+  return authStore.canManageCompany || authStore.hasActiveCompanyPermission(permission)
+}
+
 function openCreateModal() {
+  if (!canCreateVehicles.value) {
+    return
+  }
+
   resetCreateForm()
   isCreateModalOpen.value = true
 }
@@ -588,7 +604,7 @@ function closeCreateModal() {
 }
 
 async function submitCreateVehicle() {
-  if (!createForm.licensePlate.trim()) {
+  if (!canCreateVehicles.value || !createForm.licensePlate.trim()) {
     return
   }
 

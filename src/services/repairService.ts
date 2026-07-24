@@ -7,6 +7,7 @@ import type {
   RepairFaultPhoto,
   RepairFaultStatus,
   RepairFaultPayload,
+  RepairFaultStatusPayload,
   RepairFaultUpdatePayload,
   RepairPayload,
   RepairPhoto,
@@ -57,6 +58,7 @@ function normalizeFaultComment(comment: RepairFaultComment): RepairFaultComment 
     userId: comment.userId ?? createdById,
     username: comment.username || rawComment.createdByUsername || (typeof createdBy === 'object' && createdBy ? createdBy.username || null : null),
     text: comment.text || rawComment.content || '',
+    updatedAt: rawComment.updatedAt || null,
   }
 }
 
@@ -117,6 +119,7 @@ function mechanicId(mechanic: unknown) {
 
 function normalizeFault(fault: RepairFault): RepairFault {
   const rawFault = fault as RepairFault & {
+    createdBy?: number | { id?: number; username?: string | null } | null
     assignedMechanic?: unknown
     completedByMechanic?: unknown
     performedByMechanic?: unknown
@@ -127,11 +130,20 @@ function normalizeFault(fault: RepairFault): RepairFault {
   }
   const assignedMechanic = rawFault.assignedMechanic
   const completedMechanic = rawFault.completedByMechanic || rawFault.performedByMechanic
+  const createdBy = typeof rawFault.createdBy === 'object' && rawFault.createdBy
+    ? {
+        id: Number(rawFault.createdBy.id),
+        username: rawFault.createdBy.username || null,
+      }
+    : typeof rawFault.createdBy === 'number'
+      ? { id: rawFault.createdBy, username: null }
+      : fault.createdBy || null
 
   return {
     ...fault,
     status: normalizeFaultStatus(fault.status),
     note: fault.note || null,
+    createdBy,
     assignedMechanicId: fault.assignedMechanicId ?? mechanicId(assignedMechanic),
     assignedMechanicFullName: fault.assignedMechanicFullName || mechanicFullName(assignedMechanic),
     performedByMechanicId: fault.performedByMechanicId ?? mechanicId(completedMechanic),
@@ -280,8 +292,20 @@ export const repairService = {
     return normalizeFault(data)
   },
 
+  async getRepairFaults(repairId: number | string, options?: { silent?: boolean }) {
+    const { data } = await api.get<RepairFault[]>(`/api/repairs/${repairId}/faults`, {
+      skipErrorToast: options?.silent,
+    })
+    return Array.isArray(data) ? data.map(normalizeFault) : []
+  },
+
   async updateRepairFault(repairId: number | string, faultId: number | string, payload: RepairFaultUpdatePayload) {
     const { data } = await api.patch<RepairFault>(`/api/repairs/${repairId}/faults/${faultId}`, payload)
+    return normalizeFault(data)
+  },
+
+  async updateRepairFaultStatus(repairId: number | string, faultId: number | string, payload: RepairFaultStatusPayload) {
+    const { data } = await api.patch<RepairFault>(`/api/repairs/${repairId}/faults/${faultId}/status`, payload)
     return normalizeFault(data)
   },
 
@@ -299,6 +323,15 @@ export const repairService = {
   async addRepairFaultComment(repairId: number | string, faultId: number | string, text: string) {
     const { data } = await api.post<RepairFaultComment>(`/api/repairs/${repairId}/faults/${faultId}/comments`, { text })
     return normalizeFaultComment(data)
+  },
+
+  async updateRepairFaultComment(repairId: number | string, faultId: number | string, commentId: number | string, text: string) {
+    const { data } = await api.patch<RepairFaultComment>(`/api/repairs/${repairId}/faults/${faultId}/comments/${commentId}`, { text })
+    return normalizeFaultComment(data)
+  },
+
+  async deleteRepairFaultComment(repairId: number | string, faultId: number | string, commentId: number | string) {
+    await api.delete(`/api/repairs/${repairId}/faults/${faultId}/comments/${commentId}`)
   },
 
   async uploadRepairFaultPhoto(repairId: number | string, faultId: number | string, file: File) {

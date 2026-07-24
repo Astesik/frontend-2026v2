@@ -1,11 +1,11 @@
 <template>
-  <div ref="rootElement" class="relative">
+  <div ref="rootElement" class="relative" :class="floating ? 'min-h-9' : ''">
     <label v-if="label" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
       {{ label }}
     </label>
 
     <div
-      class="flex min-h-11 w-full flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200 dark:border-app-border dark:bg-app-panel dark:text-slate-50 dark:focus:border-app-muted dark:focus:ring-app-elevated"
+      :class="tagFieldClasses"
       @click="inputElement?.focus()"
     >
       <span
@@ -28,7 +28,8 @@
         ref="inputElement"
         v-model="query"
         type="text"
-        class="min-w-[9rem] flex-1 bg-transparent text-sm outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-app-muted"
+        class="min-w-[9rem] flex-1 bg-transparent outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-app-muted"
+        :class="compact ? 'text-xs' : 'text-sm'"
         :placeholder="selectedVehicles.length ? 'Dodaj pojazd' : placeholder"
         @focus="isOpen = true"
         @input="isOpen = true"
@@ -38,7 +39,8 @@
 
     <div
       v-if="isOpen"
-      class="absolute z-40 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel"
+      class="absolute left-0 right-0 z-50 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel"
+      :class="floating ? 'top-10' : 'top-full mt-2'"
     >
       <button
         v-for="vehicle in filteredVehicles"
@@ -73,9 +75,13 @@ const props = withDefaults(defineProps<{
   vehicles: ApiVehicle[]
   label?: string
   placeholder?: string
+  floating?: boolean
+  compact?: boolean
 }>(), {
   label: undefined,
   placeholder: 'Wpisz numer rejestracyjny',
+  floating: false,
+  compact: false,
 })
 
 const emit = defineEmits<{
@@ -87,6 +93,16 @@ const rootElement = ref<HTMLElement | null>(null)
 const inputElement = ref<HTMLInputElement | null>(null)
 const query = ref('')
 const isOpen = ref(false)
+
+const tagFieldClasses = computed(() => [
+  'flex w-full flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white text-slate-950 shadow-sm transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200 dark:border-app-border dark:bg-app-panel dark:text-slate-50 dark:focus:border-app-muted dark:focus:ring-app-elevated',
+  props.compact ? 'text-xs' : 'text-sm',
+  props.floating
+    ? isOpen.value
+      ? 'absolute left-0 right-0 top-0 z-40 min-h-9 max-h-44 overflow-y-auto px-3 py-2'
+      : 'h-9 overflow-hidden px-3 py-1'
+    : 'min-h-11 px-3 py-2',
+])
 
 const selectedIds = computed(() => new Set(props.modelValue.map(String)))
 const selectedVehicles = computed(() => props.modelValue
@@ -118,7 +134,13 @@ const filteredVehicles = computed(() => {
 function selectVehicle(vehicleId: number) {
   emit('add', String(vehicleId))
   query.value = ''
-  isOpen.value = false
+
+  if (!props.floating) {
+    isOpen.value = false
+    return
+  }
+
+  requestAnimationFrame(() => inputElement.value?.focus())
 }
 
 function onDocumentClick(event: MouseEvent) {

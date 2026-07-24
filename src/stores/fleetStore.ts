@@ -644,6 +644,17 @@ export const useFleetStore = defineStore('fleet', () => {
     localStorage.setItem(SELECTED_DRIVER_KEY, driverId)
   }
 
+  function resetApiState() {
+    apiVehicles.value = []
+    lastPositions.value = []
+    vehicleGroups.value = []
+    vehicleGroupDetails.value = {}
+    isVehiclesLoading.value = false
+    isVehicleGroupsLoading.value = false
+    isPositionsLoading.value = false
+    clearPositionHistory()
+  }
+
   return {
     apiVehicles,
     lastPositions,
@@ -687,5 +698,6 @@ export const useFleetStore = defineStore('fleet', () => {
     getVehicleIdsForGroup,
     setSelectedVehicle,
     setSelectedDriver,
+    resetApiState,
   }
 })

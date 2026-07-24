@@ -107,6 +107,14 @@ export const usePlaceStore = defineStore('places', () => {
     return events
   }
 
+  function resetApiState() {
+    places.value = []
+    eventRulesByPlace.value = {}
+    vehicleEventsByPlace.value = {}
+    isLoading.value = false
+    isMutating.value = false
+  }
+
   return {
     places,
     isLoading,
@@ -121,5 +129,6 @@ export const usePlaceStore = defineStore('places', () => {
     saveEventRule,
     deleteEventRule,
     loadVehicleEvents,
+    resetApiState,
   }
 })

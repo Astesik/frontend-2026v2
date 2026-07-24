@@ -17,7 +17,15 @@
         </div>
       </div>
 
-      <AppButton v-if="device" class="w-full sm:w-auto" size="sm" variant="danger" @click="showDeleteConfirmation = true">
+      <AppButton
+        v-if="device"
+        class="w-full sm:w-auto"
+        size="sm"
+        variant="danger"
+        :disabled="!canDeleteDevices"
+        :title="!canDeleteDevices ? 'Brak uprawnienia: devices.delete' : undefined"
+        @click="openDeleteConfirmation"
+      >
         <Trash2 class="h-4 w-4" />
         Usuń urządzenie
       </AppButton>
@@ -34,7 +42,14 @@
     <div v-else>
       <AppCard title="Dane urządzenia" compact>
         <template #actions>
-          <AppButton v-if="!editMode" size="sm" variant="secondary" @click="openEdit">
+          <AppButton
+            v-if="!editMode"
+            size="sm"
+            variant="secondary"
+            :disabled="!canUpdateDevices"
+            :title="!canUpdateDevices ? 'Brak uprawnienia: devices.update' : undefined"
+            @click="openEdit"
+          >
             <SquarePen class="h-4 w-4" />
             Edytuj
           </AppButton>
@@ -43,7 +58,14 @@
               <X class="h-4 w-4" />
               Anuluj
             </AppButton>
-            <AppButton size="sm" variant="secondary" :loading="deviceStore.isMutating" @click="saveDevice">
+            <AppButton
+              size="sm"
+              variant="secondary"
+              :loading="deviceStore.isMutating"
+              :disabled="!canUpdateDevices"
+              :title="!canUpdateDevices ? 'Brak uprawnienia: devices.update' : undefined"
+              @click="saveDevice"
+            >
               <Check class="h-4 w-4" />
               Zapisz
             </AppButton>
@@ -88,7 +110,15 @@
           </header>
           <footer class="flex justify-end gap-2 px-5 py-4">
             <AppButton variant="secondary" :disabled="deviceStore.isMutating" @click="showDeleteConfirmation = false">Anuluj</AppButton>
-            <AppButton variant="danger" :loading="deviceStore.isMutating" @click="confirmDelete">Usuń</AppButton>
+            <AppButton
+              variant="danger"
+              :loading="deviceStore.isMutating"
+              :disabled="!canDeleteDevices"
+              :title="!canDeleteDevices ? 'Brak uprawnienia: devices.delete' : undefined"
+              @click="confirmDelete"
+            >
+              Usuń
+            </AppButton>
           </footer>
         </section>
       </div>
@@ -105,18 +135,22 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
+import { useAuthStore } from '@/stores/authStore'
 import { useDeviceStore } from '@/stores/deviceStore'
 import { useUiStore } from '@/stores/uiStore'
 import type { DeviceDetails, DeviceProvider, DeviceStatus, DeviceType } from '@/types/device'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const uiStore = useUiStore()
 const deviceStore = useDeviceStore()
 const { currentDevice: device } = storeToRefs(deviceStore)
 const editMode = ref(false)
 const showDeleteConfirmation = ref(false)
 const deviceId = computed(() => String(route.params.id || ''))
+const canUpdateDevices = computed(() => hasPermission('devices.update'))
+const canDeleteDevices = computed(() => hasPermission('devices.delete'))
 const editForm = reactive({
   deviceName: '',
   type: 'NEW' as DeviceType,
@@ -158,10 +192,19 @@ function resetEditForm(value: DeviceDetails) {
   })
 }
 
+function hasPermission(permission: string) {
+  return authStore.canManageCompany || authStore.hasActiveCompanyPermission(permission)
+}
+
 function openEdit() {
-  if (!device.value) return
+  if (!device.value || !canUpdateDevices.value) return
   resetEditForm(device.value)
   editMode.value = true
+}
+
+function openDeleteConfirmation() {
+  if (!canDeleteDevices.value) return
+  showDeleteConfirmation.value = true
 }
 
 function cancelEdit() {
@@ -182,7 +225,7 @@ async function loadDevice() {
 }
 
 async function saveDevice() {
-  if (!device.value) return
+  if (!device.value || !canUpdateDevices.value) return
 
   try {
     await deviceStore.updateDevice(device.value.id, {
@@ -198,7 +241,7 @@ async function saveDevice() {
 }
 
 async function confirmDelete() {
-  if (!device.value) return
+  if (!device.value || !canDeleteDevices.value) return
 
   try {
     await deviceStore.deleteDevice(device.value.id)

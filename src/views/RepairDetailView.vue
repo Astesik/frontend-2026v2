@@ -19,11 +19,26 @@
 
       <div v-if="repair" class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
         <AppBadge :variant="statusVariant(repair.status)">{{ statusLabel(repair.status) }}</AppBadge>
-        <AppButton class="w-full sm:w-auto" size="sm" variant="secondary" :loading="isMutating" @click="requestRepairStatusChange">
+        <AppButton
+          class="w-full sm:w-auto"
+          size="sm"
+          variant="secondary"
+          :loading="isMutating"
+          :disabled="!canUpdateRepairs"
+          :title="!canUpdateRepairs ? 'Brak uprawnienia: repairs.update' : undefined"
+          @click="requestRepairStatusChange"
+        >
           <CircleCheck class="h-4 w-4" />
           {{ normalizeRepairStatus(repair.status) === 'done' ? 'Otwórz naprawę' : 'Zamknij naprawę' }}
         </AppButton>
-        <AppButton class="w-full sm:w-auto" size="sm" variant="danger" @click="repairToDelete = repair">
+        <AppButton
+          class="w-full sm:w-auto"
+          size="sm"
+          variant="danger"
+          :disabled="!canDeleteRepairs"
+          :title="!canDeleteRepairs ? 'Brak uprawnienia: repairs.delete' : undefined"
+          @click="repairToDelete = repair"
+        >
           <Trash2 class="h-4 w-4" />
           Usuń naprawę
         </AppButton>
@@ -41,7 +56,14 @@
     <div v-else class="space-y-3">
         <AppCard title="Informacje" compact content-class="!p-3">
           <template #actions>
-            <AppButton v-if="!infoEditMode" size="sm" variant="secondary" @click="openInfoEdit">
+            <AppButton
+              v-if="!infoEditMode"
+              size="sm"
+              variant="secondary"
+              :disabled="!canUpdateRepairs"
+              :title="!canUpdateRepairs ? 'Brak uprawnienia: repairs.update' : undefined"
+              @click="openInfoEdit"
+            >
               <SquarePen class="h-4 w-4" />
               Edytuj
             </AppButton>
@@ -50,7 +72,14 @@
                 <X class="h-4 w-4" />
                 Anuluj
               </AppButton>
-              <AppButton size="sm" variant="secondary" :loading="isMutating" @click="updateRepairDetails">
+              <AppButton
+                size="sm"
+                variant="secondary"
+                :loading="isMutating"
+                :disabled="!canUpdateRepairs"
+                :title="!canUpdateRepairs ? 'Brak uprawnienia: repairs.update' : undefined"
+                @click="updateRepairDetails"
+              >
                 <Check class="h-4 w-4" />
                 Zapisz
               </AppButton>
@@ -185,10 +214,16 @@
           </p>
         </AppCard>
         </template>
-        <AppCard title="Usterki" compact content-class="!p-3">
+        <AppCard v-if="canReadFaults" title="Usterki" compact content-class="!p-3">
           <template #actions>
             <div class="flex flex-wrap justify-end gap-2">
-              <AppButton size="sm" variant="secondary" @click="openAddFaultModal">
+              <AppButton
+                size="sm"
+                variant="secondary"
+                :disabled="!canCreateFaults"
+                :title="!canCreateFaults ? 'Brak uprawnienia: faults.create' : undefined"
+                @click="openAddFaultModal"
+              >
                 <Plus class="h-4 w-4" />
                 Dodaj usterkę
               </AppButton>
@@ -215,7 +250,8 @@
                   type="button"
                   class="inline-flex h-8 w-8 self-center items-center justify-center rounded-xl text-slate-300 transition hover:bg-slate-50 hover:text-success-600 dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-success-400"
                   :aria-label="fault.status === 'DONE' ? 'Oznacz jako niezrobione' : 'Oznacz jako zrobione'"
-                  :disabled="isMutating"
+                  :disabled="isMutating || !canChangeFaultStatus"
+                  :title="!canChangeFaultStatus ? 'Brak uprawnienia: faults.change_status' : undefined"
                   @click.stop="toggleFaultDone(fault)"
                   @keydown.stop
                 >
@@ -260,7 +296,8 @@
                     <button
                       type="button"
                       class="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-200 text-center text-[10px] font-semibold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:text-slate-400 dark:hover:bg-app-elevated"
-                      :disabled="isPhotoMutating"
+                      :disabled="isPhotoMutating || !canAddFaultPhotos"
+                      :title="!canAddFaultPhotos ? 'Brak uprawnienia: fault_photos.add' : undefined"
                       @click.stop="openFaultPhotoAdd(fault.id)"
                     >
                       <LoaderCircle v-if="isPhotoMutating" class="h-4 w-4 animate-spin" />
@@ -287,6 +324,7 @@
                         <LoaderCircle v-else class="h-4 w-4 animate-spin" />
                       </div>
                       <button
+                        v-if="canDeleteFaultPhoto(photo)"
                         type="button"
                         class="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-950/70 text-white transition hover:bg-slate-950"
                         :disabled="isPhotoMutating"
@@ -329,9 +367,54 @@
                     <article v-for="comment in fault.comments || []" :key="comment.id">
                       <div class="flex items-center justify-between gap-2 px-1">
                         <p class="truncate text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ comment.username || `Użytkownik #${comment.userId}` }}</p>
-                        <time class="shrink-0 text-[10px] text-slate-400 dark:text-app-muted">{{ formatDateTime(comment.createdAt) }}</time>
+                        <div class="flex shrink-0 items-center gap-1">
+                          <time class="text-[10px] text-slate-400 dark:text-app-muted">{{ formatDateTime(comment.createdAt) }}</time>
+                          <button
+                            v-if="canEditComment(comment)"
+                            type="button"
+                            class="inline-flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
+                            aria-label="Edytuj komentarz"
+                            @click.stop="startCommentEdit(comment)"
+                          >
+                            <SquarePen class="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            v-if="canDeleteComment(comment)"
+                            type="button"
+                            class="inline-flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
+                            aria-label="Usuń komentarz"
+                            @click.stop="commentToDelete = { faultId: fault.id, comment }"
+                          >
+                            <Trash2 class="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
-                      <p class="mt-1 w-fit max-w-[95%] rounded-xl rounded-tl-sm bg-slate-100 px-2.5 py-1.5 text-xs text-slate-800 dark:bg-app-elevated dark:text-slate-100">
+                      <div v-if="isCommentEditing(comment.id)" class="mt-1 flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1 dark:border-app-border dark:bg-app-dark">
+                        <input
+                          v-model="commentEditDrafts[comment.id]"
+                          type="text"
+                          class="min-w-0 flex-1 bg-transparent px-2 text-xs text-slate-950 outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-app-muted"
+                          @click.stop
+                          @keydown.enter.prevent="saveCommentEdit(fault.id, comment)"
+                        />
+                        <button
+                          type="button"
+                          class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
+                          aria-label="Anuluj edycję komentarza"
+                          @click.stop="cancelCommentEdit(comment.id)"
+                        >
+                          <X class="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-app-dark dark:hover:bg-white"
+                          aria-label="Zapisz komentarz"
+                          @click.stop="saveCommentEdit(fault.id, comment)"
+                        >
+                          <Check class="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <p v-else class="mt-1 w-fit max-w-[95%] rounded-xl rounded-tl-sm bg-slate-100 px-2.5 py-1.5 text-xs text-slate-800 dark:bg-app-elevated dark:text-slate-100">
                         {{ comment.text }}
                       </p>
                     </article>
@@ -346,12 +429,15 @@
                       type="text"
                       class="min-w-0 flex-1 bg-transparent px-2 text-xs text-slate-950 outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-app-muted"
                       placeholder="Dodaj komentarz"
+                      :disabled="!canAddComments"
                       @click.stop
                       @keydown.enter.prevent="addFaultComment(fault.id)"
                     />
                     <button
                       type="button"
-                      class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-app-dark dark:hover:bg-white"
+                      class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-100 dark:text-app-dark dark:hover:bg-white"
+                      :disabled="!canAddComments"
+                      :title="!canAddComments ? 'Brak uprawnienia: comments.add' : undefined"
                       aria-label="Dodaj komentarz"
                       @click.stop="addFaultComment(fault.id)"
                     >
@@ -374,11 +460,11 @@
                     <span class="hidden sm:inline">{{ isFaultExpanded(fault.id) ? 'Zwiń' : 'Rozwiń' }}</span>
                   </button>
                   <button
-                    v-if="!isFaultEditing(fault.id)"
+                    v-if="!isFaultEditing(fault.id) && canEditFaults"
                     type="button"
                     class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
                     aria-label="Edytuj usterkę"
-                    :disabled="isMutating"
+                    :disabled="isMutating || !canEditFaults"
                     @click.stop="startFaultEdit(fault)"
                   >
                     <SquarePen class="h-4 w-4" />
@@ -389,7 +475,7 @@
                     type="button"
                     class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
                     aria-label="Anuluj edycję usterki"
-                    :disabled="isMutating"
+                    :disabled="isMutating || !canEditFaults"
                     @click.stop="cancelFaultEdit"
                   >
                     <X class="h-4 w-4" />
@@ -400,7 +486,7 @@
                     type="button"
                     class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
                     aria-label="Zapisz usterkę"
-                    :disabled="isMutating"
+                    :disabled="isMutating || !canEditFaults"
                     @click.stop="saveFaultRow(fault)"
                   >
                     <Check class="h-4 w-4" />
@@ -410,7 +496,8 @@
                     type="button"
                     class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
                     aria-label="Usuń usterkę"
-                    :disabled="isMutating"
+                    :disabled="isMutating || !canDeleteFault(fault)"
+                    :title="!canDeleteFault(fault) ? 'Brak uprawnienia do usunięcia tej usterki' : undefined"
                     @click.stop="faultToDelete = fault"
                   >
                     <Trash2 class="h-4 w-4" />
@@ -528,6 +615,12 @@
           </div>
         </AppCard>
 
+        <AppCard v-else title="Usterki" compact content-class="!p-3">
+          <div class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
+            Brak uprawnień do wyświetlania usterek.
+          </div>
+        </AppCard>
+
       </div>
 
     <Teleport to="body">
@@ -569,7 +662,8 @@
               <button
                 type="button"
                 class="flex min-h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-sm font-medium text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated"
-                :disabled="isMutating || isPhotoMutating"
+                :disabled="isMutating || isPhotoMutating || !canAddFaultPhotos"
+                :title="!canAddFaultPhotos ? 'Brak uprawnienia: fault_photos.add' : undefined"
                 @click="openNewFaultPhotoAdd"
               >
                 <ImagePlus class="h-5 w-5" />
@@ -602,7 +696,12 @@
 
           <footer class="flex flex-col-reverse gap-2 border-t border-slate-100 px-5 py-4 dark:border-app-border sm:flex-row sm:justify-end">
             <AppButton variant="secondary" :disabled="isMutating || isPhotoMutating" @click="closeAddFaultModal">Anuluj</AppButton>
-            <AppButton :loading="isMutating || isPhotoMutating" @click="addFaultToDetail">
+            <AppButton
+              :loading="isMutating || isPhotoMutating"
+              :disabled="!canCreateFaults"
+              :title="!canCreateFaults ? 'Brak uprawnienia: faults.create' : undefined"
+              @click="addFaultToDetail"
+            >
               <Plus class="h-4 w-4" />
               Dodaj usterkę
             </AppButton>
@@ -736,7 +835,42 @@
           </header>
           <footer class="flex justify-end gap-2 px-5 py-4">
             <AppButton variant="secondary" :disabled="isPhotoMutating" @click="photoToDelete = null">Anuluj</AppButton>
-            <AppButton variant="danger" :loading="isPhotoMutating" @click="confirmDeletePhoto">Usuń</AppButton>
+            <AppButton
+              variant="danger"
+              :loading="isPhotoMutating"
+              :disabled="!canDeleteFaultPhoto(photoToDelete)"
+              @click="confirmDeletePhoto"
+            >
+              Usuń
+            </AppButton>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
+        v-if="commentToDelete"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
+        @click.self="commentToDelete = null"
+      >
+        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
+          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
+            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Usunąć komentarz?</h2>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Czy na pewno chcesz usunąć ten komentarz?
+            </p>
+          </header>
+          <footer class="flex justify-end gap-2 px-5 py-4">
+            <AppButton variant="secondary" :disabled="isMutating" @click="commentToDelete = null">Anuluj</AppButton>
+            <AppButton
+              variant="danger"
+              :loading="isMutating"
+              :disabled="!canDeleteComment(commentToDelete.comment)"
+              @click="confirmDeleteComment"
+            >
+              Usuń
+            </AppButton>
           </footer>
         </section>
       </div>
@@ -782,7 +916,7 @@
           </header>
           <footer class="flex justify-end gap-2 px-5 py-4">
             <AppButton variant="secondary" @click="faultToComplete = null">Anuluj</AppButton>
-            <AppButton :loading="isMutating" @click="confirmCompleteFault">Zamknij usterkę</AppButton>
+            <AppButton :loading="isMutating" :disabled="!canChangeFaultStatus" @click="confirmCompleteFault">Zamknij usterkę</AppButton>
           </footer>
         </section>
       </div>
@@ -803,7 +937,7 @@
           </header>
           <footer class="flex justify-end gap-2 px-5 py-4">
             <AppButton variant="secondary" @click="faultToReopen = null">Anuluj</AppButton>
-            <AppButton :loading="isMutating" @click="confirmReopenFault">Cofnij wykonanie</AppButton>
+            <AppButton :loading="isMutating" :disabled="!canChangeFaultStatus" @click="confirmReopenFault">Cofnij wykonanie</AppButton>
           </footer>
         </section>
       </div>
@@ -824,7 +958,14 @@
           </header>
           <footer class="flex justify-end gap-2 px-5 py-4">
             <AppButton variant="secondary" @click="faultToDelete = null">Anuluj</AppButton>
-            <AppButton variant="danger" :loading="isMutating" @click="confirmDeleteFault">Usuń</AppButton>
+            <AppButton
+              variant="danger"
+              :loading="isMutating"
+              :disabled="!canDeleteFault(faultToDelete)"
+              @click="confirmDeleteFault"
+            >
+              Usuń
+            </AppButton>
           </footer>
         </section>
       </div>
@@ -845,7 +986,14 @@
           </header>
           <footer class="flex justify-end gap-2 px-5 py-4">
             <AppButton variant="secondary" @click="repairToDelete = null">Anuluj</AppButton>
-            <AppButton variant="danger" :loading="isMutating" @click="confirmDeleteRepair">Usuń</AppButton>
+            <AppButton
+              variant="danger"
+              :loading="isMutating"
+              :disabled="!canDeleteRepairs"
+              @click="confirmDeleteRepair"
+            >
+              Usuń
+            </AppButton>
           </footer>
         </section>
       </div>
@@ -866,9 +1014,10 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppSearchSelect, { type AppSearchSelectOption } from '@/components/ui/AppSearchSelect.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import { repairService } from '@/services/repairService'
+import { useAuthStore } from '@/stores/authStore'
 import { useRepairStore } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
-import type { Repair, RepairFault, RepairFaultPhoto, RepairPhoto, RepairStatus } from '@/types/repair'
+import type { Repair, RepairFault, RepairFaultComment, RepairFaultPhoto, RepairPhoto, RepairStatus } from '@/types/repair'
 
 interface NewFaultPhotoDraft {
   id: string
@@ -882,6 +1031,7 @@ type PhotoPickerMenu =
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const uiStore = useUiStore()
 const repairStore = useRepairStore()
 const {
@@ -898,6 +1048,7 @@ const faultToReopen = ref<RepairFault | null>(null)
 const faultToDelete = ref<RepairFault | null>(null)
 const faultsEditMode = ref(false)
 const editingFaultId = ref<number | null>(null)
+const editingCommentId = ref<number | null>(null)
 const isAddFaultModalOpen = ref(false)
 const infoEditMode = ref(false)
 const photoInput = ref<HTMLInputElement | null>(null)
@@ -909,6 +1060,7 @@ const selectedFaultPhotoInputId = ref<number | null>(null)
 const photoPickerMenu = ref<PhotoPickerMenu | null>(null)
 const photoToDelete = ref<RepairFaultPhoto | null>(null)
 const photoPreview = ref<RepairFaultPhoto | null>(null)
+const commentToDelete = ref<{ faultId: number; comment: RepairFaultComment } | null>(null)
 const photoValidationError = ref('')
 const photoObjectUrls = reactive<Record<number, string>>({})
 const photoLoadFailures = reactive<Record<number, boolean>>({})
@@ -918,6 +1070,7 @@ const newDetailFault = reactive({ description: '' })
 const newFaultPhotoDrafts = ref<NewFaultPhotoDraft[]>([])
 const newFaultPhotoError = ref('')
 const faultEditRows = reactive<Record<number, { description: string }>>({})
+const commentEditDrafts = reactive<Record<number, string>>({})
 const expandedFaultIds = ref<Set<number>>(new Set())
 const expandedFaultCommentIds = ref<Set<number>>(new Set())
 const faultCommentDrafts = reactive<Record<number, string>>({})
@@ -931,6 +1084,19 @@ const editForm = reactive({
 })
 const repairId = computed(() => String(route.params.id || ''))
 const allFaultPhotos = computed(() => (repair.value?.faults || []).flatMap((fault) => fault.photos || []))
+const currentUserId = computed(() => Number(authStore.user?.id ?? authStore.user?.userId ?? authStore.user?.uid))
+const canUpdateRepairs = computed(() => hasPermission('repairs.update'))
+const canDeleteRepairs = computed(() => hasPermission('repairs.delete'))
+const canReadFaults = computed(() => hasPermission('faults.read'))
+const canCreateFaults = computed(() => hasPermission('faults.create'))
+const canEditFaults = computed(() => hasPermission('faults.edit_any'))
+const canChangeFaultStatus = computed(() => hasPermission('faults.change_status'))
+const canDeleteAnyFaults = computed(() => hasPermission('faults.delete_any'))
+const canAddComments = computed(() => hasPermission('comments.add'))
+const canEditAnyComments = computed(() => hasPermission('comments.edit_any'))
+const canDeleteAnyComments = computed(() => hasPermission('comments.delete_any'))
+const canAddFaultPhotos = computed(() => hasPermission('fault_photos.add'))
+const canDeleteAnyFaultPhotos = computed(() => hasPermission('fault_photos.delete_any'))
 
 const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 const MAX_PHOTO_SIZE = 20 * 1024 * 1024
@@ -1071,6 +1237,31 @@ function validateRepairPhoto(file: File) {
   return null
 }
 
+function hasPermission(permission: string) {
+  return authStore.canManageCompany || authStore.hasActiveCompanyPermission(permission)
+}
+
+function isCurrentUser(ownerId: number | string | null | undefined) {
+  const normalizedOwnerId = Number(ownerId)
+  return Number.isFinite(currentUserId.value) && Number.isFinite(normalizedOwnerId) && currentUserId.value === normalizedOwnerId
+}
+
+function canDeleteFault(fault: RepairFault | null | undefined) {
+  return Boolean(fault) && (canDeleteAnyFaults.value || isCurrentUser(fault.createdBy?.id))
+}
+
+function canEditComment(comment: RepairFaultComment) {
+  return canEditAnyComments.value || isCurrentUser(comment.userId)
+}
+
+function canDeleteComment(comment: RepairFaultComment) {
+  return canDeleteAnyComments.value || isCurrentUser(comment.userId)
+}
+
+function canDeleteFaultPhoto(photo: RepairFaultPhoto | null | undefined) {
+  return Boolean(photo) && (canDeleteAnyFaultPhotos.value || isCurrentUser(photo.uploadedBy?.id))
+}
+
 function openPhotoPicker() {
   photoValidationError.value = ''
   photoInput.value?.click()
@@ -1195,6 +1386,10 @@ async function confirmDeletePhoto() {
 
   const photo = photoToDelete.value
 
+  if (!canDeleteFaultPhoto(photo)) {
+    return
+  }
+
   try {
     if (!photo.faultId) {
       return
@@ -1296,7 +1491,7 @@ function resetEditForm(value: Repair) {
 }
 
 function openInfoEdit() {
-  if (!repair.value) {
+  if (!repair.value || !canUpdateRepairs.value) {
     return
   }
 
@@ -1386,6 +1581,10 @@ function isFaultEditing(faultId: number) {
 }
 
 function startFaultEdit(fault: RepairFault) {
+  if (!canEditFaults.value) {
+    return
+  }
+
   faultEditRows[fault.id] = {
     description: fault.description,
   }
@@ -1407,6 +1606,10 @@ function clearNewFaultPhotoDrafts() {
 }
 
 function openAddFaultModal() {
+  if (!canCreateFaults.value) {
+    return
+  }
+
   newDetailFault.description = ''
   newFaultPhotoError.value = ''
   clearNewFaultPhotoDrafts()
@@ -1440,7 +1643,7 @@ function closePhotoPickerMenu() {
 }
 
 function openFaultPhotoAdd(faultId: number) {
-  if (isPhotoMutating.value) {
+  if (isPhotoMutating.value || !canAddFaultPhotos.value) {
     return
   }
 
@@ -1453,7 +1656,7 @@ function openFaultPhotoAdd(faultId: number) {
 }
 
 function openNewFaultPhotoAdd() {
-  if (isMutating.value || isPhotoMutating.value) {
+  if (isMutating.value || isPhotoMutating.value || !canAddFaultPhotos.value) {
     return
   }
 
@@ -1488,7 +1691,7 @@ function choosePhotoSource(source: 'gallery' | 'camera') {
 }
 
 function openFaultPhotoPicker(faultId: number) {
-  if (isPhotoMutating.value) {
+  if (isPhotoMutating.value || !canAddFaultPhotos.value) {
     return
   }
 
@@ -1505,7 +1708,7 @@ function openFaultPhotoPicker(faultId: number) {
 }
 
 function openFaultCameraPicker(faultId: number) {
-  if (isPhotoMutating.value) {
+  if (isPhotoMutating.value || !canAddFaultPhotos.value) {
     return
   }
 
@@ -1522,7 +1725,7 @@ function openFaultCameraPicker(faultId: number) {
 }
 
 function openNewFaultPhotoPicker() {
-  if (isMutating.value || isPhotoMutating.value) {
+  if (isMutating.value || isPhotoMutating.value || !canAddFaultPhotos.value) {
     return
   }
 
@@ -1538,7 +1741,7 @@ function openNewFaultPhotoPicker() {
 }
 
 function openNewFaultCameraPicker() {
-  if (isMutating.value || isPhotoMutating.value) {
+  if (isMutating.value || isPhotoMutating.value || !canAddFaultPhotos.value) {
     return
   }
 
@@ -1558,6 +1761,10 @@ function handleNewFaultPhotoSelection(event: Event) {
   const files = Array.from(input.files || [])
   input.value = ''
   newFaultPhotoError.value = ''
+
+  if (!canAddFaultPhotos.value) {
+    return
+  }
 
   files.forEach((file) => {
     const validationError = validateRepairPhoto(file)
@@ -1609,6 +1816,27 @@ function isFaultCommentsExpanded(faultId: number) {
   return expandedFaultCommentIds.value.has(faultId)
 }
 
+function isCommentEditing(commentId: number) {
+  return editingCommentId.value === commentId
+}
+
+function startCommentEdit(comment: RepairFaultComment) {
+  if (!canEditComment(comment)) {
+    return
+  }
+
+  commentEditDrafts[comment.id] = comment.text
+  editingCommentId.value = comment.id
+}
+
+function cancelCommentEdit(commentId: number) {
+  if (editingCommentId.value === commentId) {
+    editingCommentId.value = null
+  }
+
+  delete commentEditDrafts[commentId]
+}
+
 function toggleFaultDetails(faultId: number) {
   const nextIds = new Set(expandedFaultIds.value)
   const willExpand = !nextIds.has(faultId)
@@ -1617,7 +1845,7 @@ function toggleFaultDetails(faultId: number) {
     nextIds.delete(faultId)
   } else {
     nextIds.add(faultId)
-    if (repair.value) {
+    if (repair.value && canReadFaults.value) {
       void repairStore.loadRepairFaultComments(repair.value.id, faultId, { silent: true }).catch(() => undefined)
     }
   }
@@ -1633,7 +1861,7 @@ function toggleFaultComments(fault: RepairFault) {
     nextIds.delete(fault.id)
   } else {
     nextIds.add(fault.id)
-    if (repair.value) {
+    if (repair.value && canReadFaults.value) {
       void repairStore.loadRepairFaultComments(repair.value.id, fault.id, { silent: true }).catch(() => undefined)
     }
   }
@@ -1642,7 +1870,7 @@ function toggleFaultComments(fault: RepairFault) {
 }
 
 async function addFaultComment(faultId: number) {
-  if (!repair.value) return
+  if (!repair.value || !canAddComments.value) return
 
   const content = faultCommentDrafts[faultId]?.trim()
 
@@ -1662,12 +1890,64 @@ async function addFaultComment(faultId: number) {
   }
 }
 
+async function saveCommentEdit(faultId: number, comment: RepairFaultComment) {
+  if (!repair.value || !canEditComment(comment)) {
+    return
+  }
+
+  const content = commentEditDrafts[comment.id]?.trim()
+
+  if (!content) {
+    uiStore.addToast({
+      type: 'warning',
+      title: 'Brak treści',
+      message: 'Komentarz nie może być pusty.',
+    })
+    return
+  }
+
+  try {
+    await repairStore.updateRepairFaultComment(repair.value.id, faultId, comment.id, content)
+    cancelCommentEdit(comment.id)
+    uiStore.addToast({
+      type: 'success',
+      title: 'Komentarz zapisany',
+      message: 'Zaktualizowano komentarz.',
+    })
+  } catch {
+    showMutationError('Nie udało się zapisać komentarza', 'Spróbuj ponownie za chwilę.')
+  }
+}
+
+async function confirmDeleteComment() {
+  if (!repair.value || !commentToDelete.value || !canDeleteComment(commentToDelete.value.comment)) {
+    return
+  }
+
+  try {
+    await repairStore.deleteRepairFaultComment(
+      repair.value.id,
+      commentToDelete.value.faultId,
+      commentToDelete.value.comment.id,
+    )
+    cancelCommentEdit(commentToDelete.value.comment.id)
+    commentToDelete.value = null
+    uiStore.addToast({
+      type: 'success',
+      title: 'Komentarz usunięty',
+      message: 'Usunięto komentarz z usterki.',
+    })
+  } catch {
+    showMutationError('Nie udało się usunąć komentarza', 'Spróbuj ponownie za chwilę.')
+  }
+}
+
 async function handleFaultPhotoSelection(faultId: number, event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
   input.value = ''
 
-  if (!repair.value || !files.length) return
+  if (!repair.value || !files.length || !canAddFaultPhotos.value) return
 
   delete faultPhotoErrors[faultId]
 
@@ -1701,6 +1981,7 @@ async function handleFaultPhotoSelection(faultId: number, event: Event) {
 function clearFaultLocalData(faultId: number) {
   const fault = repair.value?.faults.find((item) => item.id === faultId)
   ;(fault?.photos || []).forEach((photo) => revokePhotoObjectUrl(photo.id))
+  ;(fault?.comments || []).forEach((comment) => delete commentEditDrafts[comment.id])
   delete faultPhotoErrors[faultId]
   delete faultCommentDrafts[faultId]
 
@@ -1722,7 +2003,7 @@ function clearFaultLocalData(faultId: number) {
 }
 
 function openFaultsEdit() {
-  if (!repair.value) {
+  if (!repair.value || !canEditFaults.value) {
     return
   }
 
@@ -1759,10 +2040,15 @@ async function loadRepair() {
     const details = await repairStore.loadRepairDetail(repairId.value)
 
     if (details) {
-      resetEditForm(details)
-      syncFaultEditRows(details.faults || [])
-      syncFaultExpandedRows(details.faults || [], true)
-      syncFaultCommentExpandedRows(details.faults || [], true)
+      if (canReadFaults.value) {
+        await repairStore.loadRepairFaults(details.id, { silent: true }).catch(() => undefined)
+      }
+
+      const currentDetails = repair.value || details
+      resetEditForm(currentDetails)
+      syncFaultEditRows(currentDetails.faults || [])
+      syncFaultExpandedRows(currentDetails.faults || [], true)
+      syncFaultCommentExpandedRows(currentDetails.faults || [], true)
     }
   } catch {
     showMutationError('Nie udało się pobrać naprawy', 'Spróbuj odświeżyć stronę.')
@@ -1773,15 +2059,20 @@ async function refreshRepair() {
   const details = await repairStore.refreshCurrentRepair({ silent: true })
 
   if (details) {
-    resetEditForm(details)
-    syncFaultEditRows(details.faults || [])
-    syncFaultExpandedRows(details.faults || [])
-    syncFaultCommentExpandedRows(details.faults || [])
+    if (canReadFaults.value) {
+      await repairStore.loadRepairFaults(details.id, { silent: true }).catch(() => undefined)
+    }
+
+    const currentDetails = repair.value || details
+    resetEditForm(currentDetails)
+    syncFaultEditRows(currentDetails.faults || [])
+    syncFaultExpandedRows(currentDetails.faults || [])
+    syncFaultCommentExpandedRows(currentDetails.faults || [])
   }
 }
 
 async function updateRepairDetails() {
-  if (!repair.value) {
+  if (!repair.value || !canUpdateRepairs.value) {
     return
   }
 
@@ -1814,7 +2105,7 @@ async function updateRepairDetails() {
 }
 
 function requestRepairStatusChange() {
-  if (!repair.value) {
+  if (!repair.value || !canUpdateRepairs.value) {
     return
   }
 
@@ -1836,7 +2127,7 @@ function requestRepairStatusChange() {
 }
 
 async function confirmRepairStatusChange() {
-  if (!repair.value || !repairStatusAction.value) {
+  if (!repair.value || !repairStatusAction.value || !canUpdateRepairs.value) {
     return
   }
 
@@ -1862,7 +2153,7 @@ async function confirmRepairStatusChange() {
 }
 
 async function toggleFaultDone(fault: RepairFault) {
-  if (!repair.value) {
+  if (!repair.value || !canChangeFaultStatus.value) {
     return
   }
 
@@ -1875,17 +2166,13 @@ async function toggleFaultDone(fault: RepairFault) {
 }
 
 async function confirmCompleteFault() {
-  if (!repair.value || !faultToComplete.value) {
+  if (!repair.value || !faultToComplete.value || !canChangeFaultStatus.value) {
     return
   }
 
   try {
-    await repairStore.updateRepairFault(repair.value.id, faultToComplete.value.id, {
-      description: faultToComplete.value.description,
+    await repairStore.updateRepairFaultStatus(repair.value.id, faultToComplete.value.id, {
       status: 'done',
-      note: faultToComplete.value.note || 'Oznaczone jako wykonane',
-      assignedMechanicId: null,
-      completedByMechanicId: null,
     })
     const nextExpandedIds = new Set(expandedFaultIds.value)
     nextExpandedIds.delete(faultToComplete.value.id)
@@ -1902,17 +2189,13 @@ async function confirmCompleteFault() {
 }
 
 async function confirmReopenFault() {
-  if (!repair.value || !faultToReopen.value) {
+  if (!repair.value || !faultToReopen.value || !canChangeFaultStatus.value) {
     return
   }
 
   try {
-    await repairStore.updateRepairFault(repair.value.id, faultToReopen.value.id, {
-      description: faultToReopen.value.description,
+    await repairStore.updateRepairFaultStatus(repair.value.id, faultToReopen.value.id, {
       status: 'open',
-      note: null,
-      assignedMechanicId: null,
-      completedByMechanicId: null,
     })
     faultToReopen.value = null
     uiStore.addToast({
@@ -1926,7 +2209,7 @@ async function confirmReopenFault() {
 }
 
 async function confirmDeleteFault() {
-  if (!repair.value || !faultToDelete.value) {
+  if (!repair.value || !faultToDelete.value || !canDeleteFault(faultToDelete.value)) {
     return
   }
 
@@ -1946,7 +2229,7 @@ async function confirmDeleteFault() {
 }
 
 async function saveFaultRow(fault: RepairFault) {
-  if (!repair.value) {
+  if (!repair.value || !canEditFaults.value) {
     return
   }
 
@@ -1978,7 +2261,7 @@ async function saveFaultRow(fault: RepairFault) {
 }
 
 async function saveAllFaultRows() {
-  if (!repair.value) {
+  if (!repair.value || !canEditFaults.value) {
     return
   }
 
@@ -2018,6 +2301,10 @@ async function saveAllFaultRows() {
 }
 
 async function addFaultToDetail() {
+  if (!canCreateFaults.value) {
+    return
+  }
+
   if (!repair.value || !newDetailFault.description.trim()) {
     uiStore.addToast({
       type: 'warning',
@@ -2065,7 +2352,7 @@ async function addFaultToDetail() {
 }
 
 async function confirmDeleteRepair() {
-  if (!repairToDelete.value) {
+  if (!repairToDelete.value || !canDeleteRepairs.value) {
     return
   }
 

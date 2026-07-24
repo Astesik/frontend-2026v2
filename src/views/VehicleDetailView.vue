@@ -18,7 +18,13 @@
       </div>
 
       <div class="flex flex-wrap gap-2">
-        <AppButton size="sm" variant="secondary" :disabled="!vehicle" @click="openEditModal">
+        <AppButton
+          size="sm"
+          variant="secondary"
+          :disabled="!vehicle || !canUpdateVehicles"
+          :title="!canUpdateVehicles ? 'Brak uprawnienia: vehicles.update' : undefined"
+          @click="openEditModal"
+        >
           <SquarePen class="h-4 w-4" />
           Edytuj
         </AppButton>
@@ -82,11 +88,25 @@
                 placeholder="Wybierz urządzenie"
                 size="sm"
                 :reload-key="devicesReloadKey"
+                :disabled="!canAssignDevices"
               />
-              <AppButton size="sm" variant="secondary" :loading="isAssigningDevice" :disabled="!deviceIdInput.trim()" @click="assignDevice">
+              <AppButton
+                size="sm"
+                variant="secondary"
+                :loading="isAssigningDevice"
+                :disabled="!canAssignDevices || !deviceIdInput.trim()"
+                :title="!canAssignDevices ? 'Brak uprawnienia: devices.assign' : undefined"
+                @click="assignDevice"
+              >
                 Przypisz
               </AppButton>
-              <AppButton size="sm" variant="secondary" :disabled="!vehicle.assignedDeviceId" @click="openUnassignDeviceModal">
+              <AppButton
+                size="sm"
+                variant="secondary"
+                :disabled="!canAssignDevices || !vehicle.assignedDeviceId"
+                :title="!canAssignDevices ? 'Brak uprawnienia: devices.assign' : undefined"
+                @click="openUnassignDeviceModal"
+              >
                 Odepnij
               </AppButton>
             </div>
@@ -324,6 +344,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import DeviceSelect from '@/components/selects/DeviceSelect.vue'
 import { vehicleService, type VehiclePayload } from '@/services/vehicleService'
+import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
 import { useRepairStore, type VehicleRepairHistoryItem } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -343,6 +364,7 @@ type RepairHistoryFault = RepairFault | string | {
 }
 
 const route = useRoute()
+const authStore = useAuthStore()
 const fleetStore = useFleetStore()
 const repairStore = useRepairStore()
 const uiStore = useUiStore()
@@ -365,6 +387,8 @@ const expandedRepairIds = ref<Set<string>>(new Set())
 const vehicleId = computed(() => String(route.params.id || ''))
 const vehicle = computed(() => fleetStore.apiVehicles.find((item) => String(item.id) === vehicleId.value) || null)
 const repairHistory = computed(() => [...(vehicleRepairHistory.value[vehicleId.value] || [])].sort((first, second) => repairTimestamp(second) - repairTimestamp(first)))
+const canUpdateVehicles = computed(() => hasPermission('vehicles.update'))
+const canAssignDevices = computed(() => hasPermission('devices.assign'))
 
 const mockedDocuments = [
   'Dowód rejestracyjny',
@@ -636,8 +660,12 @@ function devicePayloadValue(value: string) {
   return Number.isFinite(parsed) ? parsed : normalized
 }
 
+function hasPermission(permission: string) {
+  return authStore.canManageCompany || authStore.hasActiveCompanyPermission(permission)
+}
+
 function openEditModal() {
-  if (!vehicle.value) {
+  if (!vehicle.value || !canUpdateVehicles.value) {
     return
   }
 
@@ -652,7 +680,7 @@ function closeEditModal() {
 }
 
 function openUnassignDeviceModal() {
-  if (vehicle.value?.assignedDeviceId) {
+  if (canAssignDevices.value && vehicle.value?.assignedDeviceId) {
     isUnassignDeviceModalOpen.value = true
   }
 }
@@ -664,7 +692,7 @@ function closeUnassignDeviceModal() {
 }
 
 async function submitVehicleEdit() {
-  if (!vehicle.value || !editForm.licensePlate.trim()) {
+  if (!vehicle.value || !canUpdateVehicles.value || !editForm.licensePlate.trim()) {
     return
   }
 
@@ -687,7 +715,7 @@ async function submitVehicleEdit() {
 }
 
 async function assignDevice() {
-  if (!vehicle.value || !deviceIdInput.value.trim()) {
+  if (!vehicle.value || !canAssignDevices.value || !deviceIdInput.value.trim()) {
     return
   }
 
@@ -712,7 +740,7 @@ async function assignDevice() {
 }
 
 async function unassignDevice() {
-  if (!vehicle.value?.assignedDeviceId) {
+  if (!vehicle.value?.assignedDeviceId || !canAssignDevices.value) {
     return
   }
 

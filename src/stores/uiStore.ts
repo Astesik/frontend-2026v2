@@ -75,6 +75,10 @@ export const useUiStore = defineStore('ui', () => {
       ...toast,
     }
 
+    if (nextToast.type === 'error') {
+      toasts.value = toasts.value.filter((currentToast) => currentToast.type !== 'error')
+    }
+
     toasts.value.push(nextToast)
 
     if (nextToast.timeout && nextToast.timeout > 0) {

@@ -2,6 +2,12 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { refreshAccessToken, registerAuthSessionHandlers, setAuthToken } from '@/services/api'
 import { authService } from '@/services/authService'
+import { useCompanyManagementStore } from './companyManagementStore'
+import { useDeviceStore } from './deviceStore'
+import { useFleetStore } from './fleetStore'
+import { useNotificationStore } from './notificationStore'
+import { usePlaceStore } from './placeStore'
+import { useRepairStore } from './repairStore'
 import { useUiStore } from './uiStore'
 import type { AuthSession, AuthUser, LoginPayload } from '@/types/auth'
 
@@ -41,6 +47,75 @@ function decodeJwtPayload(tokenValue: string | null) {
   }
 }
 
+function isStringOrNumber(value: unknown): value is string | number {
+  return typeof value === 'string' || typeof value === 'number'
+}
+
+function readCompanyId(value: Record<string, unknown>) {
+  const companyId = value.currentCompanyId ?? value.activeCompanyId ?? value.companyId ?? value.ccid
+  return isStringOrNumber(companyId) ? companyId : undefined
+}
+
+function normalizeStringArrayMap(value: unknown): Record<string, string[]> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined
+  }
+
+  const normalizedMap: Record<string, string[]> = {}
+
+  Object.entries(value as Record<string, unknown>).forEach(([key, items]) => {
+    if (!Array.isArray(items)) {
+      return
+    }
+
+    const normalizedItems = items
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map((item) => item.trim())
+
+    if (normalizedItems.length) {
+      normalizedMap[String(key)] = normalizedItems
+    }
+  })
+
+  return Object.keys(normalizedMap).length ? normalizedMap : undefined
+}
+
+function normalizeAuthUser(userValue: AuthUser | null | undefined): AuthUser | null {
+  if (!userValue) {
+    return null
+  }
+
+  const userId = isStringOrNumber(userValue.id)
+    ? userValue.id
+    : isStringOrNumber(userValue.userId)
+      ? userValue.userId
+      : isStringOrNumber(userValue.uid)
+        ? userValue.uid
+        : undefined
+  const companyId = userValue.currentCompanyId ?? userValue.activeCompanyId ?? userValue.companyId ?? userValue.ccid
+  const normalizedCompanyId = isStringOrNumber(companyId) ? companyId : undefined
+  const name = userValue.name || userValue.username || userValue.login || undefined
+
+  return {
+    ...userValue,
+    id: userId,
+    userId: userValue.userId ?? userId,
+    uid: userValue.uid ?? userId,
+    name,
+    username: userValue.username || userValue.login || name,
+    login: userValue.login || userValue.username || name,
+    ccid: userValue.ccid ?? normalizedCompanyId,
+    companyId: userValue.companyId ?? normalizedCompanyId,
+    currentCompanyId: userValue.currentCompanyId ?? normalizedCompanyId,
+    activeCompanyId: userValue.activeCompanyId ?? normalizedCompanyId,
+    globalRoles: Array.isArray(userValue.globalRoles)
+      ? userValue.globalRoles.filter((role): role is string => typeof role === 'string')
+      : undefined,
+    companyRoles: normalizeStringArrayMap(userValue.companyRoles),
+    companyPermissions: normalizeStringArrayMap(userValue.companyPermissions),
+  }
+}
+
 function userFromJwt(tokenValue: string | null): AuthUser | null {
   const payload = decodeJwtPayload(tokenValue)
 
@@ -49,11 +124,14 @@ function userFromJwt(tokenValue: string | null): AuthUser | null {
   }
 
   const userName = typeof payload.uname === 'string' ? payload.uname : null
-  const userId = typeof payload.uid === 'string' || typeof payload.uid === 'number'
+  const userId = isStringOrNumber(payload.uid)
     ? payload.uid
-    : typeof payload.sub === 'string' || typeof payload.sub === 'number'
+    : isStringOrNumber(payload.userId)
+      ? payload.userId
+      : isStringOrNumber(payload.sub)
       ? payload.sub
       : undefined
+  const companyId = readCompanyId(payload)
 
   if (!userName && !userId) {
     return null
@@ -61,28 +139,42 @@ function userFromJwt(tokenValue: string | null): AuthUser | null {
 
   return {
     id: userId,
+    userId,
+    uid: isStringOrNumber(payload.uid) ? payload.uid : undefined,
     name: userName || undefined,
+    username: userName || undefined,
     login: userName || undefined,
+    ccid: isStringOrNumber(payload.ccid) ? payload.ccid : undefined,
+    companyId,
+    currentCompanyId: companyId,
+    activeCompanyId: companyId,
+    sysAdmin: typeof payload.sysAdmin === 'boolean' ? payload.sysAdmin : undefined,
+    globalRoles: Array.isArray(payload.globalRoles)
+      ? payload.globalRoles.filter((role): role is string => typeof role === 'string')
+      : undefined,
+    companyRoles: normalizeStringArrayMap(payload.companyRoles ?? payload.croles),
+    companyPermissions: normalizeStringArrayMap(payload.companyPermissions),
   }
 }
 
 function mergeUserWithJwt(userValue: AuthUser | null, tokenValue: string | null) {
   const jwtUser = userFromJwt(tokenValue)
+  const normalizedUser = normalizeAuthUser(userValue)
 
-  if (!userValue) {
+  if (!normalizedUser) {
     return jwtUser
   }
 
   if (!jwtUser) {
-    return userValue
+    return normalizedUser
   }
 
-  return {
+  return normalizeAuthUser({
     ...jwtUser,
-    ...userValue,
-    name: userValue.name || jwtUser.name,
-    login: userValue.login || jwtUser.login,
-  }
+    ...normalizedUser,
+    name: normalizedUser.name || jwtUser.name,
+    login: normalizedUser.login || jwtUser.login,
+  })
 }
 
 function jwtExpiresAt(tokenValue: string | null) {
@@ -129,7 +221,44 @@ export const useAuthStore = defineStore('auth', () => {
   let proactiveRefreshTimer: ReturnType<typeof window.setTimeout> | null = null
 
   const isAuthenticated = computed(() => Boolean(token.value))
-  const displayName = computed(() => user.value?.name || user.value?.login || user.value?.email || 'Operator')
+  const displayName = computed(() => user.value?.name || user.value?.username || user.value?.login || user.value?.email || 'Operator')
+  const activeCompanyId = computed(() => {
+    const explicitCompanyId = user.value?.currentCompanyId ?? user.value?.activeCompanyId ?? user.value?.companyId ?? user.value?.ccid
+
+    if (explicitCompanyId !== undefined && explicitCompanyId !== null && String(explicitCompanyId)) {
+      return String(explicitCompanyId)
+    }
+
+    const firstCompanyId = Object.keys(user.value?.companyPermissions || {})[0] || Object.keys(user.value?.companyRoles || {})[0]
+    return firstCompanyId || null
+  })
+  const activeCompanyPermissions = computed(() => {
+    const companyId = activeCompanyId.value
+    return companyId ? user.value?.companyPermissions?.[companyId] || [] : []
+  })
+  const activeCompanyRoles = computed(() => {
+    const companyId = activeCompanyId.value
+    return companyId ? user.value?.companyRoles?.[companyId] || [] : []
+  })
+  const allCompanyRoles = computed(() => Object.values(user.value?.companyRoles || {}).flat())
+
+  function hasActiveCompanyPermission(permission: string) {
+    const normalizedPermission = permission.trim().toLowerCase()
+    return activeCompanyPermissions.value.some((item) => item.toLowerCase() === normalizedPermission)
+  }
+
+  function hasActiveCompanyRole(role: string) {
+    const normalizedRole = role.trim().toLowerCase()
+    return activeCompanyRoles.value.some((item) => item.toLowerCase() === normalizedRole)
+  }
+
+  const canManageCompany = computed(() => (
+    user.value?.sysAdmin === true ||
+    (user.value?.globalRoles || []).some((role) => ['GLOBAL_ADMIN', 'SYS_ADMIN'].includes(role.toUpperCase())) ||
+    hasActiveCompanyRole('COMPANY_ADMIN') ||
+    (!activeCompanyId.value && allCompanyRoles.value.some((role) => role.toLowerCase() === 'company_admin')) ||
+    hasActiveCompanyPermission('company.manage')
+  ))
 
   function clearProactiveRefreshTimer() {
     if (proactiveRefreshTimer) {
@@ -179,6 +308,12 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function clearLocalSession() {
+    useFleetStore().resetApiState()
+    useDeviceStore().resetApiState()
+    useRepairStore().resetApiState()
+    usePlaceStore().resetApiState()
+    useNotificationStore().resetApiState()
+    useCompanyManagementStore().resetApiState()
     token.value = null
     user.value = null
     accessTokenExpiresAt.value = null
@@ -270,6 +405,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function refreshSessionToken() {
+    return refreshAccessToken()
+  }
+
   registerAuthSessionHandlers({
     setSession: (session) => applySession(session, { preserveExistingUser: true }),
     clearSession: clearLocalSession,
@@ -283,8 +422,15 @@ export const useAuthStore = defineStore('auth', () => {
     isRestored,
     isAuthenticated,
     displayName,
+    activeCompanyId,
+    activeCompanyPermissions,
+    activeCompanyRoles,
+    canManageCompany,
+    hasActiveCompanyPermission,
+    hasActiveCompanyRole,
     restoreSession,
     restoreBackendSession,
+    refreshSessionToken,
     login,
     logout,
   }

@@ -1,9 +1,22 @@
 export interface AuthUser {
   id?: string | number
+  userId?: string | number
+  uid?: string | number
   name?: string
+  username?: string
   email?: string
   login?: string
   role?: string
+  firstName?: string
+  lastName?: string
+  companyId?: string | number
+  activeCompanyId?: string | number
+  currentCompanyId?: string | number
+  ccid?: string | number
+  sysAdmin?: boolean
+  globalRoles?: string[]
+  companyRoles?: Record<string, string[]>
+  companyPermissions?: Record<string, string[]>
 }
 
 export interface LoginPayload {

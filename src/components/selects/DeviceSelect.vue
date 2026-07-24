@@ -53,10 +53,20 @@ async function loadDevices(silent = false) {
 }
 
 onMounted(() => {
-  void loadDevices()
+  if (!props.disabled) {
+    void loadDevices()
+  }
 })
 
 watch(() => props.reloadKey, () => {
-  void loadDevices(true)
+  if (!props.disabled) {
+    void loadDevices(true)
+  }
+})
+
+watch(() => props.disabled, (disabled) => {
+  if (!disabled) {
+    void loadDevices(true)
+  }
 })
 </script>

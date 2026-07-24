@@ -206,6 +206,21 @@ function resolveApiErrorMessage(error: AxiosError) {
   return 'Nie udalo sie polaczyc z backendem. Sprobuj ponownie.'
 }
 
+function isPermissionDeniedError(error: AxiosError) {
+  if (error.response?.status !== 403) {
+    return false
+  }
+
+  const message = resolveApiErrorMessage(error).toLowerCase()
+
+  return (
+    message.includes('uprawn') ||
+    message.includes('permission') ||
+    message.includes('forbidden') ||
+    /\b[a-z_]+\.(read|create|update|delete|assign|manage|sync|block)\b/.test(message)
+  )
+}
+
 api.interceptors.request.use((config) => {
   const token = getStoredToken()
   const headers = AxiosHeaders.from(config.headers)
@@ -240,7 +255,7 @@ api.interceptors.response.use(
       }
     }
 
-    if (!config?.skipErrorToast) {
+    if (!config?.skipErrorToast && !isPermissionDeniedError(error)) {
       const uiStore = useUiStore()
       uiStore.addToast({
         type: 'error',

@@ -44,7 +44,12 @@
             <ChevronRight class="h-4 w-4" />
           </button>
         </div>
-        <AppButton size="sm" @click="openCreateModal">
+        <AppButton
+          size="sm"
+          :disabled="!canCreateRepairs"
+          :title="!canCreateRepairs ? 'Brak uprawnienia: repairs.create' : undefined"
+          @click="openCreateModal"
+        >
           <Plus class="h-4 w-4" />
           Dodaj nową naprawę
         </AppButton>
@@ -165,9 +170,9 @@
           <article
             v-for="repair in column.repairs"
             :key="repair.id"
-            draggable="true"
+            :draggable="canUpdateRepairs"
             class="max-w-full min-w-0 cursor-grab overflow-hidden rounded-2xl border border-slate-100 bg-white p-3 transition hover:bg-slate-50 active:cursor-grabbing dark:border-app-border dark:bg-app-dark dark:hover:bg-app-elevated"
-            :class="draggedRepairId === repair.id ? 'opacity-20' : ''"
+            :class="[draggedRepairId === repair.id ? 'opacity-20' : '', !canUpdateRepairs ? 'cursor-pointer' : '']"
             @dragstart="startRepairDrag(repair, $event)"
             @drag="updateRepairDragPreview"
             @dragend="endRepairDrag"
@@ -326,7 +331,13 @@
                         <Trash2 class="h-4 w-4" />
                       </button>
                     </div>
-                    <AppInput v-model="fault.description" label="Opis usterki" placeholder="Np. Wymiana klocków, światła, plandeka..." size="sm" />
+                    <AppInput
+                      v-model="fault.description"
+                      label="Opis usterki"
+                      placeholder="Np. Wymiana klocków, światła, plandeka..."
+                      size="sm"
+                      :disabled="!canCreateFaults"
+                    />
 
                     <section class="mt-2 rounded-2xl border border-slate-200 bg-white p-2 dark:border-app-border dark:bg-app-panel">
                       <div class="mb-2 flex items-center justify-between gap-2">
@@ -337,13 +348,17 @@
                         <AppBadge>{{ fault.photos.length }}</AppBadge>
                       </div>
 
-                      <label class="flex min-h-16 cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-center text-xs font-semibold text-slate-500 transition hover:bg-slate-100 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated">
+                      <label
+                        class="flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-center text-xs font-semibold text-slate-500 transition hover:bg-slate-100 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated"
+                        :class="canAddFaultPhotos ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
+                        :title="!canAddFaultPhotos ? 'Brak uprawnienia: fault_photos.add' : undefined"
+                      >
                         <input
                           type="file"
                           class="sr-only"
                           accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
                           multiple
-                          :disabled="isMutating"
+                          :disabled="isMutating || !canAddFaultPhotos"
                           @change="handleDraftFaultPhotoSelection(fault.id, $event)"
                         />
                         <ImagePlus class="h-4 w-4" />
@@ -377,6 +392,8 @@
                   <button
                     type="button"
                     class="flex min-h-24 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center text-sm font-semibold text-slate-500 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
+                    :disabled="!canCreateFaults"
+                    :title="!canCreateFaults ? 'Brak uprawnienia: faults.create' : undefined"
                     @click="addDraftFault"
                   >
                     <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 dark:border-app-border dark:bg-app-panel">
@@ -391,7 +408,14 @@
 
           <footer class="flex flex-col-reverse gap-2 border-t border-slate-200 bg-white px-5 py-4 dark:border-app-border dark:bg-app-panel sm:flex-row sm:justify-end">
             <AppButton type="button" variant="secondary" @click="closeCreateModal">Anuluj</AppButton>
-            <AppButton type="submit" :loading="isMutating">Zapisz naprawę</AppButton>
+            <AppButton
+              type="submit"
+              :loading="isMutating"
+              :disabled="!canCreateRepairs"
+              :title="!canCreateRepairs ? 'Brak uprawnienia: repairs.create' : undefined"
+            >
+              Zapisz naprawę
+            </AppButton>
           </footer>
         </form>
       </div>
@@ -538,6 +562,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppSearchSelect, { type AppSearchSelectOption } from '@/components/ui/AppSearchSelect.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import { loadGoogleMaps } from '@/services/googleMapsLoader'
+import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
 import { useRepairStore } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -568,6 +593,7 @@ interface DraftFaultPhotoDraft {
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
 const REPAIRS_VIEW_STATE_KEY = 'routewise.repairs.viewState'
 const router = useRouter()
+const authStore = useAuthStore()
 const fleetStore = useFleetStore()
 const repairStore = useRepairStore()
 const uiStore = useUiStore()
@@ -650,6 +676,10 @@ const weekOptions = computed<AppSelectOption[]>(() => weeks.value.map((week) => 
 const selectedWeekIndex = computed(() => weeks.value.findIndex((week) => weekKey(week) === selectedWeekKey.value))
 const canSelectPreviousWeek = computed(() => selectedWeekIndex.value > 0)
 const canSelectNextWeek = computed(() => selectedWeekIndex.value >= 0 && selectedWeekIndex.value < weeks.value.length - 1)
+const canCreateRepairs = computed(() => hasPermission('repairs.create'))
+const canUpdateRepairs = computed(() => hasPermission('repairs.update'))
+const canCreateFaults = computed(() => hasPermission('faults.create'))
+const canAddFaultPhotos = computed(() => hasPermission('fault_photos.add'))
 const selectedWeek = computed(() => weeks.value[selectedWeekIndex.value] || weeks.value[0] || null)
 const isKanbanTab = computed(() => activeTab.value === 'base' || activeTab.value === 'other')
 const selectedWeekLabel = computed(() => selectedWeek.value
@@ -851,6 +881,10 @@ function normalizeRepairStatus(status: string | null | undefined): RepairStatus 
   }
 
   return 'new'
+}
+
+function hasPermission(permission: string) {
+  return authStore.canManageCompany || authStore.hasActiveCompanyPermission(permission)
 }
 
 function statusLabel(status: string | null | undefined) {
@@ -1175,6 +1209,10 @@ function nullableDescription(value: string) {
 }
 
 function addDraftFault() {
+  if (!canCreateFaults.value) {
+    return
+  }
+
   draftFaults.value = [...draftFaults.value, createDraftFault()]
 }
 
@@ -1210,6 +1248,11 @@ function handleDraftFaultPhotoSelection(faultId: string, event: Event) {
   input.value = ''
 
   if (!fault) {
+    return
+  }
+
+  if (!canAddFaultPhotos.value) {
+    fault.photoError = 'Brak uprawnienia do dodawania zdjęć.'
     return
   }
 
@@ -1251,6 +1294,10 @@ function removeDraftFaultPhoto(faultId: string, photoId: string) {
 }
 
 function openCreateModal() {
+  if (!canCreateRepairs.value) {
+    return
+  }
+
   resetCreateForm()
   isCreateModalOpen.value = true
   void repairStore.loadDictionaries()
@@ -1401,6 +1448,11 @@ function updateRepairDragPreview(event: DragEvent) {
 }
 
 function startRepairDrag(repair: Repair, event: DragEvent) {
+  if (!canUpdateRepairs.value) {
+    event.preventDefault()
+    return
+  }
+
   draggedRepairId.value = repair.id
   draggedRepair.value = repair
   updateRepairDragPreview(event)
@@ -1429,6 +1481,11 @@ function hasOpenFaults(repair: Repair) {
 }
 
 async function dropRepairOnColumn(column: { key: RepairColumnKey; targetStatus: RepairStatus }) {
+  if (!canUpdateRepairs.value) {
+    endRepairDrag()
+    return
+  }
+
   const repairId = draggedRepairId.value
   dragOverColumn.value = null
   draggedRepairId.value = null
@@ -1499,6 +1556,10 @@ async function refreshAfterMutation() {
 }
 
 async function submitCreateRepair() {
+  if (!canCreateRepairs.value) {
+    return
+  }
+
   if (!createForm.vehicleId || !createForm.placeId) {
     uiStore.addToast({
       type: 'warning',
@@ -1518,11 +1579,13 @@ async function submitCreateRepair() {
       plannedDepartureAt: toIsoDateTime(createForm.departureAt),
       status: normalizeRepairStatus(createForm.status),
       description: nullableDescription(createForm.description),
-    }, draftFaults.value.map((fault) => ({
-      description: fault.description,
-      assignedMechanicId: null,
-      photos: fault.photos.map((photo) => photo.file),
-    })))
+    }, canCreateFaults.value
+      ? draftFaults.value.map((fault) => ({
+          description: fault.description,
+          assignedMechanicId: null,
+          photos: canAddFaultPhotos.value ? fault.photos.map((photo) => photo.file) : [],
+        }))
+      : [])
 
     await refreshAfterMutation()
     uiStore.addToast({

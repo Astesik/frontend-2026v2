@@ -13,6 +13,9 @@ export const useNotificationStore = defineStore('notifications', () => {
   const mailSettings = ref<CompanyMailSettings | null>(null)
   const countryRules = ref<CountryEventRule[]>([])
   const countryHistory = ref<CountryEventHistoryItem[]>([])
+  const countryHistoryTotal = ref(0)
+  const countryHistoryPage = ref(1)
+  const countryHistoryPageSize = ref(10)
   const isLoadingMail = ref(false)
   const isLoadingCountryRules = ref(false)
   const isLoadingCountryHistory = ref(false)
@@ -87,16 +90,35 @@ export const useNotificationStore = defineStore('notifications', () => {
     try {
       const result = await notificationService.getCountryHistory(page, size, options)
       countryHistory.value = result.content
+      countryHistoryTotal.value = result.totalElements
+      countryHistoryPage.value = result.number + 1
+      countryHistoryPageSize.value = result.size
       return result
     } finally {
       isLoadingCountryHistory.value = false
     }
   }
 
+  function resetApiState() {
+    mailSettings.value = null
+    countryRules.value = []
+    countryHistory.value = []
+    countryHistoryTotal.value = 0
+    countryHistoryPage.value = 1
+    countryHistoryPageSize.value = 10
+    isLoadingMail.value = false
+    isLoadingCountryRules.value = false
+    isLoadingCountryHistory.value = false
+    isMutating.value = false
+  }
+
   return {
     mailSettings,
     countryRules,
     countryHistory,
+    countryHistoryTotal,
+    countryHistoryPage,
+    countryHistoryPageSize,
     isLoadingMail,
     isLoadingCountryRules,
     isLoadingCountryHistory,
@@ -108,5 +130,6 @@ export const useNotificationStore = defineStore('notifications', () => {
     saveCountryRule,
     deleteCountryRule,
     loadCountryHistory,
+    resetApiState,
   }
 })

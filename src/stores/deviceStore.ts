@@ -96,6 +96,16 @@ export const useDeviceStore = defineStore('devices', () => {
     currentDevice.value = null
   }
 
+  function resetApiState() {
+    devices.value = []
+    selectDevices.value = []
+    currentDevice.value = null
+    isLoading.value = false
+    isDetailLoading.value = false
+    isSelectLoading.value = false
+    isMutating.value = false
+  }
+
   return {
     devices,
     selectDevices,
@@ -110,5 +120,6 @@ export const useDeviceStore = defineStore('devices', () => {
     updateDevice,
     deleteDevice,
     clearCurrentDevice,
+    resetApiState,
   }
 })

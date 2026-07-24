@@ -12,6 +12,7 @@ import type {
   RepairFault,
   RepairFaultComment,
   RepairFaultPayload,
+  RepairFaultStatusPayload,
   RepairFaultUpdatePayload,
   RepairFaultPhoto,
   RepairPayload,
@@ -400,6 +401,34 @@ export const useRepairStore = defineStore('repairs', () => {
     }
   }
 
+  async function updateRepairFaultStatus(repairId: number | string, faultId: number | string, payload: RepairFaultStatusPayload) {
+    isMutating.value = true
+
+    try {
+      const fault = await repairService.updateRepairFaultStatus(repairId, faultId, payload)
+      await loadRepairDetail(repairId, { silent: true })
+      return fault
+    } finally {
+      isMutating.value = false
+    }
+  }
+
+  async function loadRepairFaults(repairId: number | string, options?: { silent?: boolean }) {
+    const faults = await repairService.getRepairFaults(repairId, options)
+
+    if (String(currentRepair.value?.id) === String(repairId) && currentRepair.value) {
+      currentRepair.value = {
+        ...currentRepair.value,
+        faults,
+        totalFaults: faults.length,
+        doneFaults: faults.filter((fault) => fault.status === 'DONE').length,
+      }
+      upsertRepair(currentRepair.value)
+    }
+
+    return faults
+  }
+
   async function deleteRepairFault(repairId: number | string, faultId: number | string) {
     isMutating.value = true
 
@@ -430,6 +459,35 @@ export const useRepairStore = defineStore('repairs', () => {
         comments: [...(fault.comments || []), comment],
       }))
       return comment
+    } finally {
+      isMutating.value = false
+    }
+  }
+
+  async function updateRepairFaultComment(repairId: number | string, faultId: number | string, commentId: number | string, text: string) {
+    isMutating.value = true
+
+    try {
+      const comment = await repairService.updateRepairFaultComment(repairId, faultId, commentId, text)
+      updateRepairFaultCollections(repairId, faultId, (fault) => ({
+        ...fault,
+        comments: (fault.comments || []).map((currentComment) => String(currentComment.id) === String(commentId) ? comment : currentComment),
+      }))
+      return comment
+    } finally {
+      isMutating.value = false
+    }
+  }
+
+  async function deleteRepairFaultComment(repairId: number | string, faultId: number | string, commentId: number | string) {
+    isMutating.value = true
+
+    try {
+      await repairService.deleteRepairFaultComment(repairId, faultId, commentId)
+      updateRepairFaultCollections(repairId, faultId, (fault) => ({
+        ...fault,
+        comments: (fault.comments || []).filter((comment) => String(comment.id) !== String(commentId)),
+      }))
     } finally {
       isMutating.value = false
     }
@@ -529,6 +587,24 @@ export const useRepairStore = defineStore('repairs', () => {
     }
   }
 
+  function resetApiState() {
+    repairs.value = []
+    weeks.value = []
+    fieldAndUnassigned.value = []
+    currentRepair.value = null
+    currentRepairComments.value = []
+    repairDetailsById.value = {}
+    repairCommentsById.value = {}
+    mechanics.value = []
+    places.value = []
+    vehicleRepairHistory.value = {}
+    isLoading.value = false
+    isDetailLoading.value = false
+    isVehicleRepairHistoryLoading.value = false
+    isMutating.value = false
+    isPhotoMutating.value = false
+  }
+
   return {
     repairs,
     weeks,
@@ -562,13 +638,18 @@ export const useRepairStore = defineStore('repairs', () => {
     deleteRepair,
     addRepairFault,
     updateRepairFault,
+    updateRepairFaultStatus,
+    loadRepairFaults,
     deleteRepairFault,
     loadRepairFaultComments,
     addRepairFaultComment,
+    updateRepairFaultComment,
+    deleteRepairFaultComment,
     uploadRepairFaultPhoto,
     deleteRepairFaultPhoto,
     addRepairComment,
     loadVehicleRepairHistory,
+    resetApiState,
   }
 })
 
