@@ -32,11 +32,10 @@
     >
       <div class="mb-3 flex shrink-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h3 class="text-base font-semibold text-slate-950 dark:text-slate-50">Role i uprawnienia</h3>
+          <h3 class="text-base font-semibold text-slate-950 dark:text-slate-50">Role</h3>
         </div>
         <div class="flex flex-col gap-2 sm:flex-row sm:items-end">
-          <AppInput v-model="roleSearch" class="sm:w-56" placeholder="Szukaj roli" size="sm" clearable />
-          <AppInput v-model="permissionMatrixSearch" class="sm:w-64" placeholder="Szukaj uprawnienia" size="sm" clearable />
+          <AppInput v-model="roleSearch" class="sm:w-72" placeholder="Szukaj roli" size="sm" clearable />
           <AppButton
             size="sm"
             :disabled="!canCreateRoles"
@@ -57,11 +56,52 @@
         Ładowanie ról...
       </div>
 
-      <div v-else-if="!filteredRoles.length || !matrixPermissionCategories.length" class="rounded-2xl border border-dashed border-slate-200 p-5 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
+      <div v-else-if="!filteredRoles.length" class="rounded-2xl border border-dashed border-slate-200 p-5 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
         Brak danych dla aktualnego filtra.
       </div>
 
-      <div v-else class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+      <div v-else class="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
+        <table class="w-full min-w-[520px] text-left text-sm">
+          <thead class="border-b border-slate-100 text-xs uppercase text-slate-500 dark:border-app-border dark:text-slate-400">
+            <tr>
+              <th class="py-2 pr-3 font-medium">Nazwa</th>
+              <th class="py-2 pr-3 font-medium">Typ</th>
+              <th class="sticky right-0 z-10 w-20 bg-white py-2 pr-1 text-right font-medium shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] dark:bg-app-panel">
+                Akcje
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="role in filteredRoles"
+              :key="role.id"
+              class="group border-b border-slate-100 transition last:border-0 hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
+            >
+              <td class="py-1.5 pr-3">
+                <span class="font-semibold text-slate-950 dark:text-slate-50">{{ role.name }}</span>
+              </td>
+              <td class="py-1.5 pr-3">
+                <AppBadge :variant="role.systemRole ? 'neutral' : 'info'">
+                  {{ role.systemRole ? 'Systemowa' : 'Własna' }}
+                </AppBadge>
+              </td>
+              <td class="sticky right-0 z-10 bg-white py-1.5 pr-1 text-right shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] transition group-hover:bg-slate-50 dark:bg-app-panel dark:group-hover:bg-app-elevated">
+                <button
+                  type="button"
+                  class="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
+                  :disabled="role.editable === false || !canUpdateRoles"
+                  :title="role.editable === false ? 'Rola systemowa' : !canUpdateRoles ? 'Brak uprawnienia: roles.update' : 'Edytuj rolę'"
+                  @click="openEditRoleDrawer(role)"
+                >
+                  <SquarePen class="h-4 w-4" />
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="false" class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         <section
           v-for="group in matrixPermissionCategories"
           :key="group.category"
@@ -245,15 +285,7 @@
               <AppInput v-model="rolePermissionSearch" class="sm:w-72" placeholder="Szukaj uprawnienia" size="sm" clearable />
               </div>
 
-              <div class="mt-3 space-y-4">
-              <section
-                v-for="group in roleDrawerPermissionCategories"
-                :key="group.category"
-                class="overflow-hidden rounded-2xl border border-slate-100 dark:border-app-border"
-              >
-                <header class="border-b border-slate-100 bg-slate-50 px-3 py-2 dark:border-app-border dark:bg-app-dark">
-                  <h4 class="text-sm font-semibold text-slate-950 dark:text-slate-50">{{ group.label }}</h4>
-                </header>
+              <div class="mt-3 overflow-hidden rounded-2xl border border-slate-100 dark:border-app-border">
                 <table class="w-full text-left text-sm">
                   <thead class="border-b border-slate-100 text-xs uppercase text-slate-500 dark:border-app-border dark:text-slate-400">
                     <tr>
@@ -263,7 +295,7 @@
                   </thead>
                   <tbody>
                     <tr
-                      v-for="permission in group.permissions"
+                      v-for="permission in roleDrawerPermissions"
                       :key="permission.code"
                       class="cursor-pointer border-b border-slate-100 transition last:border-0 hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
                       :title="permissionTitle(permission)"
@@ -283,9 +315,13 @@
                         />
                       </td>
                     </tr>
+                    <tr v-if="!roleDrawerPermissions.length">
+                      <td colspan="2" class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                        Brak uprawnień pasujących do filtra.
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
-              </section>
               </div>
             </div>
 
@@ -396,14 +432,7 @@
 
             <div v-else class="space-y-3">
               <AppInput v-model="permissionOverrideSearch" placeholder="Szukaj uprawnienia" size="sm" clearable />
-              <section
-                v-for="group in overridePermissionCategories"
-                :key="group.category"
-                class="overflow-hidden rounded-2xl border border-slate-100 dark:border-app-border"
-              >
-                <header class="border-b border-slate-100 bg-slate-50 px-3 py-2 dark:border-app-border dark:bg-app-dark">
-                  <h4 class="text-sm font-semibold text-slate-950 dark:text-slate-50">{{ group.label }}</h4>
-                </header>
+              <section class="overflow-hidden rounded-2xl border border-slate-100 dark:border-app-border">
                 <table class="w-full text-left text-sm">
                   <thead class="border-b border-slate-100 text-xs uppercase text-slate-500 dark:border-app-border dark:text-slate-400">
                     <tr>
@@ -414,7 +443,7 @@
                   </thead>
                   <tbody>
                     <tr
-                      v-for="permission in group.permissions"
+                      v-for="permission in overridePermissions"
                       :key="permission.code"
                       class="border-b border-slate-100 last:border-0 dark:border-app-border"
                       :title="permissionTitle(permission)"
@@ -441,6 +470,11 @@
                         >
                           <X class="h-4 w-4" />
                         </button>
+                      </td>
+                    </tr>
+                    <tr v-if="!overridePermissions.length">
+                      <td colspan="3" class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                        Brak uprawnień pasujących do filtra.
                       </td>
                     </tr>
                   </tbody>
@@ -705,7 +739,9 @@ const filteredRoles = computed(() => {
 })
 
 const matrixPermissionCategories = computed(() => groupPermissions(filterPermissions(store.permissions, permissionMatrixSearch.value)))
+const roleDrawerPermissions = computed(() => [...filterPermissions(store.permissions, rolePermissionSearch.value)].sort(comparePermissions))
 const roleDrawerPermissionCategories = computed(() => groupPermissions(filterPermissions(store.permissions, rolePermissionSearch.value)))
+const overridePermissions = computed(() => [...filterPermissions(store.permissions, permissionOverrideSearch.value)].sort(comparePermissions))
 const overridePermissionCategories = computed(() => groupPermissions(filterPermissions(store.permissions, permissionOverrideSearch.value)))
 const sessionRolesText = computed(() => authStore.activeCompanyRoles.length ? authStore.activeCompanyRoles.join(', ') : '-')
 const sessionPermissionsText = computed(() => authStore.activeCompanyPermissions.length ? authStore.activeCompanyPermissions.join(', ') : '-')

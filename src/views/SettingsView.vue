@@ -36,15 +36,18 @@
         <section
           v-for="group in fleetStore.vehicleGroups"
           :key="group.id"
-          class="rounded-2xl border border-slate-100 p-2 dark:border-app-border"
+          class="rounded-2xl border border-slate-100 p-2 transition dark:border-app-border"
+          :class="isEditingGroup(group.id) ? 'bg-slate-50 dark:bg-app-dark' : 'bg-white dark:bg-app-panel'"
         >
           <div class="grid gap-2 lg:grid-cols-[18rem_minmax(0,1fr)_auto] lg:items-center">
             <AppInput
               :model-value="groupNameForms[group.id] || group.name || ''"
               placeholder="Nazwa floty"
               size="sm"
+              :disabled="!isEditingGroup(group.id) || isGroupMutating"
               @update:model-value="groupNameForms[group.id] = $event"
               @keydown.enter.prevent="renameGroup(group.id)"
+              @blur="isEditingGroup(group.id) && renameGroup(group.id)"
             />
 
             <VehicleTagInput
@@ -52,15 +55,16 @@
               :vehicles="fleetStore.apiVehicles"
               floating
               compact
+              :disabled="!isEditingGroup(group.id) || isGroupMutating"
               placeholder="Dodaj pojazd"
               @add="addVehicleToGroup(group.id, $event)"
               @remove="removeVehicleFromGroup(group.id, $event)"
             />
 
             <div class="flex flex-wrap gap-2 lg:justify-end">
-              <AppButton size="sm" variant="secondary" @click="renameGroup(group.id)">
-                <SquarePen class="h-4 w-4" />
-                Edytuj
+              <AppButton size="sm" variant="secondary" :disabled="isGroupMutating" @click="toggleGroupEdit(group.id)">
+                <component :is="isEditingGroup(group.id) ? Check : SquarePen" class="h-4 w-4" />
+                {{ isEditingGroup(group.id) ? 'Gotowe' : 'Edytuj' }}
               </AppButton>
               <AppButton size="sm" variant="danger" @click="groupToDelete = group">
                 <Trash2 class="h-4 w-4" />
@@ -137,7 +141,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch, type Component } from 'vue'
-import { BellRing, Mail, Plus, ShieldCheck, SquarePen, Trash2, Truck, X } from 'lucide-vue-next'
+import { BellRing, Check, Mail, Plus, ShieldCheck, SquarePen, Trash2, Truck, X } from 'lucide-vue-next'
 import CompanyManagementPanel from '@/components/settings/CompanyManagementPanel.vue'
 import CountryNotificationsPanel from '@/components/settings/CountryNotificationsPanel.vue'
 import MailSettingsPanel from '@/components/settings/MailSettingsPanel.vue'
@@ -161,6 +165,7 @@ const groupToDelete = ref<VehicleGroup | null>(null)
 const isGroupMutating = ref(false)
 const isCreateGroupModalOpen = ref(false)
 const hasLoadedGroups = ref(false)
+const editingGroupId = ref<string | null>(null)
 const groupNameForms = reactive<Record<string, string>>({})
 
 function isSettingsTabKey(value: string | null): value is SettingsTabKey {
@@ -209,6 +214,20 @@ function syncGroupForms() {
 
 function groupVehicleIds(groupId: string) {
   return fleetStore.vehicleGroupDetails[groupId]?.vehicleIds || []
+}
+
+function isEditingGroup(groupId: string) {
+  return editingGroupId.value === groupId
+}
+
+async function toggleGroupEdit(groupId: string) {
+  if (isEditingGroup(groupId)) {
+    await renameGroup(groupId)
+    editingGroupId.value = null
+    return
+  }
+
+  editingGroupId.value = groupId
 }
 
 async function loadGroups() {
@@ -274,6 +293,10 @@ async function createGroup() {
 }
 
 async function renameGroup(groupId: string) {
+  if (!isEditingGroup(groupId)) {
+    return
+  }
+
   const name = groupNameForms[groupId]?.trim()
   const currentGroup = fleetStore.vehicleGroups.find((group) => group.id === groupId)
 
@@ -347,6 +370,10 @@ async function deleteGroup() {
 }
 
 async function addVehicleToGroup(groupId: string, vehicleId: string) {
+  if (!isEditingGroup(groupId)) {
+    return
+  }
+
   isGroupMutating.value = true
 
   try {
@@ -368,6 +395,10 @@ async function addVehicleToGroup(groupId: string, vehicleId: string) {
 }
 
 async function removeVehicleFromGroup(groupId: string, vehicleId: string) {
+  if (!isEditingGroup(groupId)) {
+    return
+  }
+
   isGroupMutating.value = true
 
   try {

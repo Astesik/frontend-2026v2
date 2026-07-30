@@ -6,7 +6,7 @@
 
     <div
       :class="tagFieldClasses"
-      @click="inputElement?.focus()"
+      @click="focusInput"
     >
       <span
         v-for="vehicle in selectedVehicles"
@@ -18,7 +18,8 @@
           type="button"
           class="inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-slate-950 dark:hover:bg-app-panel dark:hover:text-slate-50"
           :aria-label="`Usuń ${vehicle.licensePlate}`"
-          @click.stop="$emit('remove', String(vehicle.id))"
+          :disabled="disabled"
+          @click.stop="removeVehicle(vehicle.id)"
         >
           <X class="h-3 w-3" />
         </button>
@@ -30,9 +31,10 @@
         type="text"
         class="min-w-[9rem] flex-1 bg-transparent outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-app-muted"
         :class="compact ? 'text-xs' : 'text-sm'"
+        :disabled="disabled"
         :placeholder="selectedVehicles.length ? 'Dodaj pojazd' : placeholder"
-        @focus="isOpen = true"
-        @input="isOpen = true"
+        @focus="openMenu"
+        @input="openMenu"
         @keydown.escape.prevent="isOpen = false"
       />
     </div>
@@ -40,7 +42,7 @@
     <div
       v-if="isOpen"
       class="absolute left-0 right-0 z-50 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel"
-      :class="floating ? 'top-10' : 'top-full mt-2'"
+      :class="floating ? 'top-[11.5rem]' : 'top-full mt-2'"
     >
       <button
         v-for="vehicle in filteredVehicles"
@@ -77,11 +79,13 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   floating?: boolean
   compact?: boolean
+  disabled?: boolean
 }>(), {
   label: undefined,
   placeholder: 'Wpisz numer rejestracyjny',
   floating: false,
   compact: false,
+  disabled: false,
 })
 
 const emit = defineEmits<{
@@ -97,6 +101,7 @@ const isOpen = ref(false)
 const tagFieldClasses = computed(() => [
   'flex w-full flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white text-slate-950 shadow-sm transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200 dark:border-app-border dark:bg-app-panel dark:text-slate-50 dark:focus:border-app-muted dark:focus:ring-app-elevated',
   props.compact ? 'text-xs' : 'text-sm',
+  props.disabled ? 'cursor-not-allowed opacity-70' : 'cursor-text',
   props.floating
     ? isOpen.value
       ? 'absolute left-0 right-0 top-0 z-40 min-h-9 max-h-44 overflow-y-auto px-3 py-2'
@@ -132,6 +137,10 @@ const filteredVehicles = computed(() => {
 })
 
 function selectVehicle(vehicleId: number) {
+  if (props.disabled) {
+    return
+  }
+
   emit('add', String(vehicleId))
   query.value = ''
 
@@ -141,6 +150,30 @@ function selectVehicle(vehicleId: number) {
   }
 
   requestAnimationFrame(() => inputElement.value?.focus())
+}
+
+function removeVehicle(vehicleId: number) {
+  if (props.disabled) {
+    return
+  }
+
+  emit('remove', String(vehicleId))
+}
+
+function openMenu() {
+  if (props.disabled) {
+    return
+  }
+
+  isOpen.value = true
+}
+
+function focusInput() {
+  if (props.disabled) {
+    return
+  }
+
+  inputElement.value?.focus()
 }
 
 function onDocumentClick(event: MouseEvent) {

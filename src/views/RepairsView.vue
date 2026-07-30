@@ -348,22 +348,17 @@
                         <AppBadge>{{ fault.photos.length }}</AppBadge>
                       </div>
 
-                      <label
-                        class="flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-center text-xs font-semibold text-slate-500 transition hover:bg-slate-100 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated"
+                      <button
+                        type="button"
+                        class="flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-center text-xs font-semibold text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated"
                         :class="canAddFaultPhotos ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
                         :title="!canAddFaultPhotos ? 'Brak uprawnienia: fault_photos.add' : undefined"
+                        :disabled="isMutating || !canAddFaultPhotos"
+                        @click="openDraftFaultPhotoAdd(fault.id)"
                       >
-                        <input
-                          type="file"
-                          class="sr-only"
-                          accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
-                          multiple
-                          :disabled="isMutating || !canAddFaultPhotos"
-                          @change="handleDraftFaultPhotoSelection(fault.id, $event)"
-                        />
                         <ImagePlus class="h-4 w-4" />
                         Dodaj zdjęcia
-                      </label>
+                      </button>
 
                       <p v-if="fault.photoError" class="mt-2 text-xs font-medium text-danger-600 dark:text-danger-400">
                         {{ fault.photoError }}
@@ -418,6 +413,64 @@
             </AppButton>
           </footer>
         </form>
+      </div>
+    </Teleport>
+
+    <input
+      ref="draftFaultPhotoInput"
+      type="file"
+      class="fixed left-[-9999px] top-0 h-px w-px opacity-0"
+      accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
+      multiple
+      @change="handleDraftFaultPhotoInputSelection"
+    />
+
+    <input
+      ref="draftFaultCameraInput"
+      type="file"
+      class="fixed left-[-9999px] top-0 h-px w-px opacity-0"
+      accept="image/*"
+      capture="environment"
+      @change="handleDraftFaultPhotoInputSelection"
+    />
+
+    <Teleport to="body">
+      <div
+        v-if="draftPhotoPickerFaultId"
+        class="fixed inset-0 z-[80] flex items-end justify-center bg-transparent p-3 md:hidden"
+        @click.self="closeDraftPhotoPickerMenu"
+      >
+        <section class="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-app-border dark:bg-app-panel">
+          <header class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-app-border">
+            <p class="text-sm font-semibold text-slate-950 dark:text-slate-50">Dodaj zdjęcie</p>
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
+              aria-label="Zamknij wybór zdjęcia"
+              @click="closeDraftPhotoPickerMenu"
+            >
+              <X class="h-4 w-4" />
+            </button>
+          </header>
+          <div class="grid gap-2 p-3">
+            <button
+              type="button"
+              class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-app-border dark:bg-app-dark dark:text-slate-100 dark:hover:bg-app-elevated"
+              @click="chooseDraftPhotoSource('gallery')"
+            >
+              <ImagePlus class="h-5 w-5 text-slate-400" />
+              Wybierz z galerii
+            </button>
+            <button
+              type="button"
+              class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-app-border dark:bg-app-dark dark:text-slate-100 dark:hover:bg-app-elevated"
+              @click="chooseDraftPhotoSource('camera')"
+            >
+              <Camera class="h-5 w-5 text-slate-400" />
+              Zrób zdjęcie
+            </button>
+          </div>
+        </section>
       </div>
     </Teleport>
 
@@ -537,6 +590,7 @@ import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import {
   Building2,
+  Camera,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -621,6 +675,10 @@ const nowTick = ref(Date.now())
 const isCreateModalOpen = ref(false)
 const isMechanicsModalOpen = ref(false)
 const mechanicToDelete = ref<Mechanic | null>(null)
+const draftFaultPhotoInput = ref<HTMLInputElement | null>(null)
+const draftFaultCameraInput = ref<HTMLInputElement | null>(null)
+const selectedDraftFaultPhotoInputId = ref<string | null>(null)
+const draftPhotoPickerFaultId = ref<string | null>(null)
 const mapElement = ref<HTMLDivElement | null>(null)
 const mapState = ref<'idle' | 'loading' | 'ready' | 'missing-key' | 'error'>('idle')
 const createForm = reactive({
@@ -1241,6 +1299,98 @@ function validateRepairPhoto(file: File) {
   return null
 }
 
+function blurFileInput(input: HTMLInputElement) {
+  window.requestAnimationFrame(() => {
+    if (document.activeElement === input) {
+      input.blur()
+    }
+  })
+}
+
+function shouldShowMobilePhotoMenu() {
+  return typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
+}
+
+function closeDraftPhotoPickerMenu() {
+  draftPhotoPickerFaultId.value = null
+}
+
+function openDraftFaultPhotoAdd(faultId: string) {
+  if (isMutating.value || !canAddFaultPhotos.value) {
+    return
+  }
+
+  if (shouldShowMobilePhotoMenu()) {
+    draftPhotoPickerFaultId.value = faultId
+    return
+  }
+
+  openDraftFaultGalleryPicker(faultId)
+}
+
+function chooseDraftPhotoSource(source: 'gallery' | 'camera') {
+  const faultId = draftPhotoPickerFaultId.value
+
+  if (!faultId) {
+    return
+  }
+
+  if (source === 'camera') {
+    openDraftFaultCameraPicker(faultId)
+  } else {
+    openDraftFaultGalleryPicker(faultId)
+  }
+
+  draftPhotoPickerFaultId.value = null
+}
+
+function openDraftFaultGalleryPicker(faultId: string) {
+  if (isMutating.value || !canAddFaultPhotos.value) {
+    return
+  }
+
+  const input = draftFaultPhotoInput.value
+
+  if (!input) {
+    return
+  }
+
+  selectedDraftFaultPhotoInputId.value = faultId
+  input.value = ''
+  input.click()
+  blurFileInput(input)
+}
+
+function openDraftFaultCameraPicker(faultId: string) {
+  if (isMutating.value || !canAddFaultPhotos.value) {
+    return
+  }
+
+  const input = draftFaultCameraInput.value
+
+  if (!input) {
+    return
+  }
+
+  selectedDraftFaultPhotoInputId.value = faultId
+  input.value = ''
+  input.click()
+  blurFileInput(input)
+}
+
+function handleDraftFaultPhotoInputSelection(event: Event) {
+  const faultId = selectedDraftFaultPhotoInputId.value
+  selectedDraftFaultPhotoInputId.value = null
+
+  if (!faultId) {
+    const input = event.target as HTMLInputElement
+    input.value = ''
+    return
+  }
+
+  handleDraftFaultPhotoSelection(faultId, event)
+}
+
 function handleDraftFaultPhotoSelection(faultId: string, event: Event) {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files || [])
@@ -1306,6 +1456,8 @@ function openCreateModal() {
 function closeCreateModal() {
   if (!isMutating.value) {
     clearDraftFaultPhotoDrafts()
+    closeDraftPhotoPickerMenu()
+    selectedDraftFaultPhotoInputId.value = null
     isCreateModalOpen.value = false
   }
 }
