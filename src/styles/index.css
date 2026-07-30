@@ -81,6 +81,12 @@
     overflow: hidden;
   }
 
+  @media (min-width: 768px) {
+    html {
+      font-size: 80%;
+    }
+  }
+
   body {
     margin: 0;
     min-width: 320px;

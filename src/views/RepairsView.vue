@@ -178,7 +178,11 @@
             @dragend="endRepairDrag"
             @click="openRepairDetails(repair)"
             >
-              <RepairCardContent :repair="repair" show-place />
+              <RepairCardContent
+                :repair="repair"
+                show-place
+                :show-country-flag="activeTab === 'base'"
+              />
             </article>
 
           <div v-if="!column.repairs.length" class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
@@ -188,28 +192,135 @@
       </div>
     </section>
 
-    <section v-else-if="activeTab === 'field'" class="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
+    <section v-else-if="activeTab === 'field'" class="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
       <header class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-app-border">
         <div>
           <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Naprawy w terenie</h2>
           <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ selectedWeekLabel }}</p>
         </div>
-        <AppBadge>{{ fieldRepairs.length }}</AppBadge>
+        <div class="flex items-center gap-2">
+          <AppBadge>{{ fieldRepairs.length }}</AppBadge>
+          <AppButton
+            size="sm"
+            variant="secondary"
+            :disabled="!selectedFieldRepairs.length"
+            @click="generateRepairsPdf(selectedFieldRepairs)"
+          >
+            <FileDown class="h-4 w-4" />
+            Generuj PDF
+            <span v-if="selectedFieldRepairs.length">({{ selectedFieldRepairs.length }})</span>
+          </AppButton>
+        </div>
       </header>
 
-      <div class="grid min-w-0 max-w-full grid-cols-1 gap-3 p-4 lg:grid-cols-2 2xl:grid-cols-3">
-        <article
-          v-for="repair in fieldRepairs"
-          :key="repair.id"
-          class="min-w-0 max-w-full cursor-pointer overflow-hidden rounded-2xl border border-slate-100 bg-white p-3 transition hover:bg-slate-50 dark:border-app-border dark:bg-app-dark dark:hover:bg-app-elevated"
-          @click="openRepairDetails(repair)"
-        >
-          <RepairCardContent :repair="repair" show-place />
-        </article>
-
-        <div v-if="!fieldRepairs.length" class="rounded-2xl border border-dashed border-slate-200 p-6 text-sm text-slate-500 dark:border-app-border dark:text-slate-400 lg:col-span-2 2xl:col-span-3">
-          Brak napraw w terenie.
-        </div>
+      <div class="min-h-0 min-w-0 flex-1 overflow-auto">
+        <table class="w-full min-w-[920px] table-fixed text-left text-xs">
+          <thead class="sticky top-0 z-10 border-b border-slate-200 bg-white text-[10px] uppercase text-slate-500 dark:border-app-border dark:bg-app-panel dark:text-app-muted">
+            <tr>
+              <th class="w-12 px-2 py-2 text-center">
+                <AppCheckbox
+                  :model-value="areAllFieldRepairsSelected"
+                  aria-label="Zaznacz wszystkie naprawy w terenie"
+                  :disabled="!fieldRepairs.length"
+                  @update:model-value="toggleAllFieldRepairs"
+                />
+              </th>
+              <th class="w-[16%] px-2 py-2 font-semibold">Numer rej.</th>
+              <th class="w-[18%] px-2 py-2 font-semibold">Miejsce</th>
+              <th class="w-[16%] px-2 py-2 font-semibold">Przyjazd</th>
+              <th class="w-[16%] px-2 py-2 font-semibold">Odjazd</th>
+              <th class="w-[13%] px-2 py-2 font-semibold">Status</th>
+              <th class="w-[13%] px-2 py-2 font-semibold">Usterki</th>
+              <th class="w-24 px-2 py-2 text-right font-semibold">Akcje</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template v-for="repair in fieldRepairs" :key="repair.id">
+              <tr class="border-b border-slate-100 transition hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated">
+                <td class="px-2 py-1 text-center">
+                  <AppCheckbox
+                    :model-value="isFieldRepairSelected(repair.id)"
+                    :aria-label="`Zaznacz naprawę ${repairVehicleLabel(repair)}`"
+                    @update:model-value="toggleFieldRepairSelection(repair.id)"
+                  />
+                </td>
+                <td class="truncate px-2 py-2 font-semibold text-slate-950 dark:text-slate-50">
+                  {{ repairVehicleLabel(repair) }}
+                </td>
+                <td class="truncate px-2 py-2 text-slate-600 dark:text-slate-300">
+                  {{ repairPlaceLabel(repair) }}
+                </td>
+                <td class="px-2 py-2 tabular-nums text-slate-600 dark:text-slate-300">
+                  {{ formatDateTime(repair.plannedArrivalAt) }}
+                </td>
+                <td class="px-2 py-2 tabular-nums text-slate-600 dark:text-slate-300">
+                  {{ formatDateTime(repair.plannedDepartureAt) }}
+                </td>
+                <td class="px-2 py-2">
+                  <AppBadge :variant="statusVariant(repair.status)">{{ statusLabel(repair.status) }}</AppBadge>
+                </td>
+                <td class="px-2 py-1.5">
+                  <button
+                    type="button"
+                    class="inline-flex h-8 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-dark dark:hover:text-slate-50"
+                    :aria-expanded="isFieldRepairExpanded(repair.id)"
+                    @click="toggleFieldRepairExpansion(repair.id)"
+                  >
+                    <ChevronDown
+                      class="h-3.5 w-3.5 transition"
+                      :class="isFieldRepairExpanded(repair.id) ? 'rotate-180' : ''"
+                    />
+                    {{ repair.doneFaults || 0 }}/{{ repair.totalFaults || repair.faults?.length || 0 }}
+                  </button>
+                </td>
+                <td class="px-2 py-1.5">
+                  <div class="flex justify-end gap-1">
+                    <button
+                      type="button"
+                      class="icon-button"
+                      title="Generuj PDF"
+                      :aria-label="`Generuj PDF naprawy ${repairVehicleLabel(repair)}`"
+                      @click="generateRepairsPdf([repair])"
+                    >
+                      <FileDown class="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      class="icon-button"
+                      title="Szczegóły naprawy"
+                      :aria-label="`Otwórz naprawę ${repairVehicleLabel(repair)}`"
+                      @click="openRepairDetails(repair)"
+                    >
+                      <SquarePen class="h-4 w-4" />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              <tr v-if="isFieldRepairExpanded(repair.id)" class="border-b border-slate-100 bg-slate-50/70 dark:border-app-border dark:bg-app-dark">
+                <td></td>
+                <td colspan="7" class="px-2 py-3">
+                  <div v-if="repair.faults?.length" class="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                    <div
+                      v-for="fault in repair.faults"
+                      :key="fault.id"
+                      class="flex min-w-0 items-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 dark:border-app-border dark:bg-app-panel dark:text-slate-200"
+                    >
+                      <CircleCheck v-if="fault.status === 'DONE'" class="mt-0.5 h-4 w-4 shrink-0 text-success-600 dark:text-success-400" />
+                      <span v-else class="mt-0.5 h-4 w-4 shrink-0 rounded-full border border-slate-300 dark:border-app-muted"></span>
+                      <span class="min-w-0 break-words">{{ fault.description }}</span>
+                    </div>
+                  </div>
+                  <p v-else class="text-sm text-slate-500 dark:text-slate-400">Brak usterek.</p>
+                </td>
+              </tr>
+            </template>
+            <tr v-if="!fieldRepairs.length">
+              <td colspan="8" class="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+                Brak napraw w terenie.
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -599,6 +710,7 @@ import {
   CircleCheck,
   Clock,
   Columns3,
+  FileDown,
   ImagePlus,
   ListChecks,
   Percent,
@@ -611,6 +723,7 @@ import {
 } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSearchSelect, { type AppSearchSelectOption } from '@/components/ui/AppSearchSelect.vue'
@@ -671,6 +784,8 @@ const dragPreview = reactive({ x: 0, y: 0 })
 const dragOverColumn = ref<RepairColumnKey | null>(null)
 const collapsedRepairColumnKeys = ref<Set<RepairColumnKey>>(new Set())
 const collapsedRepairIds = ref<Set<number>>(new Set())
+const expandedFieldRepairIds = ref<Set<number>>(new Set())
+const selectedFieldRepairIds = ref<Set<number>>(new Set())
 const nowTick = ref(Date.now())
 const isCreateModalOpen = ref(false)
 const isMechanicsModalOpen = ref(false)
@@ -774,7 +889,18 @@ const otherWeekRepairs = computed(() => filteredSelectedWeekRepairs.value.filter
 
 const activeKanbanRepairs = computed(() => activeTab.value === 'other' ? otherWeekRepairs.value : baseWeekRepairs.value)
 
-const sortedKanbanRepairs = computed(() => [...activeKanbanRepairs.value].sort((first, second) => repairTimestamp(first) - repairTimestamp(second)))
+const sortedKanbanRepairs = computed(() => [...activeKanbanRepairs.value].sort((first, second) => {
+  if (activeTab.value === 'base') {
+    const firstIsInPoland = repairCountryCode(first) === 'PL'
+    const secondIsInPoland = repairCountryCode(second) === 'PL'
+
+    if (firstIsInPoland !== secondIsInPoland) {
+      return firstIsInPoland ? -1 : 1
+    }
+  }
+
+  return repairTimestamp(first) - repairTimestamp(second)
+}))
 
 const weeklyStats = computed(() => {
   const total = activeKanbanRepairs.value.length
@@ -811,6 +937,12 @@ const fieldRepairs = computed(() => uniqueRepairs([
   ...repairs.value,
   ...fieldAndUnassigned.value,
 ]).filter((repair) => normalizeRepairStatus(repair.status) === 'IN_FIELD' && repairMatchesSearch(repair)))
+
+const selectedFieldRepairs = computed(() => fieldRepairs.value.filter((repair) => selectedFieldRepairIds.value.has(repair.id)))
+const areAllFieldRepairsSelected = computed(() => (
+  fieldRepairs.value.length > 0 &&
+  fieldRepairs.value.every((repair) => selectedFieldRepairIds.value.has(repair.id))
+))
 
 const mapSourceRepairs = computed(() => uniqueRepairs([
   ...filteredSelectedWeekRepairs.value,
@@ -858,6 +990,10 @@ const RepairCardContent = defineComponent({
       type: Boolean,
       default: true,
     },
+    showCountryFlag: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props) {
     return () => {
@@ -867,10 +1003,22 @@ const RepairCardContent = defineComponent({
       const totalFaults = props.repair.totalFaults || faults.length
       const isDone = normalizeRepairStatus(props.repair.status) === 'done'
       const departureCountdown = departureCountdownLabel(props.repair.plannedDepartureAt)
+      const countryCode = repairCountryCode(props.repair)
 
       return h('div', { class: 'min-w-0 max-w-full overflow-hidden' }, [
         h('div', { class: 'flex min-w-0 items-start justify-between gap-2' }, [
-          h('p', { class: 'min-w-0 truncate text-base font-semibold text-slate-950 dark:text-slate-50' }, repairVehicleLabel(props.repair)),
+          h('div', { class: 'flex min-w-0 items-center gap-2' }, [
+            props.showCountryFlag && countryCode
+              ? h('img', {
+                class: 'h-4 w-4 shrink-0 rounded-full object-cover',
+                src: `https://flagsapi.com/${countryCode}/flat/64.png`,
+                alt: countryCode,
+                loading: 'lazy',
+                referrerpolicy: 'no-referrer',
+              })
+              : null,
+            h('p', { class: 'min-w-0 truncate text-base font-semibold text-slate-950 dark:text-slate-50' }, repairVehicleLabel(props.repair)),
+          ]),
           h('div', { class: 'flex min-w-0 shrink-0 items-center gap-1.5' }, [
             isDone ? h(CircleCheck, { class: 'h-5 w-5 text-success-600 dark:text-success-400' }) : null,
             h(AppBadge, { variant: statusVariant(props.repair.status) }, () => statusLabel(props.repair.status)),
@@ -1001,6 +1149,15 @@ function columnKeyForRepair(repair: Repair): RepairColumnKey | null {
 
 function repairVehicleLabel(repair: Repair) {
   return repair.vehicle?.licensePlate || repair.vehicleLicensePlate || `Pojazd #${repair.vehicleId}`
+}
+
+function repairFleetVehicle(repair: Repair) {
+  const vehicleId = repair.vehicle?.id ?? repair.vehicleId
+  return fleetStore.vehicles.find((vehicle) => String(vehicle.backendId) === String(vehicleId)) || null
+}
+
+function repairCountryCode(repair: Repair) {
+  return repairFleetVehicle(repair)?.countryCode?.toUpperCase() || null
 }
 
 function repairPlaceLabel(repair: Repair) {
@@ -1564,6 +1721,134 @@ function openRepairDetails(repair: Repair) {
   void router.push({ name: 'repair-detail', params: { id: repair.id } })
 }
 
+function isFieldRepairSelected(repairId: number) {
+  return selectedFieldRepairIds.value.has(repairId)
+}
+
+function toggleFieldRepairSelection(repairId: number) {
+  const nextIds = new Set(selectedFieldRepairIds.value)
+
+  if (nextIds.has(repairId)) {
+    nextIds.delete(repairId)
+  } else {
+    nextIds.add(repairId)
+  }
+
+  selectedFieldRepairIds.value = nextIds
+}
+
+function toggleAllFieldRepairs(shouldSelect: boolean) {
+  selectedFieldRepairIds.value = shouldSelect
+    ? new Set(fieldRepairs.value.map((repair) => repair.id))
+    : new Set()
+}
+
+function isFieldRepairExpanded(repairId: number) {
+  return expandedFieldRepairIds.value.has(repairId)
+}
+
+function toggleFieldRepairExpansion(repairId: number) {
+  const nextIds = new Set(expandedFieldRepairIds.value)
+
+  if (nextIds.has(repairId)) {
+    nextIds.delete(repairId)
+  } else {
+    nextIds.add(repairId)
+  }
+
+  expandedFieldRepairIds.value = nextIds
+}
+
+function repairPdfSection(repair: Repair) {
+  const faults = repair.faults || []
+  const createdBy = repair.createdBy?.username || repair.createdByUsername || '—'
+  const faultRows = faults.length
+    ? faults.map((fault, index) => `
+        <tr>
+          <td>${index + 1}.</td>
+          <td>${escapeHtml(fault.description)}</td>
+          <td>${fault.status === 'DONE' ? 'Wykonana' : 'Otwarta'}</td>
+        </tr>
+      `).join('')
+    : '<tr><td colspan="3">Brak usterek.</td></tr>'
+
+  return `
+    <section class="repair">
+      <header>
+        <div>
+          <p class="eyebrow">Naprawa #${repair.id}</p>
+          <h1>${escapeHtml(repairVehicleLabel(repair))}</h1>
+        </div>
+        <span class="status">${escapeHtml(statusLabel(repair.status))}</span>
+      </header>
+      <div class="details">
+        <div><span>Miejsce</span><strong>${escapeHtml(repairPlaceLabel(repair))}</strong></div>
+        <div><span>Planowany przyjazd</span><strong>${escapeHtml(formatDateTime(repair.plannedArrivalAt))}</strong></div>
+        <div><span>Planowany odjazd</span><strong>${escapeHtml(formatDateTime(repair.plannedDepartureAt))}</strong></div>
+        <div><span>Dodał</span><strong>${escapeHtml(createdBy)}</strong></div>
+      </div>
+      <div class="notes">
+        <span>Uwagi</span>
+        <p>${escapeHtml(repair.description || 'Brak uwag.')}</p>
+      </div>
+      <h2>Usterki</h2>
+      <table>
+        <thead><tr><th>#</th><th>Opis</th><th>Status</th></tr></thead>
+        <tbody>${faultRows}</tbody>
+      </table>
+    </section>
+  `
+}
+
+function generateRepairsPdf(items: Repair[]) {
+  if (!items.length) {
+    return
+  }
+
+  const printWindow = window.open('', '_blank', 'width=980,height=760')
+
+  if (!printWindow) {
+    return
+  }
+
+  printWindow.opener = null
+  printWindow.document.write(`
+    <!doctype html>
+    <html lang="pl">
+      <head>
+        <meta charset="utf-8">
+        <title>Naprawy w terenie</title>
+        <style>
+          @page { size: A4; margin: 14mm; }
+          * { box-sizing: border-box; }
+          body { margin: 0; color: #111827; font-family: Arial, sans-serif; font-size: 11px; }
+          .repair { break-after: page; page-break-after: always; }
+          .repair:last-child { break-after: auto; page-break-after: auto; }
+          header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; border-bottom: 2px solid #111827; padding-bottom: 12px; }
+          h1 { margin: 2px 0 0; font-size: 23px; }
+          h2 { margin: 20px 0 8px; font-size: 14px; }
+          .eyebrow { margin: 0; color: #6b7280; font-size: 10px; text-transform: uppercase; }
+          .status { border: 1px solid #d1d5db; border-radius: 999px; padding: 6px 10px; font-weight: 700; }
+          .details { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; margin-top: 16px; background: #e5e7eb; border: 1px solid #e5e7eb; }
+          .details div { display: flex; flex-direction: column; gap: 4px; background: #fff; padding: 10px; }
+          .details span, .notes > span { color: #6b7280; font-size: 9px; text-transform: uppercase; }
+          .notes { margin-top: 12px; border: 1px solid #e5e7eb; padding: 10px; }
+          .notes p { margin: 5px 0 0; white-space: pre-wrap; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #d1d5db; padding: 7px 8px; text-align: left; vertical-align: top; }
+          th { background: #f3f4f6; font-size: 9px; text-transform: uppercase; }
+          th:first-child, td:first-child { width: 36px; }
+          th:last-child, td:last-child { width: 90px; }
+        </style>
+      </head>
+      <body>${items.map(repairPdfSection).join('')}</body>
+    </html>
+  `)
+  printWindow.document.close()
+  printWindow.focus()
+  window.setTimeout(() => printWindow.print(), 180)
+}
+
 function toggleRepairFaults(repairId: number) {
   const nextCollapsedIds = new Set(collapsedRepairIds.value)
 
@@ -1970,6 +2255,16 @@ watch([activeTab, selectedWeekKey], () => {
   persistRepairsViewState()
 })
 
+watch(fieldRepairs, (visibleRepairs) => {
+  const visibleIds = new Set(visibleRepairs.map((repair) => repair.id))
+  selectedFieldRepairIds.value = new Set(
+    [...selectedFieldRepairIds.value].filter((repairId) => visibleIds.has(repairId)),
+  )
+  expandedFieldRepairIds.value = new Set(
+    [...expandedFieldRepairIds.value].filter((repairId) => visibleIds.has(repairId)),
+  )
+})
+
 watch([selectedWeekKey, mapRepairVehicles], () => {
   if (activeTab.value === 'map') {
     renderRepairMap()
@@ -2129,7 +2424,8 @@ onBeforeUnmount(() => {
 }
 
 .rw-map-marker-heading {
-  transform: rotate(var(--rw-marker-heading));
+  transform: rotate(var(
+      --rw-marker-heading));
   transform-origin: center;
 }
 

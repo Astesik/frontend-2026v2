@@ -242,6 +242,10 @@ export const companyManagementService = {
     await api.put(`/api/company-management/users/${userId}/permission-overrides`, { overrides })
   },
 
+  async resetUserPassword(userId: number | string, newPassword: string) {
+    await api.put(`/api/company-management/users/${userId}/password`, { newPassword })
+  },
+
   async deleteUser(userId: number | string) {
     await api.delete(`/api/company-management/users/${userId}`)
   },

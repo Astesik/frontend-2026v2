@@ -448,6 +448,40 @@
           >
             <MapPin class="h-4 w-4" />
           </button>
+
+          <button
+            type="button"
+            class="inline-flex h-9 w-9 items-center justify-center rounded-2xl border shadow-sm transition"
+            :class="vignetteDrawerOpen ? activeModeClasses : inactiveModeClasses"
+            aria-label="Winiety GB"
+            title="Winiety GB"
+            @click="toggleVignetteDrawer"
+          >
+            <TicketCheck class="h-4 w-4" />
+          </button>
+
+          <div
+            class="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] font-semibold tabular-nums text-slate-600 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-200"
+            :title="`Odświeżenie pozycji za ${positionRefreshSeconds}s`"
+            aria-live="off"
+          >
+            <svg class="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 36 36" aria-hidden="true">
+              <circle cx="18" cy="18" r="14" fill="none" stroke="currentColor" stroke-width="2" class="text-slate-200 dark:text-app-border" />
+              <circle
+                cx="18"
+                cy="18"
+                r="14"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                class="text-blue-500 transition-[stroke-dashoffset] duration-100 ease-linear dark:text-blue-400"
+                :stroke-dasharray="refreshCircleCircumference"
+                :stroke-dashoffset="positionRefreshCircleOffset"
+              />
+            </svg>
+            <span class="relative">{{ positionRefreshSeconds }}</span>
+          </div>
         </div>
 
         <div
@@ -488,6 +522,72 @@
           </AppButton>
         </div>
       </div>
+
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="translate-x-full opacity-0"
+        enter-to-class="translate-x-0 opacity-100"
+        leave-active-class="transition duration-150 ease-in"
+        leave-from-class="translate-x-0 opacity-100"
+        leave-to-class="translate-x-full opacity-0"
+      >
+        <aside
+          v-if="vignetteDrawerOpen"
+          class="absolute right-0 top-0 z-30 flex h-full w-[22rem] max-w-full flex-col border-l border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel"
+          @click.stop
+        >
+          <header class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-app-border">
+            <div class="flex min-w-0 items-center gap-2">
+              <TicketCheck class="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-300" />
+              <div class="min-w-0">
+                <h2 class="truncate text-sm font-semibold text-slate-950 dark:text-slate-50">Winiety GB</h2>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
+              aria-label="Zamknij winiety GB"
+              @click="vignetteDrawerOpen = false"
+            >
+              <X class="h-4 w-4" />
+            </button>
+          </header>
+
+          <div class="min-h-0 flex-1 overflow-auto">
+            <table class="w-full table-fixed text-left text-xs">
+              <thead class="sticky top-0 z-10 border-b border-slate-200 bg-white text-[10px] uppercase text-slate-500 dark:border-app-border dark:bg-app-panel dark:text-app-muted">
+                <tr>
+                  <th class="w-[34%] px-3 py-2 font-semibold">Numer rej.</th>
+                  <th class="w-[34%] px-2 py-2 font-semibold">Ważna do</th>
+                  <th class="px-2 py-2 text-right font-semibold">Pozostało</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="item in ukVignetteRows"
+                  :key="item.vehicleId"
+                  class="border-b border-slate-100 last:border-0 dark:border-app-border"
+                >
+                  <td class="truncate px-3 py-2 font-semibold text-slate-900 dark:text-slate-100">
+                    {{ item.plateNumber }}
+                  </td>
+                  <td class="px-2 py-2 tabular-nums" :class="vignetteDaysClasses(item.daysLeft)">
+                    {{ item.dateLabel }}
+                  </td>
+                  <td class="px-2 py-2 text-right font-semibold tabular-nums" :class="vignetteDaysClasses(item.daysLeft)">
+                    {{ item.daysLabel }}
+                  </td>
+                </tr>
+                <tr v-if="!ukVignetteRows.length">
+                  <td colspan="3" class="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                    Brak pojazdów.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </aside>
+      </Transition>
 
       <Transition
         enter-active-class="transition duration-200 ease-out"
@@ -785,7 +885,7 @@
 import { storeToRefs } from 'pinia'
 import { computed, defineComponent, h, markRaw, onBeforeUnmount, onMounted, reactive, ref, render, shallowRef, watch, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowDown, ArrowUp, ArrowUpDown, CircleAlert, Container, Copy, Flag, Gauge, GlobeOff, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, Settings, Trash2, TriangleAlert, Truck, Wrench, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowUp, ArrowUpDown, CircleAlert, Container, Copy, Flag, Gauge, GlobeOff, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
@@ -849,6 +949,9 @@ type PlaceFormState = {
   description: string
 }
 const MAP_SETTINGS_KEY = 'routewise.map.settings'
+const POSITION_REFRESH_INTERVAL_MS = 10_000
+const REFRESH_CIRCLE_RADIUS = 14
+const REFRESH_CIRCLE_CIRCUMFERENCE = 2 * Math.PI * REFRESH_CIRCLE_RADIUS
 const MAP_SELECTED_FLEET_KEY_PREFIX = 'routewise.map.selectedFleet'
 const DEFAULT_SELECTED_FLEET_ID = 'type:truck'
 const MOBILE_MAP_MEDIA_QUERY = '(max-width: 767px)'
@@ -1188,9 +1291,13 @@ const googleTrafficLayer = shallowRef<any | null>(null)
 const googleMarkers = shallowRef<any[]>([])
 const todayRoutePointMarkers = new Map<string, any>()
 const positionRefreshTimer = ref<number | null>(null)
+const positionRefreshCountdownTimer = ref<number | null>(null)
+const positionRefreshNextAt = ref(Date.now() + POSITION_REFRESH_INTERVAL_MS)
+const positionRefreshNow = ref(Date.now())
 const activeAlertTooltip = ref<AlertTooltip | null>(null)
 const layersMenuOpen = ref(false)
 const placesMenuOpen = ref(false)
+const vignetteDrawerOpen = ref(false)
 const isPlacePlacementMode = ref(false)
 const isPlaceFormOpen = ref(false)
 const placeFormTab = ref<'data' | 'events'>('data')
@@ -1277,6 +1384,52 @@ const selectedVehicle = computed(() => (
     ? fleetStore.vehicles.find((vehicle) => vehicle.id === selectedVehicleId.value) || null
     : null
 ))
+
+const refreshCircleCircumference = REFRESH_CIRCLE_CIRCUMFERENCE
+const positionRefreshRemainingMs = computed(() => Math.max(
+  0,
+  positionRefreshNextAt.value - positionRefreshNow.value,
+))
+const positionRefreshSeconds = computed(() => Math.max(
+  0,
+  Math.ceil(positionRefreshRemainingMs.value / 1000),
+))
+const positionRefreshCircleOffset = computed(() => {
+  const progress = positionRefreshRemainingMs.value / POSITION_REFRESH_INTERVAL_MS
+  return REFRESH_CIRCLE_CIRCUMFERENCE * (1 - Math.min(1, Math.max(0, progress)))
+})
+
+const ukVignetteRows = computed(() => fleetStore.vehicles
+  .filter((vehicle) => (
+    vehicle.vehicleType === 'truck' &&
+    vehicle.countryCode?.toUpperCase() === 'GB'
+  ))
+  .map((vehicle) => {
+    const daysLeft = daysUntilDate(vehicle.vignetteUk)
+
+    return {
+      vehicleId: vehicle.id,
+      plateNumber: vehicle.plateNumber,
+      daysLeft,
+      dateLabel: vehicle.vignetteUk ? formatDateLabel(vehicle.vignetteUk) : '—',
+      daysLabel: daysLeft === null
+        ? 'Brak daty'
+        : daysLeft < 0
+          ? 'Po terminie'
+          : daysLeft === 0
+            ? 'Dzisiaj'
+            : `${daysLeft} dni`,
+    }
+  })
+  .sort((first, second) => {
+    if (first.daysLeft === null && second.daysLeft === null) {
+      return first.plateNumber.localeCompare(second.plateNumber, 'pl')
+    }
+
+    if (first.daysLeft === null) return 1
+    if (second.daysLeft === null) return -1
+    return first.daysLeft - second.daysLeft || first.plateNumber.localeCompare(second.plateNumber, 'pl')
+  }))
 
 const formatPlaceFormCoordinates = computed(() => {
   if (placeForm.latitude === null || placeForm.longitude === null) return 'Brak współrzędnych'
@@ -2031,6 +2184,16 @@ function togglePlacesMenu() {
   layersMenuOpen.value = false
 }
 
+function toggleVignetteDrawer() {
+  vignetteDrawerOpen.value = !vignetteDrawerOpen.value
+  layersMenuOpen.value = false
+  placesMenuOpen.value = false
+
+  if (vignetteDrawerOpen.value) {
+    vehicleDetailsDrawerOpen.value = false
+  }
+}
+
 function openPlacesPanel() {
   activeMode.value = 'places'
   vehiclePanelCollapsed.value = false
@@ -2040,6 +2203,7 @@ function openPlacesPanel() {
   clearPositionHistoryData()
   layersMenuOpen.value = false
   placesMenuOpen.value = false
+  vignetteDrawerOpen.value = false
 }
 
 function finishPlaceEditing() {
@@ -2210,6 +2374,22 @@ function resolveDaysVariant(daysLeft: number | null): BadgeVariant {
   }
 
   return 'neutral'
+}
+
+function vignetteDaysClasses(daysLeft: number | null) {
+  if (daysLeft === null) {
+    return 'text-slate-400 dark:text-app-muted'
+  }
+
+  if (daysLeft < 15) {
+    return 'text-danger-600 dark:text-danger-400'
+  }
+
+  if (daysLeft < 30) {
+    return 'text-amber-600 dark:text-amber-300'
+  }
+
+  return 'text-slate-700 dark:text-slate-200'
 }
 
 function setFuelUnit(value: string) {
@@ -3158,6 +3338,7 @@ function selectVehicle(vehicleId: string) {
   }
 
   selectedVehicleId.value = vehicleId
+  vignetteDrawerOpen.value = false
   vehicleDetailsDrawerOpen.value = true
   const vehicle = fleetStore.vehicles.find((item) => item.id === vehicleId)
 
@@ -3235,9 +3416,21 @@ function startPositionRefresh() {
     window.clearInterval(positionRefreshTimer.value)
   }
 
+  if (positionRefreshCountdownTimer.value !== null) {
+    window.clearInterval(positionRefreshCountdownTimer.value)
+  }
+
+  positionRefreshNow.value = Date.now()
+  positionRefreshNextAt.value = positionRefreshNow.value + POSITION_REFRESH_INTERVAL_MS
+  positionRefreshCountdownTimer.value = window.setInterval(() => {
+    positionRefreshNow.value = Date.now()
+  }, 100)
+
   positionRefreshTimer.value = window.setInterval(() => {
+    positionRefreshNow.value = Date.now()
+    positionRefreshNextAt.value = positionRefreshNow.value + POSITION_REFRESH_INTERVAL_MS
     void refreshLastPositions()
-  }, 30000)
+  }, POSITION_REFRESH_INTERVAL_MS)
 }
 
 watch(filteredVehicles, (vehicles) => {
@@ -3371,6 +3564,11 @@ onBeforeUnmount(() => {
     positionRefreshTimer.value = null
   }
 
+  if (positionRefreshCountdownTimer.value !== null) {
+    window.clearInterval(positionRefreshCountdownTimer.value)
+    positionRefreshCountdownTimer.value = null
+  }
+
   clearMarkers()
   clearPlaceOverlays()
   clearTodayRoute()
@@ -3404,7 +3602,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 0.1875rem;
   width: max-content;
   border: 0;
   background: transparent;
@@ -3412,7 +3610,7 @@ onBeforeUnmount(() => {
   color: rgb(var(--rw-app-text));
   cursor: default;
   pointer-events: none;
-  transform: translate(-50%, -13px);
+  transform: translate(-50%, -0.8125rem);
 }
 
 .rw-map-vehicle-marker-trailer {
@@ -3425,8 +3623,8 @@ onBeforeUnmount(() => {
 
 .rw-map-marker-button {
   display: grid;
-  height: 26px;
-  width: 26px;
+  height: 1.625rem;
+  width: 1.625rem;
   place-items: center;
   border: 0;
   background: transparent;
@@ -3609,8 +3807,8 @@ onBeforeUnmount(() => {
 
 .rw-map-marker-icon {
   display: grid;
-  height: 26px;
-  width: 26px;
+  height: 1.625rem;
+  width: 1.625rem;
   place-items: center;
   border-radius: 9999px;
   background: rgb(var(--rw-app-panel));
@@ -3618,8 +3816,8 @@ onBeforeUnmount(() => {
 }
 
 .rw-map-marker-icon svg {
-  height: 22px;
-  width: 22px;
+  height: 1.375rem;
+  width: 1.375rem;
 }
 
 .rw-map-marker-heading {
@@ -3649,14 +3847,14 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 5px;
+  gap: 0.3125rem;
   max-width: 14rem;
   border: 1px solid rgb(var(--rw-app-border));
-  border-radius: 12px;
+  border-radius: 0.75rem;
   background: rgb(var(--rw-app-panel));
-  padding: 3px 8px;
+  padding: 0.1875rem 0.5rem;
   color: rgb(var(--rw-app-text));
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1;
   pointer-events: none;
@@ -3673,7 +3871,7 @@ onBeforeUnmount(() => {
 
 .rw-map-marker-driver {
   color: rgb(var(--rw-app-muted));
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 600;
   min-width: 0;
 }

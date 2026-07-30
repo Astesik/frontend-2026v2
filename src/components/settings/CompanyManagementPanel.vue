@@ -405,10 +405,6 @@
                 autocomplete="new-password"
                 size="sm"
               />
-              <label class="flex h-9 cursor-pointer items-center justify-between rounded-2xl border border-slate-100 px-3 text-sm dark:border-app-border">
-                <span class="font-medium text-slate-700 dark:text-slate-200">Aktywny</span>
-                <AppCheckbox v-model="userForm.active" aria-label="Aktywny" :disabled="!canUpdateUsers" />
-              </label>
             </div>
 
             <div v-else-if="userDrawerTab === 'roles'" class="rounded-2xl border border-slate-100 dark:border-app-border">
@@ -484,20 +480,39 @@
 
             </div>
 
-            <footer class="shrink-0 flex flex-col gap-2 border-t border-slate-100 bg-white px-5 py-4 dark:border-app-border dark:bg-app-panel sm:flex-row sm:items-center sm:justify-between">
-              <AppButton
-                v-if="userForm.id"
-                variant="danger"
-                type="button"
-                :disabled="!canDeleteUsers"
-                :title="!canDeleteUsers ? 'Brak uprawnienia: users.delete' : undefined"
-                @click="requestDeleteCurrentUser"
-              >
-                <Trash2 class="h-4 w-4" />
-                Usuń użytkownika
-              </AppButton>
-              <span v-else></span>
-              <div class="flex justify-end gap-2">
+            <footer class="shrink-0 border-t border-slate-100 bg-white px-5 py-4 dark:border-app-border dark:bg-app-panel">
+              <div class="flex flex-wrap items-center gap-2">
+                <AppButton
+                  v-if="userForm.id && canResetUserPassword"
+                  variant="secondary"
+                  type="button"
+                  @click="openPasswordResetModal"
+                >
+                  <KeyRound class="h-4 w-4" />
+                  Resetuj hasło
+                </AppButton>
+                <AppButton
+                  v-if="userForm.id && canBlockUsers"
+                  variant="secondary"
+                  type="button"
+                  :loading="isChangingUserStatus"
+                  @click="toggleSelectedUserStatus"
+                >
+                  <component :is="userForm.active ? UserRoundX : UserRoundCheck" class="h-4 w-4" />
+                  {{ userForm.active ? 'Zablokuj' : 'Odblokuj' }}
+                </AppButton>
+                <AppButton
+                  v-if="userForm.id"
+                  variant="danger"
+                  type="button"
+                  :disabled="!canDeleteUsers"
+                  :title="!canDeleteUsers ? 'Brak uprawnienia: users.delete' : undefined"
+                  @click="requestDeleteCurrentUser"
+                >
+                  <Trash2 class="h-4 w-4" />
+                  Usuń użytkownika
+                </AppButton>
+                <div class="ml-auto flex justify-end gap-2">
                 <AppButton variant="secondary" type="button" @click="closeUserDrawer">Anuluj</AppButton>
                 <AppButton
                   type="submit"
@@ -508,6 +523,7 @@
                   <Save class="h-4 w-4" />
                   {{ userForm.id ? 'Zapisz' : 'Dodaj' }}
                 </AppButton>
+                </div>
               </div>
             </footer>
           </form>
@@ -541,6 +557,84 @@
           </footer>
         </section>
       </div>
+
+      <div
+        v-if="passwordResetUser"
+        class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4"
+        @click.self="closePasswordResetModal"
+      >
+        <form
+          class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel"
+          @submit.prevent="submitPasswordReset"
+        >
+          <header class="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-app-border">
+            <div>
+              <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Resetuj hasło</h2>
+              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                {{ displayUserName(passwordResetUser) }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
+              aria-label="Zamknij"
+              @click="closePasswordResetModal"
+            >
+              <X class="h-4 w-4" />
+            </button>
+          </header>
+
+          <div class="space-y-3 p-5">
+            <div>
+              <label for="company-user-new-password" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                Nowe hasło
+              </label>
+              <div class="relative">
+                <input
+                  id="company-user-new-password"
+                  v-model="passwordResetForm.newPassword"
+                  :type="passwordResetForm.showPassword ? 'text' : 'password'"
+                  autocomplete="new-password"
+                  class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 pr-11 text-sm text-slate-950 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-app-border dark:bg-app-dark dark:text-slate-50 dark:focus:border-app-muted dark:focus:ring-app-elevated"
+                />
+                <button
+                  type="button"
+                  class="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
+                  :aria-label="passwordResetForm.showPassword ? 'Ukryj hasło' : 'Pokaż hasło'"
+                  @click="passwordResetForm.showPassword = !passwordResetForm.showPassword"
+                >
+                  <component :is="passwordResetForm.showPassword ? EyeOff : Eye" class="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label for="company-user-repeat-password" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
+                Powtórz hasło
+              </label>
+              <input
+                id="company-user-repeat-password"
+                v-model="passwordResetForm.repeatPassword"
+                :type="passwordResetForm.showPassword ? 'text' : 'password'"
+                autocomplete="new-password"
+                class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-950 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-app-border dark:bg-app-dark dark:text-slate-50 dark:focus:border-app-muted dark:focus:ring-app-elevated"
+              />
+            </div>
+
+            <p v-if="passwordResetError" class="text-sm font-medium text-danger-600 dark:text-danger-400">
+              {{ passwordResetError }}
+            </p>
+          </div>
+
+          <footer class="flex justify-end gap-2 border-t border-slate-100 px-5 py-4 dark:border-app-border">
+            <AppButton variant="secondary" type="button" @click="closePasswordResetModal">Anuluj</AppButton>
+            <AppButton type="submit" :loading="store.isMutating">
+              <KeyRound class="h-4 w-4" />
+              Zmień hasło
+            </AppButton>
+          </footer>
+        </form>
+      </div>
     </Teleport>
   </div>
 </template>
@@ -549,6 +643,8 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   CheckCircle2,
+  Eye,
+  EyeOff,
   KeyRound,
   Plus,
   Save,
@@ -556,9 +652,12 @@ import {
   SquarePen,
   Trash2,
   UserRound,
+  UserRoundCheck,
+  UserRoundX,
   Users,
   X,
 } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
@@ -667,6 +766,7 @@ const actionOrder: Record<string, number> = {
 const store = useCompanyManagementStore()
 const authStore = useAuthStore()
 const uiStore = useUiStore()
+const router = useRouter()
 
 const activeSection = ref<SectionKey>(readStoredSection())
 const userDrawerTab = ref<UserDrawerTab>(readStoredUserDrawerTab())
@@ -677,8 +777,10 @@ const rolePermissionSearch = ref('')
 const permissionOverrideSearch = ref('')
 const roleToDelete = ref<CompanyRole | null>(null)
 const userToDelete = ref<CompanyManagedUser | null>(null)
+const passwordResetUser = ref<CompanyManagedUser | null>(null)
 const isRoleDrawerOpen = ref(false)
 const isUserDrawerOpen = ref(false)
+const isChangingUserStatus = ref(false)
 const permissionOverrideForm = ref<CompanyUserPermissionOverride[]>([])
 
 const roleForm = reactive({
@@ -698,6 +800,12 @@ const userForm = reactive({
   active: true,
   roleIds: [] as number[],
 })
+const passwordResetForm = reactive({
+  newPassword: '',
+  repeatPassword: '',
+  showPassword: false,
+})
+const passwordResetError = ref('')
 
 const canCreateRoles = computed(() => hasPermission('roles.create'))
 const canUpdateRoles = computed(() => hasPermission('roles.update'))
@@ -705,6 +813,8 @@ const canDeleteRoles = computed(() => hasPermission('roles.delete'))
 const canCreateUsers = computed(() => hasPermission('users.create'))
 const canUpdateUsers = computed(() => hasPermission('users.update'))
 const canDeleteUsers = computed(() => hasPermission('users.delete'))
+const canBlockUsers = computed(() => hasPermission('users.block'))
+const canResetUserPassword = computed(() => authStore.hasActiveCompanyPermission('users.reset_password'))
 const canAssignRoles = computed(() => hasPermission('roles.assign'))
 const canSaveRoleForm = computed(() => roleForm.id ? canUpdateRoles.value : canCreateRoles.value)
 const canSaveUserForm = computed(() => userForm.id ? canUpdateUsers.value : canCreateUsers.value)
@@ -1089,7 +1199,106 @@ function openEditUserDrawer(userItem: CompanyManagedUser) {
 
 function closeUserDrawer() {
   isUserDrawerOpen.value = false
+  closePasswordResetModal()
   resetUserForm()
+}
+
+function openPasswordResetModal() {
+  if (!canResetUserPassword.value || !selectedUser.value) {
+    return
+  }
+
+  passwordResetForm.newPassword = ''
+  passwordResetForm.repeatPassword = ''
+  passwordResetForm.showPassword = false
+  passwordResetError.value = ''
+  passwordResetUser.value = selectedUser.value
+}
+
+function closePasswordResetModal() {
+  passwordResetUser.value = null
+  passwordResetForm.newPassword = ''
+  passwordResetForm.repeatPassword = ''
+  passwordResetForm.showPassword = false
+  passwordResetError.value = ''
+}
+
+function isCurrentSessionUser(userId: number | string) {
+  const sessionUserId = authStore.user?.userId ?? authStore.user?.id ?? authStore.user?.uid
+  return sessionUserId !== undefined && String(sessionUserId) === String(userId)
+}
+
+async function submitPasswordReset() {
+  if (!passwordResetUser.value || !canResetUserPassword.value) {
+    return
+  }
+
+  const newPassword = passwordResetForm.newPassword
+
+  if (newPassword.length < 8 || newPassword.length > 128) {
+    passwordResetError.value = 'Hasło musi mieć od 8 do 128 znaków.'
+    return
+  }
+
+  if (newPassword !== passwordResetForm.repeatPassword) {
+    passwordResetError.value = 'Podane hasła nie są takie same.'
+    return
+  }
+
+  const resetUserId = passwordResetUser.value.id
+  const shouldLogout = isCurrentSessionUser(resetUserId)
+
+  try {
+    await store.resetUserPassword(resetUserId, newPassword)
+    closePasswordResetModal()
+    uiStore.addToast({
+      type: 'success',
+      title: 'Hasło zmienione',
+      message: shouldLogout
+        ? 'Twoje hasło zostało zmienione. Zaloguj się ponownie.'
+        : 'Nowe hasło użytkownika zostało zapisane.',
+    })
+
+    if (shouldLogout) {
+      await authStore.logout()
+      await router.push('/login')
+    }
+  } catch {
+    uiStore.addToast({
+      type: 'error',
+      title: 'Nie udało się zmienić hasła',
+      message: 'Sprawdź hasło i spróbuj ponownie.',
+    })
+  }
+}
+
+async function toggleSelectedUserStatus() {
+  if (!selectedUser.value || !canBlockUsers.value || isChangingUserStatus.value) {
+    return
+  }
+
+  const nextActive = selectedUser.value.active === false
+  isChangingUserStatus.value = true
+
+  try {
+    const updatedUser = await store.updateUser(selectedUser.value.id, { active: nextActive })
+    userForm.active = updatedUser.active !== false
+    uiStore.addToast({
+      type: 'success',
+      title: nextActive ? 'Użytkownik odblokowany' : 'Użytkownik zablokowany',
+      message: nextActive
+        ? 'Użytkownik ponownie ma dostęp do firmy.'
+        : 'Dostęp użytkownika do firmy został zablokowany.',
+    })
+  } catch {
+    uiStore.addToast({
+      type: 'error',
+      title: 'Nie udało się zmienić statusu',
+      message: 'Status użytkownika nie został zmieniony.',
+    })
+  } finally {
+    isChangingUserStatus.value = false
+  }
 }
 
 function toggleUserRole(roleId: number) {
@@ -1134,7 +1343,6 @@ async function saveUser() {
         email,
         firstName,
         lastName,
-        active: userForm.active,
       })
 
       if (canAssignRoles.value) {
@@ -1250,7 +1458,7 @@ async function confirmDelete() {
       uiStore.addToast({
         type: 'success',
         title: 'Użytkownik usunięty',
-        message: 'Zablokowano dostęp użytkownika do firmy.',
+        message: 'Użytkownik został usunięty z firmy.',
       })
 
       if (userForm.id === deletedUserId) {
