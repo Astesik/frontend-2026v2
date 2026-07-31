@@ -616,6 +616,16 @@
             </div>
             <div class="flex shrink-0 items-center gap-1">
               <button
+                v-if="canReadVehiclePhotos"
+                type="button"
+                class="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-slate-50 md:h-7 md:w-7 md:rounded-xl"
+                aria-label="Zdjęcia pojazdu"
+                title="Zdjęcia pojazdu"
+                @click="isVehiclePhotosModalOpen = true"
+              >
+                <Images class="h-3.5 w-3.5" />
+              </button>
+              <button
                 type="button"
                 class="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-slate-50 md:hidden"
                 aria-label="Schowaj szczegóły pojazdu"
@@ -879,19 +889,51 @@
       </div>
     </Teleport>
 
+    <Teleport to="body">
+      <div
+        v-if="isVehiclePhotosModalOpen && selectedVehicle"
+        class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/50 p-3 sm:p-6"
+        @click.self="closeVehiclePhotosModal"
+      >
+        <section class="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
+          <header class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-app-border sm:px-5 sm:py-4">
+            <div class="flex min-w-0 items-center gap-2">
+              <Images class="h-4 w-4 shrink-0 text-slate-400" />
+              <div class="min-w-0">
+                <h2 class="truncate text-base font-semibold text-slate-950 dark:text-slate-50">Zdjęcia pojazdu</h2>
+                <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{{ selectedVehicle.plateNumber }}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
+              aria-label="Zamknij zdjęcia pojazdu"
+              @click="closeVehiclePhotosModal"
+            >
+              <X class="h-4 w-4" />
+            </button>
+          </header>
+          <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+            <VehiclePhotoGallery :vehicle-id="selectedVehicle.backendId" />
+          </div>
+        </section>
+      </div>
+    </Teleport>
+
   </div>
 </template>
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, defineComponent, h, markRaw, onBeforeUnmount, onMounted, reactive, ref, render, shallowRef, watch, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowDown, ArrowUp, ArrowUpDown, CircleAlert, Container, Copy, Flag, Gauge, GlobeOff, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, Wrench, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowUp, ArrowUpDown, CircleAlert, Container, Copy, Flag, Gauge, GlobeOff, History, Images, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import VehicleSearchSelect from '@/components/selects/VehicleSearchSelect.vue'
+import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
 import PlaceEventsPanel from '@/components/places/PlaceEventsPanel.vue'
 import { usePositionHistory, type RouteLatLng } from '@/composables/usePositionHistory'
 import { loadGoogleMaps } from '@/services/googleMapsLoader'
@@ -1284,6 +1326,7 @@ const selectedVehicleId = ref<string | null>(null)
 const vehicleSearch = ref('')
 const vehiclePanelCollapsed = ref(isMobileMapViewport())
 const vehicleDetailsDrawerOpen = ref(false)
+const isVehiclePhotosModalOpen = ref(false)
 const mapElement = ref<HTMLDivElement | null>(null)
 const mapState = ref<MapState>(googleMapsApiKey ? 'loading' : 'missing-key')
 const googleMap = shallowRef<any>(null)
@@ -1384,6 +1427,7 @@ const selectedVehicle = computed(() => (
     ? fleetStore.vehicles.find((vehicle) => vehicle.id === selectedVehicleId.value) || null
     : null
 ))
+const canReadVehiclePhotos = computed(() => authStore.hasActiveCompanyPermission('vehicle_photos.read'))
 
 const refreshCircleCircumference = REFRESH_CIRCLE_CIRCUMFERENCE
 const positionRefreshRemainingMs = computed(() => Math.max(
@@ -1617,6 +1661,10 @@ function showVehicleDetailsDrawer() {
 
 function hideVehicleDetailsDrawer() {
   vehicleDetailsDrawerOpen.value = false
+}
+
+function closeVehiclePhotosModal() {
+  isVehiclePhotosModalOpen.value = false
 }
 
 function clearPositionHistoryData() {
@@ -3333,6 +3381,7 @@ function focusPositionHistory() {
 
 function selectVehicle(vehicleId: string) {
   if (selectedVehicleId.value !== vehicleId) {
+    closeVehiclePhotosModal()
     clearTodayRoute()
     clearPositionHistoryData()
   }
@@ -3350,6 +3399,7 @@ function selectVehicle(vehicleId: string) {
 }
 
 function closeVehicleDrawer() {
+  closeVehiclePhotosModal()
   selectedVehicleId.value = null
   vehicleDetailsDrawerOpen.value = false
   clearTodayRoute()
@@ -3481,6 +3531,7 @@ watch(selectedVehicleId, (vehicleId) => {
   renderMarkers()
 
   if (!vehicleId) {
+    closeVehiclePhotosModal()
     vehicleDetailsDrawerOpen.value = false
   }
 

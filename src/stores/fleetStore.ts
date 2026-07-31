@@ -17,6 +17,7 @@ import type {
   VehicleGroupDetails,
   VehicleLifecycleAlert,
   VehicleStatus,
+  VehiclePhoto,
   VehicleType,
 } from '@/types/fleet'
 
@@ -282,6 +283,9 @@ export const useFleetStore = defineStore('fleet', () => {
   const currentPositionHistoryMode = ref<'today' | 'custom' | null>(null)
   const vehicleGroups = ref<VehicleGroup[]>([])
   const vehicleGroupDetails = ref<Record<string, VehicleGroupDetails>>({})
+  const vehiclePhotosByVehicleId = ref<Record<string, VehiclePhoto[]>>({})
+  const vehiclePhotoLoadingIds = ref<Set<string>>(new Set())
+  const vehiclePhotoMutatingIds = ref<Set<string>>(new Set())
   const isVehiclesLoading = ref(false)
   const isVehicleGroupsLoading = ref(false)
   const isPositionsLoading = ref(false)
@@ -479,6 +483,64 @@ export const useFleetStore = defineStore('fleet', () => {
     }
   }
 
+  function setVehiclePhotoLoading(vehicleId: number | string, loading: boolean) {
+    const key = String(vehicleId)
+    const nextIds = new Set(vehiclePhotoLoadingIds.value)
+    loading ? nextIds.add(key) : nextIds.delete(key)
+    vehiclePhotoLoadingIds.value = nextIds
+  }
+
+  function setVehiclePhotoMutating(vehicleId: number | string, mutating: boolean) {
+    const key = String(vehicleId)
+    const nextIds = new Set(vehiclePhotoMutatingIds.value)
+    mutating ? nextIds.add(key) : nextIds.delete(key)
+    vehiclePhotoMutatingIds.value = nextIds
+  }
+
+  async function fetchVehiclePhotos(vehicleId: number | string, options?: { silent?: boolean }) {
+    const key = String(vehicleId)
+    setVehiclePhotoLoading(key, true)
+
+    try {
+      const photos = await vehicleService.getVehiclePhotos(vehicleId, options)
+      vehiclePhotosByVehicleId.value = { ...vehiclePhotosByVehicleId.value, [key]: photos }
+      return photos
+    } finally {
+      setVehiclePhotoLoading(key, false)
+    }
+  }
+
+  async function uploadVehiclePhoto(vehicleId: number | string, file: File) {
+    const key = String(vehicleId)
+    setVehiclePhotoMutating(key, true)
+
+    try {
+      const photo = await vehicleService.uploadVehiclePhoto(vehicleId, file)
+      vehiclePhotosByVehicleId.value = {
+        ...vehiclePhotosByVehicleId.value,
+        [key]: [...(vehiclePhotosByVehicleId.value[key] || []), photo],
+      }
+      return photo
+    } finally {
+      setVehiclePhotoMutating(key, false)
+    }
+  }
+
+  async function deleteVehiclePhoto(vehicleId: number | string, photoId: number | string) {
+    const key = String(vehicleId)
+    setVehiclePhotoMutating(key, true)
+
+    try {
+      await vehicleService.deleteVehiclePhoto(vehicleId, photoId)
+      vehiclePhotosByVehicleId.value = {
+        ...vehiclePhotosByVehicleId.value,
+        [key]: (vehiclePhotosByVehicleId.value[key] || []).filter((photo) => String(photo.id) !== String(photoId)),
+      }
+    } finally {
+      setVehiclePhotoMutating(key, false)
+    }
+  }
+
   function clearPositionHistory() {
     currentPositionHistoryRequestId += 1
     currentPositionHistoryVehicleId.value = null
@@ -649,6 +711,9 @@ export const useFleetStore = defineStore('fleet', () => {
     lastPositions.value = []
     vehicleGroups.value = []
     vehicleGroupDetails.value = {}
+    vehiclePhotosByVehicleId.value = {}
+    vehiclePhotoLoadingIds.value = new Set()
+    vehiclePhotoMutatingIds.value = new Set()
     isVehiclesLoading.value = false
     isVehicleGroupsLoading.value = false
     isPositionsLoading.value = false
@@ -669,6 +734,9 @@ export const useFleetStore = defineStore('fleet', () => {
     vehicleGroups,
     vehicleTypeGroups,
     vehicleGroupDetails,
+    vehiclePhotosByVehicleId,
+    vehiclePhotoLoadingIds,
+    vehiclePhotoMutatingIds,
     isVehiclesLoading,
     isVehicleGroupsLoading,
     isPositionsLoading,
@@ -689,6 +757,9 @@ export const useFleetStore = defineStore('fleet', () => {
     addVehicleToVehicleGroup,
     removeVehicleFromVehicleGroup,
     fetchLastPositions,
+    fetchVehiclePhotos,
+    uploadVehiclePhoto,
+    deleteVehiclePhoto,
     fetchTodayRouteHistory,
     appendTodayRouteHistory,
     fetchPositionHistory,

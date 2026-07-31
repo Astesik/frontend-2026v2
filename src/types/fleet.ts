@@ -25,6 +25,23 @@ export interface ApiVehicle {
   lastPositionAt: string | null
 }
 
+export interface VehiclePhotoUploader {
+  id: number
+  username: string | null
+}
+
+export interface VehiclePhoto {
+  id: number
+  vehicleId: number
+  originalFilename: string
+  contentType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
+  sizeBytes: number
+  createdAt: string
+  uploadedBy: VehiclePhotoUploader | null
+  url: string
+  downloadUrl: string
+}
+
 export interface VehicleGroup {
   id: string
   name: string

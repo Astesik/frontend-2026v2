@@ -247,6 +247,10 @@
             </div>
           </div>
         </AppCard>
+
+        <AppCard v-if="canReadVehiclePhotos" class="xl:col-span-2" title="Zdjęcia pojazdu" compact>
+          <VehiclePhotoGallery :vehicle-id="vehicle.id" />
+        </AppCard>
       </div>
     </div>
 
@@ -343,6 +347,7 @@ import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import DeviceSelect from '@/components/selects/DeviceSelect.vue'
+import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
 import { vehicleService, type VehiclePayload } from '@/services/vehicleService'
 import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
@@ -389,13 +394,13 @@ const vehicle = computed(() => fleetStore.apiVehicles.find((item) => String(item
 const repairHistory = computed(() => [...(vehicleRepairHistory.value[vehicleId.value] || [])].sort((first, second) => repairTimestamp(second) - repairTimestamp(first)))
 const canUpdateVehicles = computed(() => hasPermission('vehicles.update'))
 const canAssignDevices = computed(() => hasPermission('devices.assign'))
+const canReadVehiclePhotos = computed(() => authStore.hasActiveCompanyPermission('vehicle_photos.read'))
 
 const mockedDocuments = [
   'Dowód rejestracyjny',
   'Certyfikat emisji spalin',
   'CIF',
   'COC',
-  'Zdjęcia pojazdu',
 ]
 
 const vehicleTypeFormOptions: AppSelectOption[] = [
