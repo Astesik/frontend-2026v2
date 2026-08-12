@@ -5,6 +5,7 @@ export type VehicleAlertKind = 'inspection' | 'tachograph'
 export interface ApiVehicle {
   id: number
   licensePlate: string
+  description: string | null
   vin: string | null
   firstRegistration: string | null
   productionYear: number | null
@@ -104,6 +105,7 @@ export interface Vehicle {
   backendId: number
   name: string
   plateNumber: string
+  description: string | null
   model: string
   make: string | null
   vin: string | null

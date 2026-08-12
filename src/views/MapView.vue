@@ -167,11 +167,18 @@
                       loading="lazy"
                       referrerpolicy="no-referrer"
                     />
-                    <div class="flex min-w-0 items-center gap-1">
-                      <span class="truncate font-medium leading-none text-slate-950 dark:text-slate-50">
+                    <div class="vehicle-row-info flex min-w-0 flex-1 items-center gap-1.5">
+                      <span class="shrink-0 whitespace-nowrap font-medium leading-none text-slate-950 dark:text-slate-50">
                         {{ vehicle.plateNumber }}
                       </span>
-                      <span v-if="mapSettings.row.driver && vehicle.vehicleType !== 'trailer'" class="truncate text-[11px] leading-none text-slate-500 dark:text-app-muted">
+                      <span
+                        v-if="mapSettings.map.showVehicleDescriptions && vehicle.description"
+                        class="vehicle-description min-w-0 max-w-[5.5rem] flex-1 text-[9px] leading-none text-slate-500 dark:text-app-muted sm:max-w-[8rem]"
+                        :title="vehicle.description"
+                      >
+                        {{ vehicle.description }}
+                      </span>
+                      <span v-if="mapSettings.row.driver && vehicle.vehicleType !== 'trailer'" class="min-w-0 max-w-[6.5rem] truncate text-[9px] leading-none text-slate-500 dark:text-app-muted">
                         [{{ vehicleDriverLabel(vehicle) }}]
                       </span>
                     </div>
@@ -344,6 +351,7 @@
           <MapSwitch v-model="mapSettings.row.flag" label="Flaga" />
           <MapSwitch v-model="mapSettings.row.vehicleIcon" label="Ikona typu pojazdu" />
           <MapSwitch v-model="mapSettings.row.driver" label="Kierowca" />
+          <MapSwitch v-model="mapSettings.map.showVehicleDescriptions" label="Pokazuj opisy pojazdów" />
         </section>
 
         <section class="mt-4 space-y-1.5">
@@ -991,7 +999,9 @@ type PlaceFormState = {
   description: string
 }
 const MAP_SETTINGS_KEY = 'routewise.map.settings'
+const MAP_SHOW_VEHICLE_DESCRIPTIONS_KEY = 'routewise.map.showVehicleDescriptions'
 const POSITION_REFRESH_INTERVAL_MS = 10_000
+const VEHICLE_FOCUS_ANIMATION_MS = 750
 const REFRESH_CIRCLE_RADIUS = 14
 const REFRESH_CIRCLE_CIRCUMFERENCE = 2 * Math.PI * REFRESH_CIRCLE_RADIUS
 const MAP_SELECTED_FLEET_KEY_PREFIX = 'routewise.map.selectedFleet'
@@ -1128,6 +1138,7 @@ const defaultMapSettings = {
     showMarkerAlerts: false,
     showMarkerLabels: true,
     showMarkerDriver: false,
+    showVehicleDescriptions: false,
     historyMarkersByZoom: false,
     mapTheme: 'light' as MapTheme,
     mapType: 'roadmap' as GoogleMapType,
@@ -1175,26 +1186,40 @@ const MapSwitch = defineComponent({
 
 function readMapSettings() {
   const stored = localStorage.getItem(MAP_SETTINGS_KEY)
+  const storedShowDescriptions = localStorage.getItem(MAP_SHOW_VEHICLE_DESCRIPTIONS_KEY)
 
   if (!stored) {
-    return defaultMapSettings
+    return {
+      ...defaultMapSettings,
+      columns: { ...defaultMapSettings.columns },
+      row: { ...defaultMapSettings.row },
+      map: {
+        ...defaultMapSettings.map,
+        showVehicleDescriptions: storedShowDescriptions === 'true',
+      },
+    }
   }
 
   try {
+    const parsedSettings = JSON.parse(stored)
+
     return {
       ...defaultMapSettings,
-      ...JSON.parse(stored),
+      ...parsedSettings,
       columns: {
         ...defaultMapSettings.columns,
-        ...JSON.parse(stored).columns,
+        ...parsedSettings.columns,
       },
       row: {
         ...defaultMapSettings.row,
-        ...JSON.parse(stored).row,
+        ...parsedSettings.row,
       },
       map: {
         ...defaultMapSettings.map,
-        ...JSON.parse(stored).map,
+        ...parsedSettings.map,
+        showVehicleDescriptions: storedShowDescriptions === null
+          ? Boolean(parsedSettings.map?.showVehicleDescriptions)
+          : storedShowDescriptions === 'true',
       },
     }
   } catch {
@@ -1367,6 +1392,7 @@ let alertTooltipHideTimer: number | null = null
 let todayRouteRequestId = 0
 let routeAnimationFrameId: number | null = null
 let routeAnimationId = 0
+let vehicleFocusAnimationFrameId: number | null = null
 let todayRoutePolyline: any | null = null
 let routeInfoWindow: any | null = null
 let routeInfoWindowContent: HTMLDivElement | null = null
@@ -2695,7 +2721,7 @@ function markerIconSvg(vehicle: Vehicle) {
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="10" x2="10" y1="15" y2="9"></line><line x1="14" x2="14" y1="15" y2="9"></line></svg>'
   }
 
-  return '<svg class="rw-map-marker-heading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m16 12-4-4-4 4"></path><path d="M12 16V8"></path></svg>'
+  return '<svg class="rw-fleet-marker-heading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m16 12-4-4-4 4"></path><path d="M12 16V8"></path></svg>'
 }
 
 function markerLabelHtml(vehicle: Vehicle) {
@@ -2705,17 +2731,21 @@ function markerLabelHtml(vehicle: Vehicle) {
 
   const driver = vehicleDriverLabel(vehicle)
   const driverHtml = mapSettings.map.showMarkerDriver && driver
-    ? `<span class="rw-map-marker-driver">${escapeHtml(driver)}</span>`
+    ? `<span class="rw-fleet-marker-driver">${escapeHtml(driver)}</span>`
+    : ''
+  const description = vehicle.description?.trim()
+  const descriptionHtml = mapSettings.map.showVehicleDescriptions && description
+    ? `<span class="rw-fleet-marker-description" title="${escapeHtml(description)}">${escapeHtml(description)}</span>`
     : ''
 
-  return `<span class="rw-map-marker-plate"><span class="rw-map-marker-plate-number">${escapeHtml(vehicle.plateNumber)}</span>${driverHtml}</span>`
+  return `<span class="rw-fleet-marker-plate"><span class="rw-fleet-marker-plate-number">${escapeHtml(vehicle.plateNumber)}</span>${descriptionHtml}${driverHtml}</span>`
 }
 
 function markerIconHtml(vehicle: Vehicle) {
   const state = markerState(vehicle)
 
   return `
-    <span class="rw-map-marker-icon rw-map-marker-${state}" style="--rw-marker-heading: ${vehicle.heading ?? 0}deg">
+    <span class="rw-fleet-marker-icon rw-fleet-marker-${state}" style="--rw-marker-heading: ${vehicle.heading ?? 0}deg">
       ${markerIconSvg(vehicle)}
     </span>
   `
@@ -2725,7 +2755,7 @@ function markerHtml(vehicle: Vehicle) {
   const plateNumber = escapeHtml(vehicle.plateNumber)
 
   return `
-    <button type="button" class="rw-map-marker-button" title="${plateNumber}" aria-label="Pokaz pojazd ${plateNumber}">
+    <button type="button" class="rw-fleet-marker-button" title="${plateNumber}" aria-label="Pokaz pojazd ${plateNumber}">
       ${markerIconHtml(vehicle)}
     </button>
     ${markerLabelHtml(vehicle)}
@@ -2739,10 +2769,10 @@ function createVehicleMarker(vehicle: Vehicle) {
 
   overlay.onAdd = () => {
     element = document.createElement('div')
-    element.className = `rw-map-vehicle-marker rw-map-vehicle-marker-${vehicle.vehicleType}`
+    element.className = `rw-fleet-vehicle-marker rw-fleet-vehicle-marker-${vehicle.vehicleType}`
     element.title = vehicle.plateNumber
     element.innerHTML = markerHtml(vehicle)
-    button = element.querySelector<HTMLButtonElement>('.rw-map-marker-button')
+    button = element.querySelector<HTMLButtonElement>('.rw-fleet-marker-button')
     button?.addEventListener('click', (event) => {
       event.stopPropagation()
       selectVehicle(vehicle.id)
@@ -3350,12 +3380,80 @@ async function renderTodayRoute(options: { append?: boolean } = {}) {
   }
 }
 
+function cancelVehicleFocusAnimation() {
+  if (vehicleFocusAnimationFrameId !== null) {
+    window.cancelAnimationFrame(vehicleFocusAnimationFrameId)
+    vehicleFocusAnimationFrameId = null
+  }
+}
+
+function easeInOutCubic(progress: number) {
+  return progress < 0.5
+    ? 4 * progress * progress * progress
+    : 1 - Math.pow(-2 * progress + 2, 3) / 2
+}
+
+function animatedMapCenter(target: { lat: number; lng: number }) {
+  if (!googleMap.value) {
+    return
+  }
+
+  cancelVehicleFocusAnimation()
+
+  const currentCenter = googleMap.value.getCenter?.()
+
+  if (!currentCenter || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    googleMap.value.setCenter(target)
+    return
+  }
+
+  const start = {
+    lat: currentCenter.lat(),
+    lng: currentCenter.lng(),
+  }
+  let longitudeDistance = target.lng - start.lng
+
+  if (longitudeDistance > 180) longitudeDistance -= 360
+  if (longitudeDistance < -180) longitudeDistance += 360
+
+  if (Math.abs(target.lat - start.lat) < 0.000001 && Math.abs(longitudeDistance) < 0.000001) {
+    return
+  }
+
+  const startedAt = performance.now()
+
+  const animate = (timestamp: number) => {
+    if (!googleMap.value) {
+      vehicleFocusAnimationFrameId = null
+      return
+    }
+
+    const progress = Math.min((timestamp - startedAt) / VEHICLE_FOCUS_ANIMATION_MS, 1)
+    const easedProgress = easeInOutCubic(progress)
+    const longitude = start.lng + longitudeDistance * easedProgress
+
+    googleMap.value.setCenter({
+      lat: start.lat + (target.lat - start.lat) * easedProgress,
+      lng: ((longitude + 540) % 360) - 180,
+    })
+
+    if (progress < 1) {
+      vehicleFocusAnimationFrameId = window.requestAnimationFrame(animate)
+      return
+    }
+
+    vehicleFocusAnimationFrameId = null
+  }
+
+  vehicleFocusAnimationFrameId = window.requestAnimationFrame(animate)
+}
+
 function focusVehicle(vehicle: Vehicle) {
   if (!googleMap.value || !vehicle.hasPosition || !mapSettings.map.zoomOnSelect) {
     return
   }
 
-  googleMap.value.panTo({ lat: vehicle.latitude, lng: vehicle.longitude })
+  animatedMapCenter({ lat: vehicle.latitude, lng: vehicle.longitude })
 }
 
 function focusPositionHistory() {
@@ -3364,6 +3462,8 @@ function focusPositionHistory() {
   if (!googleMap.value || !window.google?.maps || !routePath.length) {
     return
   }
+
+  cancelVehicleFocusAnimation()
 
   if (routePath.length === 1) {
     googleMap.value.panTo(routePath[0])
@@ -3435,6 +3535,7 @@ async function initializeGoogleMap() {
 
       openCreatePlaceAt(event.latLng.lat(), event.latLng.lng())
     })
+    googleMap.value.addListener('dragstart', cancelVehicleFocusAnimation)
     routeZoomListener = googleMap.value.addListener('zoom_changed', scheduleRouteMarkersForZoom)
     applyGoogleMapOptions()
     applyPlacePlacementCursor()
@@ -3548,6 +3649,7 @@ watch(selectedVehicleId, (vehicleId) => {
 
 watch(mapSettings, (value) => {
   localStorage.setItem(MAP_SETTINGS_KEY, JSON.stringify(value))
+  localStorage.setItem(MAP_SHOW_VEHICLE_DESCRIPTIONS_KEY, String(value.map.showVehicleDescriptions))
   applyGoogleMapOptions()
   renderMarkers()
 }, { deep: true })
@@ -3609,6 +3711,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   cancelAlertTooltipHide()
+  cancelVehicleFocusAnimation()
 
   if (positionRefreshTimer.value !== null) {
     window.clearInterval(positionRefreshTimer.value)
@@ -3647,13 +3750,19 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-.rw-map-vehicle-marker {
+.vehicle-description {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rw-fleet-vehicle-marker {
   position: absolute;
   z-index: 30;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.1875rem;
+  gap: 3px;
   width: max-content;
   border: 0;
   background: transparent;
@@ -3661,21 +3770,21 @@ onBeforeUnmount(() => {
   color: rgb(var(--rw-app-text));
   cursor: default;
   pointer-events: none;
-  transform: translate(-50%, -0.8125rem);
+  transform: translate(-50%, -10.5px);
 }
 
-.rw-map-vehicle-marker-trailer {
+.rw-fleet-vehicle-marker-trailer {
   z-index: 30;
 }
 
-.rw-map-vehicle-marker-truck {
+.rw-fleet-vehicle-marker-truck {
   z-index: 31;
 }
 
-.rw-map-marker-button {
+.rw-fleet-marker-button {
   display: grid;
-  height: 1.625rem;
-  width: 1.625rem;
+  height: 21px;
+  width: 21px;
   place-items: center;
   border: 0;
   background: transparent;
@@ -3685,7 +3794,7 @@ onBeforeUnmount(() => {
   pointer-events: auto;
 }
 
-.rw-map-marker-button:hover .rw-map-marker-icon {
+.rw-fleet-marker-button:hover .rw-fleet-marker-icon {
   filter: drop-shadow(0 6px 10px rgba(15, 23, 42, 0.18));
 }
 
@@ -3856,56 +3965,56 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-.rw-map-marker-icon {
+.rw-fleet-marker-icon {
   display: grid;
-  height: 1.625rem;
-  width: 1.625rem;
+  height: 21px;
+  width: 21px;
   place-items: center;
   border-radius: 9999px;
   background: rgb(var(--rw-app-panel));
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
 }
 
-.rw-map-marker-icon svg {
-  height: 1.375rem;
-  width: 1.375rem;
+.rw-fleet-marker-icon svg {
+  height: 18px;
+  width: 18px;
 }
 
-.rw-map-marker-heading {
+.rw-fleet-marker-heading {
   transform: rotate(var(--rw-marker-heading));
   transform-origin: center;
 }
 
-.rw-map-marker-idle {
+.rw-fleet-marker-idle {
   color: #6b7280;
 }
 
-.rw-map-marker-moving-low {
+.rw-fleet-marker-moving-low {
   color: #16a34a;
 }
 
-.rw-map-marker-moving-medium {
+.rw-fleet-marker-moving-medium {
   color: #ca8a04;
 }
 
-.rw-map-marker-moving-high,
-.rw-map-marker-power,
-.rw-map-marker-alert {
+.rw-fleet-marker-moving-high,
+.rw-fleet-marker-power,
+.rw-fleet-marker-alert {
   color: #dc2626;
 }
 
-.rw-map-marker-plate {
+.rw-fleet-marker-plate {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 0.3125rem;
-  max-width: 14rem;
+  gap: 4px;
+  max-width: 180px;
   border: 1px solid rgb(var(--rw-app-border));
-  border-radius: 0.75rem;
+  border-radius: 10px;
   background: rgb(var(--rw-app-panel));
-  padding: 0.1875rem 0.5rem;
+  padding: 2px 6px;
   color: rgb(var(--rw-app-text));
-  font-size: 0.6875rem;
+  font-size: 9px;
   font-weight: 700;
   line-height: 1;
   pointer-events: none;
@@ -3913,21 +4022,34 @@ onBeforeUnmount(() => {
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
 }
 
-.rw-map-marker-plate-number,
-.rw-map-marker-driver {
+.rw-fleet-marker-plate-number,
+.rw-fleet-marker-description,
+.rw-fleet-marker-driver {
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.rw-map-marker-driver {
+.rw-fleet-marker-plate-number {
+  flex-shrink: 0;
+}
+
+.rw-fleet-marker-description {
+  min-width: 0;
+  max-width: 90px;
   color: rgb(var(--rw-app-muted));
-  font-size: 0.625rem;
+  font-size: 8px;
+  font-weight: 500;
+}
+
+.rw-fleet-marker-driver {
+  color: rgb(var(--rw-app-muted));
+  font-size: 8px;
   font-weight: 600;
   min-width: 0;
 }
 
-.dark .rw-map-marker-icon {
+.dark .rw-fleet-marker-icon {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
 }
 </style>

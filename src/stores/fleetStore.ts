@@ -217,6 +217,7 @@ function normalizeVehicle(vehicle: ApiVehicle, position?: ApiLastPosition): Vehi
     backendId: vehicle.id,
     name: vehicle.make ? `${vehicle.make} ${vehicle.licensePlate}` : vehicle.licensePlate,
     plateNumber: vehicle.licensePlate,
+    description: vehicle.description?.trim() || null,
     model,
     make: vehicle.make,
     vin: vehicle.vin,
@@ -395,6 +396,17 @@ export const useFleetStore = defineStore('fleet', () => {
     } finally {
       isVehiclesLoading.value = false
     }
+  }
+
+  function upsertApiVehicle(vehicle: ApiVehicle) {
+    const index = apiVehicles.value.findIndex((item) => item.id === vehicle.id)
+
+    if (index >= 0) {
+      apiVehicles.value.splice(index, 1, vehicle)
+      return
+    }
+
+    apiVehicles.value.push(vehicle)
   }
 
   async function fetchVehicleGroups(options?: { silent?: boolean }) {
@@ -749,6 +761,7 @@ export const useFleetStore = defineStore('fleet', () => {
     selectedDriver,
     fleetStats,
     fetchVehicles,
+    upsertApiVehicle,
     fetchVehicleGroups,
     fetchVehicleGroup,
     createVehicleGroup,

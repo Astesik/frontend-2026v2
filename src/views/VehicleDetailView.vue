@@ -59,6 +59,12 @@
             <InfoRow label="Status" :value="statusLabel(vehicle.status)" />
             <InfoRow label="Zbiornik paliwa" :value="fuelTankLabel(vehicle.fuelTank)" />
             <InfoRow label="Ostatnia pozycja" :value="formatDateTime(vehicle.lastPositionAt)" />
+            <div class="rounded-2xl border border-slate-100 p-3 md:col-span-2 dark:border-app-border">
+              <p class="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Opis pojazdu</p>
+              <p class="mt-1 whitespace-pre-wrap break-words text-sm font-medium leading-5 text-slate-700 dark:text-slate-200">
+                {{ vehicle.description || '—' }}
+              </p>
+            </div>
           </div>
         </AppCard>
 
@@ -294,6 +300,15 @@
             <AppDatePicker v-model="editForm.vignetteUk" label="Winieta UK" />
             <AppInput v-model="editForm.fuelTank" label="Zbiornik paliwa" type="number" />
             <AppSelect v-model="editForm.status" label="Status" :options="vehicleStatusFormOptions" />
+            <AppTextarea
+              v-model="editForm.description"
+              class="md:col-span-2"
+              label="Opis pojazdu"
+              placeholder="Wpisz dodatkowe informacje o pojeździe"
+              :maxlength="1000"
+              :rows="5"
+              show-counter
+            />
           </div>
 
           <footer class="flex justify-end gap-2 border-t border-slate-100 px-5 py-4 dark:border-app-border">
@@ -346,6 +361,7 @@ import AppCard from '@/components/ui/AppCard.vue'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
+import AppTextarea from '@/components/ui/AppTextarea.vue'
 import DeviceSelect from '@/components/selects/DeviceSelect.vue'
 import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
 import { vehicleService, type VehiclePayload } from '@/services/vehicleService'
@@ -387,6 +403,7 @@ const isUnassigningDevice = ref(false)
 const deviceIdInput = ref('')
 const devicesReloadKey = ref(0)
 const editForm = reactive(createEmptyVehicleForm())
+const originalEditForm = ref<VehicleForm>(createEmptyVehicleForm())
 const expandedRepairIds = ref<Set<string>>(new Set())
 
 const vehicleId = computed(() => String(route.params.id || ''))
@@ -485,6 +502,7 @@ function createEmptyVehicleForm() {
     vignetteDenmark: '',
     fuelTank: '',
     status: 'ACTIVE',
+    description: '',
   }
 }
 
@@ -506,6 +524,7 @@ function resetFormFromVehicle(form: VehicleForm, source: ApiVehicle) {
     vignetteDenmark: dateInputValue(source.vignetteDenmark),
     fuelTank: source.fuelTank ? String(source.fuelTank) : '',
     status: source.status || 'ACTIVE',
+    description: source.description || '',
   })
 }
 
@@ -525,7 +544,7 @@ function nullableNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : null
 }
 
-function payloadFromForm(form: VehicleForm): VehiclePayload {
+function payloadFromForm(form: VehicleForm, preserveEmptyDescription = false): VehiclePayload {
   return {
     licensePlate: form.licensePlate.trim(),
     type: form.type || null,
@@ -543,7 +562,21 @@ function payloadFromForm(form: VehicleForm): VehiclePayload {
     vignetteDenmark: nullableText(form.vignetteDenmark),
     fuelTank: nullableNumber(form.fuelTank),
     status: form.status || null,
+    description: preserveEmptyDescription ? form.description.trim() : nullableText(form.description),
   }
+}
+
+function changedPayloadFromForm(form: VehicleForm, original: VehicleForm): VehiclePayload {
+  const fullPayload = payloadFromForm(form, true)
+  const changedPayload: VehiclePayload = {}
+
+  ;(Object.keys(form) as Array<keyof VehicleForm>).forEach((key) => {
+    if (form[key] !== original[key]) {
+      Object.assign(changedPayload, { [key]: fullPayload[key] })
+    }
+  })
+
+  return changedPayload
 }
 
 function dateInputValue(value: string | null | undefined) {
@@ -675,6 +708,7 @@ function openEditModal() {
   }
 
   resetFormFromVehicle(editForm, vehicle.value)
+  originalEditForm.value = { ...editForm }
   isEditModalOpen.value = true
 }
 
@@ -704,8 +738,15 @@ async function submitVehicleEdit() {
   isUpdatingVehicle.value = true
 
   try {
-    await vehicleService.updateVehicle(vehicle.value.id, payloadFromForm(editForm))
-    await fleetStore.fetchVehicles({ silent: true })
+    const payload = changedPayloadFromForm(editForm, originalEditForm.value)
+
+    if (!Object.keys(payload).length) {
+      isEditModalOpen.value = false
+      return
+    }
+
+    const updatedVehicle = await vehicleService.updateVehicle(vehicle.value.id, payload)
+    fleetStore.upsertApiVehicle(updatedVehicle)
     uiStore.addToast({
       type: 'success',
       title: 'Pojazd zaktualizowany',

@@ -173,6 +173,15 @@
             <AppDatePicker v-model="createForm.vignetteDenmark" label="Winieta Dania" />
             <AppInput v-model="createForm.fuelTank" label="Zbiornik paliwa" type="number" />
             <AppSelect v-model="createForm.status" label="Status" :options="vehicleStatusFormOptions" />
+            <AppTextarea
+              v-model="createForm.description"
+              class="md:col-span-2"
+              label="Opis pojazdu"
+              placeholder="Wpisz dodatkowe informacje o pojeździe"
+              :maxlength="1000"
+              :rows="5"
+              show-counter
+            />
           </div>
 
           <footer class="flex justify-end gap-2 border-t border-slate-100 px-5 py-4 dark:border-app-border">
@@ -196,6 +205,7 @@ import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
+import AppTextarea from '@/components/ui/AppTextarea.vue'
 import { vehicleService, type VehiclePayload } from '@/services/vehicleService'
 import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
@@ -540,6 +550,7 @@ function createEmptyVehicleForm() {
     vignetteDenmark: '',
     fuelTank: '',
     status: 'ACTIVE',
+    description: '',
   }
 }
 
@@ -581,6 +592,7 @@ function createPayloadFromForm(): VehiclePayload {
     vignetteDenmark: nullableText(createForm.vignetteDenmark),
     fuelTank: nullableNumber(createForm.fuelTank),
     status: createForm.status || null,
+    description: nullableText(createForm.description),
   }
 }
 
