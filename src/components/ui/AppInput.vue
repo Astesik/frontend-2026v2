@@ -1,8 +1,6 @@
 <template>
-  <div class="block">
-    <label v-if="label" :for="inputId" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
-      {{ label }}
-    </label>
+  <AppFormField :id="inputId" :label="label" :hint="hint" :error="error" :required="required" :compact="size === 'sm'">
+    <template #default="{ describedBy }">
     <div class="relative">
       <input
         :id="inputId"
@@ -12,6 +10,9 @@
         :autocomplete="autocomplete"
         :disabled="disabled"
         :required="required"
+        :readonly="readonly"
+        :aria-invalid="Boolean(error)"
+        :aria-describedby="describedBy"
         :class="inputClasses"
         @input="onInput"
         @blur="emit('blur', $event)"
@@ -20,7 +21,7 @@
       <button
         v-if="clearable && !disabled"
         type="button"
-        class="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent dark:hover:bg-app-elevated dark:hover:text-slate-100 dark:disabled:hover:bg-transparent"
+        class="absolute right-2 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full text-ui-icon transition hover:bg-ui-hover hover:text-ui-text disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
         :disabled="!modelValue"
         aria-label="Wyczyść pole"
         @click="emit('update:modelValue', '')"
@@ -28,15 +29,14 @@
         <X class="h-3.5 w-3.5" />
       </button>
     </div>
-    <span v-if="error" class="mt-2 block text-sm text-slate-700 dark:text-slate-300">
-      {{ error }}
-    </span>
-  </div>
+    </template>
+  </AppFormField>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import { X } from 'lucide-vue-next'
+import AppFormField from './AppFormField.vue'
 
 const props = withDefaults(defineProps<{
   modelValue: string
@@ -46,7 +46,9 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   autocomplete?: string
   error?: string
+  hint?: string
   disabled?: boolean
+  readonly?: boolean
   required?: boolean
   clearable?: boolean
   size?: 'sm' | 'md'
@@ -57,7 +59,9 @@ const props = withDefaults(defineProps<{
   placeholder: '',
   autocomplete: undefined,
   error: undefined,
+  hint: undefined,
   disabled: false,
+  readonly: false,
   required: false,
   clearable: false,
   size: 'md',
@@ -73,11 +77,11 @@ const generatedId = `input-${Math.random().toString(16).slice(2)}`
 const inputId = computed(() => props.id || generatedId)
 
 const inputClasses = computed(() => [
-  'w-full rounded-2xl border bg-white text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:bg-app-panel dark:text-slate-50 dark:placeholder:text-app-muted dark:focus:border-app-muted dark:focus:ring-app-elevated',
+  'ui-field-control',
   props.size === 'sm'
-    ? `h-9 pl-3 ${props.clearable ? 'pr-10' : 'pr-3'} text-xs`
-    : `h-11 pl-4 ${props.clearable ? 'pr-11' : 'pr-4'} text-sm`,
-  props.error ? 'border-slate-500 dark:border-danger-400' : 'border-slate-200 dark:border-app-border',
+    ? `ui-field-sm pl-3 ${props.clearable ? 'pr-10' : 'pr-3'}`
+    : `ui-field-md pl-3.5 ${props.clearable ? 'pr-11' : 'pr-3.5'}`,
+  props.error ? '!border-danger-500 focus:!ring-danger-100 dark:!border-danger-400' : '',
 ])
 
 function onInput(event: Event) {

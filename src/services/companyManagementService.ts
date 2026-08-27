@@ -175,7 +175,7 @@ function normalizeUser(value: CompanyManagedUser): CompanyManagedUser {
     roleIds,
     roles: (value.roles || []).map(normalizeRole),
     permissionOverrides: Array.isArray(value.permissionOverrides)
-      ? value.permissionOverrides.map((override) => ({
+      ? value.permissionOverrides.map<CompanyUserPermissionOverride>((override) => ({
           permission: override.permission,
           effect: String(override.effect).toUpperCase() === 'DENY' ? 'DENY' : 'GRANT',
         })).filter((override) => override.permission)

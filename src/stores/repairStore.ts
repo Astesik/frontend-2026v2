@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { mechanicService, type MechanicPayload } from '@/services/mechanicService'
+import { mechanicService, type MechanicCreatePayload, type MechanicPayload } from '@/services/mechanicService'
 import { placeService } from '@/services/placeService'
 import { repairService } from '@/services/repairService'
 import type { VehicleRepairHistoryItem } from '@/services/repairService'
@@ -157,7 +157,7 @@ export const useRepairStore = defineStore('repairs', () => {
     }
   }
 
-  async function createMechanic(payload: Required<Pick<MechanicPayload, 'firstName' | 'lastName'>>) {
+  async function createMechanic(payload: MechanicCreatePayload) {
     isMutating.value = true
 
     try {
@@ -296,11 +296,15 @@ export const useRepairStore = defineStore('repairs', () => {
     }
   }
 
-  async function createRepairWithFaults(payload: RepairPayload, faults: RepairFaultCreatePayload[]): Promise<RepairCreateResult> {
+  async function createRepairWithFaults(
+    payload: RepairPayload,
+    faults: RepairFaultCreatePayload[],
+    options?: { silent?: boolean },
+  ): Promise<RepairCreateResult> {
     isMutating.value = true
 
     try {
-      const createdRepair = await repairService.createRepair(payload)
+      const createdRepair = await repairService.createRepair(payload, options)
       const createdFaults: RepairFault[] = []
       let photoUploadFailures = 0
 
@@ -314,12 +318,12 @@ export const useRepairStore = defineStore('repairs', () => {
         const createdFault = await repairService.addRepairFault(createdRepair.id, {
           description,
           assignedMechanicId: fault.assignedMechanicId,
-        })
+        }, options)
         createdFaults.push(createdFault)
 
         for (const file of fault.photos || []) {
           try {
-            await repairService.uploadRepairFaultPhoto(createdRepair.id, createdFault.id, file)
+            await repairService.uploadRepairFaultPhoto(createdRepair.id, createdFault.id, file, options)
           } catch {
             photoUploadFailures += 1
           }
@@ -578,7 +582,7 @@ export const useRepairStore = defineStore('repairs', () => {
           ...repairDetailsById.value[repairKey],
           ...repair,
           comments: repairDetailsById.value[repairKey]?.comments || repair.comments,
-        }
+        } as Repair
         return acc
       }, { ...repairDetailsById.value })
       return history

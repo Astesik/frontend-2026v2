@@ -1,25 +1,20 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
     <header>
-      <h1 class="mt-1 text-2xl font-semibold text-slate-950 dark:text-slate-50">Ustawienia</h1>
+      <h1 class="ui-page-title">Ustawienia</h1>
     </header>
 
-    <div class="sticky top-0 z-20 flex flex-wrap gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel">
-      <button
-        v-for="tab in settingsTabs"
-        :key="tab.value"
-        type="button"
-        class="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-medium transition"
-        :class="activeTab === tab.value ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-app-dark' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-app-elevated'"
-        @click="activeTab = tab.value"
-      >
-        <component :is="tab.icon" class="h-4 w-4" />
-        {{ tab.label }}
-      </button>
-    </div>
+    <AppTabs
+      v-if="settingsTabs.length"
+      class="sticky top-0 z-20 w-fit"
+      :model-value="activeTab"
+      :items="settingsTabs"
+      aria-label="Sekcje ustawień"
+      @update:model-value="setActiveSettingsTab"
+    />
 
     <AppCard v-if="!settingsTabs.length" compact>
-      <p class="text-sm text-slate-500 dark:text-slate-400">
+      <p class="ui-body-sm text-ui-mutedText">
         Brak dostępnych sekcji ustawień dla aktualnych uprawnień.
       </p>
     </AppCard>
@@ -36,8 +31,8 @@
         <section
           v-for="group in fleetStore.vehicleGroups"
           :key="group.id"
-          class="rounded-2xl border border-slate-100 p-2 transition dark:border-app-border"
-          :class="isEditingGroup(group.id) ? 'bg-slate-50 dark:bg-app-dark' : 'bg-white dark:bg-app-panel'"
+          class="rounded-[var(--rw-radius-panel)] border border-ui-border p-2 transition"
+          :class="isEditingGroup(group.id) ? 'bg-ui-muted' : 'bg-ui-surface'"
         >
           <div class="grid gap-2 lg:grid-cols-[18rem_minmax(0,1fr)_auto] lg:items-center">
             <AppInput
@@ -74,7 +69,7 @@
           </div>
         </section>
 
-        <div v-if="!fleetStore.vehicleGroups.length" class="rounded-2xl border border-dashed border-slate-200 p-5 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
+        <div v-if="!fleetStore.vehicleGroups.length" class="rounded-[var(--rw-radius-panel)] border border-dashed border-ui-border p-5 ui-body-sm text-ui-mutedText">
           Brak utworzonych flot.
         </div>
       </div>
@@ -84,64 +79,45 @@
     <MailSettingsPanel v-else-if="activeTab === 'mail'" />
     <CountryNotificationsPanel v-else-if="activeTab === 'countries'" />
 
-    <Teleport to="body">
-      <div
-        v-if="isCreateGroupModalOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="closeCreateGroupModal"
-      >
-        <form
-          class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel"
-          @submit.prevent="createGroup"
-        >
-          <header class="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Dodaj flotę</h2>
-            <button
-              type="button"
-              class="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
-              @click="closeCreateGroupModal"
-            >
-              <X class="h-4 w-4" />
-            </button>
-          </header>
-          <div class="p-5">
-            <AppInput v-model="newGroupName" label="Nazwa floty" placeholder="Nazwa floty" />
-          </div>
-          <footer class="flex justify-end gap-2 border-t border-slate-100 px-5 py-4 dark:border-app-border">
-            <AppButton variant="secondary" type="button" @click="closeCreateGroupModal">Anuluj</AppButton>
-            <AppButton type="submit" :loading="isGroupMutating">
-              <Plus class="h-4 w-4" />
-              Dodaj
-            </AppButton>
-          </footer>
-        </form>
-      </div>
+    <AppModal
+      :open="isCreateGroupModalOpen"
+      title="Dodaj flotę"
+      size="sm"
+      :busy="isGroupMutating"
+      @close="closeCreateGroupModal"
+    >
+      <form id="create-fleet-form" @submit.prevent="createGroup">
+        <AppInput v-model="newGroupName" label="Nazwa floty" placeholder="Nazwa floty" required />
+      </form>
+      <template #footer>
+        <AppButton variant="secondary" type="button" @click="closeCreateGroupModal">Anuluj</AppButton>
+        <AppButton form="create-fleet-form" type="submit" :loading="isGroupMutating">
+          <Plus class="h-4 w-4" />
+          Dodaj
+        </AppButton>
+      </template>
+    </AppModal>
 
-      <div
-        v-if="groupToDelete"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="groupToDelete = null"
-      >
-        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Usunąć flotę?</h2>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Czy na pewno chcesz usunąć flotę {{ groupToDelete.name }}?
-            </p>
-          </header>
-          <footer class="flex justify-end gap-2 px-5 py-4">
-            <AppButton variant="secondary" @click="groupToDelete = null">Anuluj</AppButton>
-            <AppButton variant="danger" :loading="isGroupMutating" @click="deleteGroup">Usuń</AppButton>
-          </footer>
-        </section>
-      </div>
-    </Teleport>
+    <AppModal
+      :open="Boolean(groupToDelete)"
+      title="Usunąć flotę?"
+      :description="groupToDelete ? `Czy na pewno chcesz usunąć flotę ${groupToDelete.name}?` : undefined"
+      size="sm"
+      :busy="isGroupMutating"
+      @close="groupToDelete = null"
+    >
+      <p class="ui-body-sm text-ui-mutedText">Tej operacji nie można cofnąć.</p>
+      <template #footer>
+        <AppButton variant="secondary" @click="groupToDelete = null">Anuluj</AppButton>
+        <AppButton variant="danger" :loading="isGroupMutating" @click="deleteGroup">Usuń</AppButton>
+      </template>
+    </AppModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch, type Component } from 'vue'
-import { BellRing, Check, Mail, Plus, ShieldCheck, SquarePen, Trash2, Truck, X } from 'lucide-vue-next'
+import { BellRing, Check, Mail, Plus, ShieldCheck, SquarePen, Trash2, Truck } from 'lucide-vue-next'
 import CompanyManagementPanel from '@/components/settings/CompanyManagementPanel.vue'
 import CountryNotificationsPanel from '@/components/settings/CountryNotificationsPanel.vue'
 import MailSettingsPanel from '@/components/settings/MailSettingsPanel.vue'
@@ -149,6 +125,8 @@ import VehicleTagInput from '@/components/selects/VehicleTagInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppModal from '@/components/ui/AppModal.vue'
+import AppTabs from '@/components/ui/AppTabs.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -203,6 +181,10 @@ const settingsTabs = computed<Array<{ value: SettingsTabKey; label: string; icon
     ? [{ value: 'company' as const, label: 'Zarządzanie firmą', icon: ShieldCheck }]
     : []),
 ])
+
+function setActiveSettingsTab(value: string) {
+  if (isSettingsTabKey(value)) activeTab.value = value
+}
 
 function syncGroupForms() {
   fleetStore.vehicleGroups.forEach((group) => {

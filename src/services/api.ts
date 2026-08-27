@@ -206,6 +206,18 @@ function resolveApiErrorMessage(error: AxiosError) {
   return 'Nie udalo sie polaczyc z backendem. Sprobuj ponownie.'
 }
 
+export function getApiErrorMessage(error: unknown) {
+  if (axios.isAxiosError(error)) {
+    return resolveApiErrorMessage(error)
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  return 'Nie udało się wykonać operacji. Spróbuj ponownie.'
+}
+
 function isPermissionDeniedError(error: AxiosError) {
   if (error.response?.status !== 403) {
     return false

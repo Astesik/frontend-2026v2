@@ -218,7 +218,7 @@ export const useAuthStore = defineStore('auth', () => {
   const accessTokenExpiresAt = ref<number | null>(null)
   const isLoading = ref(false)
   const isRestored = ref(false)
-  let proactiveRefreshTimer: ReturnType<typeof window.setTimeout> | null = null
+  let proactiveRefreshTimer: number | null = null
 
   const isAuthenticated = computed(() => Boolean(token.value))
   const displayName = computed(() => user.value?.name || user.value?.username || user.value?.login || user.value?.email || 'Operator')

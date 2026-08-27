@@ -1,6 +1,6 @@
 <template>
-  <div class="flex shrink-0 flex-col gap-3 border-t border-slate-100 pt-4 dark:border-app-border sm:flex-row sm:items-center sm:justify-between">
-    <p class="text-xs text-slate-500 dark:text-slate-400">
+  <div class="flex shrink-0 flex-col gap-3 border-t border-ui-divider pt-4 sm:flex-row sm:items-center sm:justify-between">
+    <p class="ui-caption tabular-nums">
       {{ rangeStart }}–{{ rangeEnd }} z {{ total }}
     </p>
 
@@ -17,7 +17,7 @@
           :key="pageNumber"
           type="button"
           class="pagination-button text-xs font-semibold"
-          :class="pageNumber === page ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-app-dark' : ''"
+          :class="pageNumber === page ? '!border-ui-text !bg-ui-text !text-ui-surface' : ''"
           :aria-label="`Strona ${pageNumber}`"
           @click="goToPage(pageNumber)"
         >
@@ -31,7 +31,13 @@
         </button>
       </div>
 
-      <AppSelect v-model="pageSizeValue" class="w-24" :options="pageSizeOptions" size="sm" />
+      <AppSelect
+        v-model="pageSizeValue"
+        class="page-size-select w-20 shrink-0"
+        :options="pageSizeOptions"
+        size="sm"
+        title="Liczba wyników na stronę"
+      />
     </div>
   </div>
 </template>
@@ -59,7 +65,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.page
 const rangeStart = computed(() => props.total ? (props.page - 1) * props.pageSize + 1 : 0)
 const rangeEnd = computed(() => Math.min(props.page * props.pageSize, props.total))
 const pageSizeOptions = computed<AppSelectOption[]>(() => props.pageSizes.map((size) => ({
-  label: `${size} / str.`,
+  label: String(size),
   value: String(size),
 })))
 
@@ -96,18 +102,29 @@ watch(totalPages, (pages) => {
   min-width: 2.25rem;
   align-items: center;
   justify-content: center;
-  border-radius: 0.75rem;
-  color: rgb(var(--rw-slate-500));
-  transition: background-color 150ms ease, color 150ms ease;
+  border: 1px solid rgb(var(--rw-border));
+  border-radius: var(--rw-radius-control);
+  background: rgb(var(--rw-surface));
+  color: rgb(var(--rw-text-muted));
+  box-shadow: var(--rw-shadow-sm);
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
 }
 
 .pagination-button:hover:not(:disabled) {
-  background: rgb(var(--rw-app-hover));
-  color: rgb(var(--rw-app-text));
+  border-color: rgb(var(--rw-border-strong));
+  background: rgb(var(--rw-surface-hover));
+  color: rgb(var(--rw-text-primary));
 }
 
 .pagination-button:disabled {
   cursor: not-allowed;
-  opacity: 0.35;
+  background: rgb(var(--rw-disabled-background));
+  color: rgb(var(--rw-disabled-text));
+}
+
+.page-size-select :deep(.ui-field-control) {
+  gap: 0.25rem;
+  padding-left: 0.625rem;
+  padding-right: 0.5rem;
 }
 </style>

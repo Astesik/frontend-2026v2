@@ -1,11 +1,11 @@
 <template>
-  <section class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
+  <section class="ui-surface">
     <div v-if="title || description || $slots.actions" :class="headerClasses">
       <div>
-        <h2 v-if="title" class="text-base font-semibold text-slate-950 dark:text-slate-50">
+        <h2 v-if="title" class="ui-section-title">
           {{ title }}
         </h2>
-        <p v-if="description" class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        <p v-if="description" class="mt-1 ui-body-sm text-ui-mutedText">
           {{ description }}
         </p>
       </div>
@@ -40,7 +40,7 @@ const contentClasses = computed(() => [
 ])
 
 const headerClasses = computed(() => [
-  'flex items-start justify-between gap-4 border-b border-slate-100 dark:border-app-border',
+  'flex items-start justify-between gap-4 border-b border-ui-divider',
   props.compact ? 'px-4 py-3' : 'px-5 py-4',
 ])
 </script>

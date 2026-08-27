@@ -1,44 +1,57 @@
 <template>
-  <label class="block">
-    <span v-if="label" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">{{ label }}</span>
-    <div
-      class="flex min-h-11 flex-wrap items-center gap-1.5 rounded-2xl border border-slate-200 bg-white px-2.5 py-2 shadow-sm transition focus-within:border-slate-400 focus-within:ring-2 focus-within:ring-slate-200 dark:border-app-border dark:bg-app-panel dark:focus-within:border-app-muted dark:focus-within:ring-app-elevated"
-    >
-      <span
-        v-for="email in modelValue"
-        :key="email"
-        class="inline-flex max-w-full items-center gap-1 rounded-xl bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700 dark:bg-app-elevated dark:text-slate-200"
-      >
-        <span class="truncate">{{ email }}</span>
-        <button type="button" class="shrink-0 rounded-md p-0.5 transition hover:bg-slate-200 dark:hover:bg-app-hover" :aria-label="`Usuń ${email}`" @click.prevent="removeEmail(email)">
-          <X class="h-3 w-3" />
-        </button>
-      </span>
-      <input
-        v-model="draft"
-        type="email"
-        class="h-7 min-w-40 flex-1 bg-transparent px-1 text-sm text-slate-950 outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-app-muted"
-        :placeholder="modelValue.length ? '' : placeholder"
-        @blur="commitDraft"
-        @keydown="handleKeydown"
-        @paste="handlePaste"
-      />
-    </div>
-    <p v-if="error" class="mt-1.5 text-xs font-medium text-danger-600 dark:text-danger-400">{{ error }}</p>
-  </label>
+  <AppFormField :id="inputId" :label="label" :hint="hint" :error="error">
+    <template #default="{ describedBy }">
+      <div class="flex min-h-11 flex-wrap items-center gap-1.5 rounded-[var(--rw-radius-control)] border border-ui-input-border bg-ui-input px-2.5 py-2 shadow-soft transition hover:border-ui-border-strong focus-within:border-ui-input-focus focus-within:bg-ui-input-hover focus-within:ring-2 focus-within:ring-ui-focus/60">
+        <span
+          v-for="email in modelValue"
+          :key="email"
+          class="inline-flex max-w-full items-center gap-1 rounded-[var(--rw-radius-item)] border border-ui-border bg-ui-muted px-2 py-1 text-xs font-medium text-ui-text-secondary"
+        >
+          <span class="truncate">{{ email }}</span>
+          <button
+            type="button"
+            class="shrink-0 rounded-md p-0.5 text-ui-icon transition hover:bg-ui-hover hover:text-ui-text"
+            :aria-label="`Usuń ${email}`"
+            :disabled="disabled"
+            @click.prevent="removeEmail(email)"
+          >
+            <X class="h-3 w-3" />
+          </button>
+        </span>
+        <input
+          :id="inputId"
+          v-model="draft"
+          type="email"
+          class="h-7 min-w-40 flex-1 bg-transparent px-1 text-sm text-ui-text outline-none placeholder:text-ui-mutedText disabled:cursor-not-allowed disabled:text-ui-disabled-text"
+          :placeholder="modelValue.length ? '' : placeholder"
+          :disabled="disabled"
+          :aria-describedby="describedBy"
+          :aria-invalid="Boolean(error)"
+          @blur="commitDraft"
+          @keydown="handleKeydown"
+          @paste="handlePaste"
+        />
+      </div>
+    </template>
+  </AppFormField>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { X } from 'lucide-vue-next'
+import AppFormField from './AppFormField.vue'
 
 const props = withDefaults(defineProps<{
   modelValue: string[]
   label?: string
+  hint?: string
   placeholder?: string
+  disabled?: boolean
 }>(), {
   label: undefined,
+  hint: undefined,
   placeholder: 'Wpisz adres i naciśnij Enter',
+  disabled: false,
 })
 
 const emit = defineEmits<{
@@ -47,6 +60,7 @@ const emit = defineEmits<{
 
 const draft = ref('')
 const error = ref('')
+const inputId = `email-tags-${Math.random().toString(16).slice(2)}`
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function normalize(value: string) {
@@ -73,7 +87,7 @@ function commitDraft() {
 }
 
 function removeEmail(email: string) {
-  emit('update:modelValue', props.modelValue.filter((item) => item !== email))
+  if (!props.disabled) emit('update:modelValue', props.modelValue.filter((item) => item !== email))
 }
 
 function handlePaste(event: ClipboardEvent) {
@@ -84,6 +98,10 @@ function handlePaste(event: ClipboardEvent) {
 }
 
 function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Backspace' && !draft.value && props.modelValue.length) {
+    removeEmail(props.modelValue[props.modelValue.length - 1])
+    return
+  }
   if (event.key !== 'Enter' && event.key !== ',' && event.key !== ';') return
   event.preventDefault()
   commitDraft()

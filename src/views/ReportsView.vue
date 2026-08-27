@@ -2,7 +2,7 @@
   <div class="space-y-6">
     <header>
       <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Analityka</p>
-      <h1 class="mt-1 text-2xl font-semibold text-slate-950 dark:text-slate-50">Raporty</h1>
+      <h1 class="mt-1 ui-page-title">Raporty</h1>
     </header>
 
     <AppCard title="Filtry raportu" description="Szkielet pod raporty tras, postojow i aktywnosci.">

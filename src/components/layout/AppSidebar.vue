@@ -1,12 +1,12 @@
 <template>
   <div
     v-if="uiStore.mobileSidebarOpen"
-    class="fixed inset-0 z-40 bg-slate-950/30 md:hidden"
+    class="fixed inset-0 z-40 bg-ui-overlay/35 md:hidden"
     @click="uiStore.setMobileSidebarOpen(false)"
   ></div>
 
   <aside
-    class="flex h-screen min-h-0 shrink-0 flex-col overflow-visible border-r border-slate-200 bg-app-sidebar py-4 shadow-sm transition-all duration-200 dark:border-app-border"
+    class="flex h-screen min-h-0 shrink-0 flex-col overflow-visible border-r border-ui-border bg-ui-sidebar py-4 shadow-soft transition-all duration-200"
     :class="sidebarClasses"
   >
     <div
@@ -18,20 +18,20 @@
         :class="displaySidebarCollapsed ? 'justify-center' : ''"
       >
         <div
-          class="flex shrink-0 items-center justify-center border border-slate-200 bg-white text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-50"
-          :class="displaySidebarCollapsed ? 'h-8 w-8 rounded-xl' : 'h-10 w-10 rounded-2xl'"
+          class="flex shrink-0 items-center justify-center border border-ui-border bg-ui-surface text-ui-text shadow-soft"
+          :class="displaySidebarCollapsed ? 'h-8 w-8 rounded-[var(--rw-radius-item)]' : 'h-10 w-10 rounded-[var(--rw-radius-control)]'"
         >
           <Route class="h-5 w-5" />
         </div>
-        <p v-if="!displaySidebarCollapsed" class="truncate text-sm font-semibold text-slate-950 dark:text-slate-50">
+        <p v-if="!displaySidebarCollapsed" class="truncate ui-card-title">
           Routewise
         </p>
       </div>
 
       <button
         type="button"
-        class="flex shrink-0 items-center justify-center border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-slate-50"
-        :class="displaySidebarCollapsed ? 'h-8 w-8 rounded-xl' : 'h-9 w-9 rounded-2xl'"
+        class="ui-icon-button"
+        :class="displaySidebarCollapsed ? '!h-8 !w-8' : ''"
         aria-label="Przelacz menu"
         @click="handleSidebarToggle"
       >
@@ -55,38 +55,38 @@
       />
     </nav>
 
-    <div ref="userMenuElement" class="relative mt-6 shrink-0 border-t border-slate-200 pt-4 dark:border-app-border">
+    <div ref="userMenuElement" class="relative mt-6 shrink-0 border-t border-ui-border pt-4">
       <button
         type="button"
-        class="flex w-full items-center rounded-2xl py-2 transition hover:bg-white dark:hover:bg-app-panel"
+        class="flex w-full items-center rounded-[var(--rw-radius-control)] py-2 transition hover:bg-ui-hover"
         :class="displaySidebarCollapsed ? 'justify-center px-0' : 'gap-3 px-2'"
         :title="displaySidebarCollapsed ? authStore.displayName : undefined"
         @click="isUserMenuOpen = !isUserMenuOpen"
       >
         <div
-          class="flex shrink-0 items-center justify-center rounded-full bg-white font-semibold text-slate-700 dark:bg-app-panel dark:text-slate-200"
+          class="flex shrink-0 items-center justify-center rounded-full border border-ui-border bg-ui-surface font-semibold text-ui-text-secondary"
           :class="displaySidebarCollapsed ? 'h-8 w-8 text-xs' : 'h-10 w-10 text-sm'"
         >
           {{ initials }}
         </div>
         <div v-if="!displaySidebarCollapsed" class="min-w-0 flex-1 text-left">
-          <p class="truncate text-sm font-medium text-slate-950 dark:text-slate-50">
+          <p class="truncate text-sm font-medium text-ui-text">
             {{ authStore.displayName }}
           </p>
-          <p class="truncate text-xs text-slate-500 dark:text-slate-400">
+          <p class="truncate text-xs text-ui-mutedText">
             Aktywna sesja
           </p>
         </div>
         <ChevronUp
           v-if="!displaySidebarCollapsed"
-          class="h-4 w-4 shrink-0 text-slate-400 transition"
+          class="h-4 w-4 shrink-0 text-ui-icon transition"
           :class="isUserMenuOpen ? '' : 'rotate-180'"
         />
       </button>
 
       <div
         v-if="isUserMenuOpen"
-        class="sidebar-user-menu absolute z-[70] rounded-2xl border p-1 shadow-sm"
+        class="sidebar-user-menu absolute z-[70] rounded-[var(--rw-radius-control)] border p-1 shadow-popover"
         :class="displaySidebarCollapsed ? 'bottom-0 left-full ml-2 w-60' : 'bottom-full left-0 right-0 mb-2'"
       >
         <button type="button" class="sidebar-menu-action" @click="toggleTheme">
@@ -249,12 +249,12 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
   width: 100%;
   align-items: center;
   gap: 0.625rem;
-  border-radius: 0.75rem;
+  border-radius: var(--rw-radius-item);
   padding: 0.625rem 0.75rem;
   text-align: left;
   font-size: 0.875rem;
   font-weight: 500;
-  color: rgb(var(--rw-app-text));
+  color: rgb(var(--rw-text-secondary));
   transition: background-color 150ms ease, color 150ms ease;
 }
 
@@ -264,8 +264,8 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
 }
 
 .sidebar-menu-action:hover {
-  background-color: rgb(var(--rw-app-hover));
-  color: rgb(var(--rw-app-text));
+  background-color: rgb(var(--rw-surface-hover));
+  color: rgb(var(--rw-text-primary));
 }
 
 :global(.dark) .sidebar-menu-action span,
@@ -274,8 +274,8 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick))
 }
 
 .sidebar-user-menu {
-  border-color: rgb(var(--rw-app-border));
-  background-color: rgb(var(--rw-app-panel));
-  color: rgb(var(--rw-app-text));
+  border-color: rgb(var(--rw-border));
+  background-color: rgb(var(--rw-dropdown-background));
+  color: rgb(var(--rw-text-primary));
 }
 </style>

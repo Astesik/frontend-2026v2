@@ -2,16 +2,15 @@
   <div class="space-y-5">
     <header class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <div class="flex items-center gap-3">
-        <RouterLink
-          class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
+        <AppIconLink
           :to="{ name: 'vehicles' }"
-          aria-label="Wróć do listy pojazdów"
+          label="Wróć do listy pojazdów"
         >
           <ArrowLeft class="h-4 w-4" />
-        </RouterLink>
+        </AppIconLink>
         <div>
           <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Pojazd</p>
-          <h1 class="mt-1 text-2xl font-semibold text-slate-950 dark:text-slate-50">
+          <h1 class="mt-1 ui-page-title">
             {{ vehicle?.licensePlate || 'Szczegóły pojazdu' }}
           </h1>
         </div>
@@ -260,32 +259,14 @@
       </div>
     </div>
 
-    <Teleport to="body">
-      <div
-        v-if="isEditModalOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="closeEditModal"
-      >
-        <form
-          class="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel"
-          @submit.prevent="submitVehicleEdit"
-        >
-          <header class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <div>
-              <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Edytuj pojazd</h2>
-              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Zmiany zostaną zapisane przez PATCH /api/vehicles/{id}.</p>
-            </div>
-            <button
-              type="button"
-              class="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:text-slate-300 dark:hover:bg-app-elevated"
-              aria-label="Zamknij modal"
-              @click="closeEditModal"
-            >
-              <X class="h-4 w-4" />
-            </button>
-          </header>
-
-          <div class="grid max-h-[70vh] gap-3 overflow-y-auto p-5 md:grid-cols-2">
+    <AppModal
+      :open="isEditModalOpen"
+      title="Edytuj pojazd"
+      size="lg"
+      :busy="isUpdatingVehicle"
+      @close="closeEditModal"
+    >
+      <form id="vehicle-edit-form" class="grid gap-3 md:grid-cols-2" @submit.prevent="submitVehicleEdit">
             <AppInput v-model="editForm.licensePlate" label="Numer rejestracyjny" required />
             <AppSelect v-model="editForm.type" label="Typ pojazdu" :options="vehicleTypeFormOptions" />
             <AppInput v-model="editForm.make" label="Marka" />
@@ -309,57 +290,39 @@
               :rows="5"
               show-counter
             />
-          </div>
+      </form>
+      <template #footer>
+        <AppButton type="button" variant="secondary" @click="closeEditModal">Anuluj</AppButton>
+        <AppButton form="vehicle-edit-form" type="submit" :loading="isUpdatingVehicle">Zapisz zmiany</AppButton>
+      </template>
+    </AppModal>
 
-          <footer class="flex justify-end gap-2 border-t border-slate-100 px-5 py-4 dark:border-app-border">
-            <AppButton type="button" variant="secondary" @click="closeEditModal">Anuluj</AppButton>
-            <AppButton type="submit" :loading="isUpdatingVehicle">Zapisz zmiany</AppButton>
-          </footer>
-        </form>
-      </div>
-    </Teleport>
-
-    <Teleport to="body">
-      <div
-        v-if="isUnassignDeviceModalOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="closeUnassignDeviceModal"
-      >
-        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="flex items-start gap-3 border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-danger-50 text-danger-600 dark:bg-danger-500/15 dark:text-danger-400">
-              <Cpu class="h-5 w-5" />
-            </div>
-            <div>
-              <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Odpiąć urządzenie?</h2>
-              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Czy na pewno chcesz odpiąć urządzenie {{ vehicle?.assignedDeviceId ? `#${vehicle.assignedDeviceId}` : '' }} od pojazdu {{ vehicle?.licensePlate }}?
-              </p>
-            </div>
-          </header>
-
-          <footer class="flex justify-end gap-2 px-5 py-4">
-            <AppButton type="button" variant="secondary" @click="closeUnassignDeviceModal">Anuluj</AppButton>
-            <AppButton type="button" variant="danger" :loading="isUnassigningDevice" @click="unassignDevice">
-              Odepnij urządzenie
-            </AppButton>
-          </footer>
-        </section>
-      </div>
-    </Teleport>
+    <AppConfirmModal
+      :open="isUnassignDeviceModalOpen"
+      title="Odpiąć urządzenie?"
+      :description="unassignDeviceDescription"
+      confirm-label="Odepnij urządzenie"
+      confirm-variant="danger"
+      :busy="isUnassigningDevice"
+      @close="closeUnassignDeviceModal"
+      @confirm="unassignDevice"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, defineComponent, h, onMounted, reactive, ref, watch, type PropType } from 'vue'
 import { storeToRefs } from 'pinia'
-import { RouterLink, useRoute } from 'vue-router'
-import { ArrowLeft, ChevronDown, Cpu, ExternalLink, FileText, MessageSquare, SquarePen, Trash2, Wrench, X } from 'lucide-vue-next'
+import { useRoute } from 'vue-router'
+import { ArrowLeft, ChevronDown, Cpu, ExternalLink, FileText, MessageSquare, SquarePen, Trash2, Wrench } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
+import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppIconLink from '@/components/ui/AppIconLink.vue'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppModal from '@/components/ui/AppModal.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import AppTextarea from '@/components/ui/AppTextarea.vue'
 import DeviceSelect from '@/components/selects/DeviceSelect.vue'
@@ -408,6 +371,11 @@ const expandedRepairIds = ref<Set<string>>(new Set())
 
 const vehicleId = computed(() => String(route.params.id || ''))
 const vehicle = computed(() => fleetStore.apiVehicles.find((item) => String(item.id) === vehicleId.value) || null)
+const unassignDeviceDescription = computed(() => {
+  if (!vehicle.value) return ''
+  const deviceLabel = vehicle.value.assignedDeviceId ? `#${vehicle.value.assignedDeviceId}` : ''
+  return `Czy na pewno chcesz odpiąć urządzenie ${deviceLabel} od pojazdu ${vehicle.value.licensePlate}?`
+})
 const repairHistory = computed(() => [...(vehicleRepairHistory.value[vehicleId.value] || [])].sort((first, second) => repairTimestamp(second) - repairTimestamp(first)))
 const canUpdateVehicles = computed(() => hasPermission('vehicles.update'))
 const canAssignDevices = computed(() => hasPermission('devices.assign'))
@@ -933,11 +901,14 @@ function repairFaultKey(fault: RepairHistoryFault) {
     return fault
   }
 
-  return String(fault.id || fault.description || fault.name || JSON.stringify(fault))
+  const name = 'name' in fault ? fault.name : null
+  return String(fault.id || fault.description || name || JSON.stringify(fault))
 }
 
 function repairFaultDescription(fault: RepairHistoryFault) {
-  return typeof fault === 'string' ? fault : fault.description || fault.name || '-'
+  if (typeof fault === 'string') return fault
+  const name = 'name' in fault ? fault.name : null
+  return fault.description || name || '-'
 }
 
 function repairFaultStatusLabel(fault: RepairHistoryFault) {

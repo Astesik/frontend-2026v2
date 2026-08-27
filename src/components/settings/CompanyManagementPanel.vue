@@ -1,18 +1,12 @@
 <template>
   <div class="space-y-4 xl:flex xl:h-[calc(100dvh-15rem)] xl:min-h-0 xl:flex-col xl:space-y-0 xl:gap-4 xl:overflow-hidden">
-    <div class="flex shrink-0 flex-wrap gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel">
-      <button
-        v-for="section in sections"
-        :key="section.value"
-        type="button"
-        class="inline-flex h-9 items-center gap-2 rounded-xl px-3 text-sm font-medium transition"
-        :class="activeSection === section.value ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-app-dark' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-app-elevated'"
-        @click="activeSection = section.value"
-      >
-        <component :is="section.icon" class="h-4 w-4" />
-        {{ section.label }}
-      </button>
-    </div>
+    <AppTabs
+      class="w-fit shrink-0"
+      :model-value="activeSection"
+      :items="sections"
+      aria-label="Zarządzanie firmą"
+      @update:model-value="setActiveSection"
+    />
 
     <div
       v-if="!store.isLoading && !store.roles.length && !store.permissions.length"
@@ -52,21 +46,21 @@
         Pobieranie danych...
       </div>
 
-      <div v-if="store.isLoading" class="rounded-2xl border border-slate-100 p-4 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
+      <div v-if="store.isLoading" class="ui-empty-state">
         Ładowanie ról...
       </div>
 
-      <div v-else-if="!filteredRoles.length" class="rounded-2xl border border-dashed border-slate-200 p-5 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
+      <div v-else-if="!filteredRoles.length" class="ui-empty-state">
         Brak danych dla aktualnego filtra.
       </div>
 
-      <div v-else class="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
-        <table class="w-full min-w-[520px] text-left text-sm">
-          <thead class="border-b border-slate-100 text-xs uppercase text-slate-500 dark:border-app-border dark:text-slate-400">
+      <div v-else class="ui-table-shell min-h-0 flex-1 overflow-auto">
+        <table class="ui-table min-w-[520px]">
+          <thead class="ui-table-head sticky top-0 z-10">
             <tr>
-              <th class="py-2 pr-3 font-medium">Nazwa</th>
-              <th class="py-2 pr-3 font-medium">Typ</th>
-              <th class="sticky right-0 z-10 w-20 bg-white py-2 pr-1 text-right font-medium shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] dark:bg-app-panel">
+              <th class="ui-table-cell">Nazwa</th>
+              <th class="ui-table-cell">Typ</th>
+              <th class="ui-table-cell sticky right-0 z-10 w-20 bg-ui-muted text-right shadow-[-1px_0_0_0_rgb(var(--rw-border))]">
                 Akcje
               </th>
             </tr>
@@ -75,102 +69,29 @@
             <tr
               v-for="role in filteredRoles"
               :key="role.id"
-              class="group border-b border-slate-100 transition last:border-0 hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
+              class="ui-table-row group"
             >
-              <td class="py-1.5 pr-3">
-                <span class="font-semibold text-slate-950 dark:text-slate-50">{{ role.name }}</span>
+              <td class="ui-table-cell">
+                <span class="font-semibold text-ui-text">{{ role.name }}</span>
               </td>
-              <td class="py-1.5 pr-3">
+              <td class="ui-table-cell">
                 <AppBadge :variant="role.systemRole ? 'neutral' : 'info'">
                   {{ role.systemRole ? 'Systemowa' : 'Własna' }}
                 </AppBadge>
               </td>
-              <td class="sticky right-0 z-10 bg-white py-1.5 pr-1 text-right shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] transition group-hover:bg-slate-50 dark:bg-app-panel dark:group-hover:bg-app-elevated">
-                <button
-                  type="button"
-                  class="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
+              <td class="ui-table-cell sticky right-0 z-10 bg-ui-surface text-right shadow-[-1px_0_0_0_rgb(var(--rw-border))] transition group-hover:bg-ui-hover">
+                <AppIconButton
+                  size="sm"
+                  :label="role.editable === false ? 'Rola systemowa' : !canUpdateRoles ? 'Brak uprawnienia: roles.update' : 'Edytuj rolę'"
                   :disabled="role.editable === false || !canUpdateRoles"
-                  :title="role.editable === false ? 'Rola systemowa' : !canUpdateRoles ? 'Brak uprawnienia: roles.update' : 'Edytuj rolę'"
                   @click="openEditRoleDrawer(role)"
                 >
                   <SquarePen class="h-4 w-4" />
-                </button>
+                </AppIconButton>
               </td>
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <div v-if="false" class="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-        <section
-          v-for="group in matrixPermissionCategories"
-          :key="group.category"
-          class="overflow-hidden rounded-2xl border border-slate-100 bg-white dark:border-app-border dark:bg-app-dark"
-        >
-          <header class="border-b border-slate-100 bg-slate-50 px-3 py-2 dark:border-app-border dark:bg-app-panel">
-            <h4 class="text-sm font-semibold text-slate-950 dark:text-slate-50">{{ group.label }}</h4>
-          </header>
-
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm" :style="matrixTableStyle(group.permissions.length)">
-              <thead class="border-b border-slate-100 text-xs text-slate-500 dark:border-app-border dark:text-slate-400">
-                <tr>
-                  <th class="sticky left-0 z-10 w-56 bg-white py-2 pl-3 pr-3 font-medium shadow-[1px_0_0_0_rgb(var(--rw-app-border))] dark:bg-app-dark">
-                    Rola
-                  </th>
-                  <th
-                    v-for="permission in group.permissions"
-                    :key="permission.code"
-                    class="min-w-32 py-2 pr-3 text-center align-middle font-medium normal-case"
-                    :title="permissionTitle(permission)"
-                  >
-                    <span class="mx-auto block max-w-36 text-balance text-slate-700 dark:text-slate-200">
-                      {{ permission.name || permission.code }}
-                    </span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="role in filteredRoles"
-                  :key="`${group.category}-${role.id}`"
-                  class="group border-b border-slate-100 transition last:border-0 hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
-                >
-                  <td class="sticky left-0 z-10 bg-white py-2 pl-3 pr-3 shadow-[1px_0_0_0_rgb(var(--rw-app-border))] transition group-hover:bg-slate-50 dark:bg-app-dark dark:group-hover:bg-app-elevated">
-                    <div class="flex min-w-0 items-center justify-between gap-2">
-                      <div class="min-w-0">
-                        <p class="truncate font-semibold text-slate-950 dark:text-slate-50">{{ role.name }}</p>
-                        <AppBadge v-if="role.systemRole" variant="neutral">Systemowa</AppBadge>
-                      </div>
-                      <button
-                        type="button"
-                        class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40 dark:border-app-border dark:bg-app-panel dark:text-slate-300 dark:hover:bg-app-elevated"
-                        :disabled="role.editable === false || !canUpdateRoles"
-                        title="Edytuj rolę"
-                        @click="openEditRoleDrawer(role)"
-                      >
-                        <SquarePen class="h-4 w-4" />
-                      </button>
-                    </div>
-                  </td>
-                  <td
-                    v-for="permission in group.permissions"
-                    :key="`${role.id}-${permission.code}`"
-                    class="py-2 pr-3 text-center"
-                  >
-                    <AppCheckbox
-                      class="mx-auto"
-                      :model-value="roleHasPermission(role, permission.code)"
-                      :aria-label="`${role.name}: ${permission.name || permission.code}`"
-                      :disabled="role.editable === false || store.isMutating || !canUpdateRoles"
-                      @update:model-value="setRolePermission(role, permission.code, $event)"
-                    />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
       </div>
     </AppCard>
 
@@ -202,15 +123,15 @@
         Pobieranie danych...
       </div>
 
-      <div class="min-h-0 flex-1 overflow-x-auto overflow-y-auto">
-        <table class="w-full min-w-[760px] text-left text-sm">
-          <thead class="border-b border-slate-100 text-xs uppercase text-slate-500 dark:border-app-border dark:text-slate-400">
+      <div class="ui-table-shell min-h-0 flex-1 overflow-auto">
+        <table class="ui-table min-w-[760px]">
+          <thead class="ui-table-head sticky top-0 z-10">
             <tr>
-              <th class="py-2 pr-3 font-medium">Użytkownik</th>
-              <th class="py-2 pr-3 font-medium">Email</th>
-              <th class="py-2 pr-3 font-medium">Status</th>
-              <th class="py-2 pr-3 font-medium">Role</th>
-              <th class="sticky right-0 z-10 w-20 bg-white py-2 pr-1 text-right font-medium shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] dark:bg-app-panel">
+              <th class="ui-table-cell">Użytkownik</th>
+              <th class="ui-table-cell">Email</th>
+              <th class="ui-table-cell">Status</th>
+              <th class="ui-table-cell">Role</th>
+              <th class="ui-table-cell sticky right-0 z-10 w-20 bg-ui-muted text-right shadow-[-1px_0_0_0_rgb(var(--rw-border))]">
                 Akcje
               </th>
             </tr>
@@ -219,36 +140,35 @@
             <tr
               v-for="userItem in filteredUsers"
               :key="userItem.id"
-              class="group border-b border-slate-100 transition last:border-0 hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
+              class="ui-table-row group"
             >
-              <td class="py-1.5 pr-3">
-                <span class="font-semibold text-slate-950 dark:text-slate-50">{{ displayUserName(userItem) }}</span>
-                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ userItem.username }}</p>
+              <td class="ui-table-cell">
+                <span class="font-semibold text-ui-text">{{ displayUserName(userItem) }}</span>
+                <p class="mt-0.5 ui-caption">{{ userItem.username }}</p>
               </td>
-              <td class="py-1.5 pr-3 text-slate-700 dark:text-slate-200">{{ userItem.email || '-' }}</td>
-              <td class="py-1.5 pr-3">
+              <td class="ui-table-cell text-ui-text-secondary">{{ userItem.email || '-' }}</td>
+              <td class="ui-table-cell">
                 <AppBadge :variant="userItem.active === false ? 'error' : 'success'">
                   {{ userItem.active === false ? 'Zablokowany' : 'Aktywny' }}
                 </AppBadge>
               </td>
-              <td class="py-1.5 pr-3">
-                <span class="text-slate-700 dark:text-slate-200">{{ userRoles(userItem).map((role) => role.name).join(', ') || '-' }}</span>
+              <td class="ui-table-cell">
+                <span class="text-ui-text-secondary">{{ userRoles(userItem).map((role) => role.name).join(', ') || '-' }}</span>
               </td>
-              <td class="sticky right-0 z-10 bg-white py-1.5 pr-1 text-right shadow-[-1px_0_0_0_rgb(var(--rw-app-border))] transition group-hover:bg-slate-50 dark:bg-app-panel dark:group-hover:bg-app-elevated">
-                <button
-                  type="button"
-                  class="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-40 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
+              <td class="ui-table-cell sticky right-0 z-10 bg-ui-surface text-right shadow-[-1px_0_0_0_rgb(var(--rw-border))] transition group-hover:bg-ui-hover">
+                <AppIconButton
+                  size="sm"
+                  :label="!canUpdateUsers ? 'Brak uprawnienia: users.update' : 'Edytuj użytkownika'"
                   :disabled="!canUpdateUsers"
-                  :title="!canUpdateUsers ? 'Brak uprawnienia: users.update' : 'Edytuj użytkownika'"
                   @click="openEditUserDrawer(userItem)"
                 >
                   <SquarePen class="h-4 w-4" />
-                </button>
+                </AppIconButton>
               </td>
             </tr>
 
             <tr v-if="!filteredUsers.length">
-              <td colspan="5" class="py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+              <td colspan="5" class="ui-empty-state border-0">
                 Brak użytkowników pasujących do filtra.
               </td>
             </tr>
@@ -258,383 +178,264 @@
     </AppCard>
 
     <Teleport to="body">
-      <div
-        v-if="isRoleDrawerOpen"
-        class="fixed inset-0 z-50 flex justify-end bg-slate-950/40"
-        @click.self="closeRoleDrawer"
+      <AppDrawer
+        :open="isRoleDrawerOpen"
+        :title="roleForm.id ? 'Edytuj rolę' : 'Dodaj rolę'"
+        size="lg"
+        :busy="store.isMutating"
+        @close="closeRoleDrawer"
       >
-        <section class="company-management-drawer flex h-full w-full max-w-2xl flex-col border-l border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <div>
-              <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">{{ roleForm.id ? 'Edytuj rolę' : 'Dodaj rolę' }}</h2>
-            </div>
-            <button type="button" class="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100" @click="closeRoleDrawer">
-              <X class="h-4 w-4" />
-            </button>
-          </header>
-
-          <form class="min-h-0 flex flex-1 flex-col overflow-hidden" @submit.prevent="saveRole">
-            <div class="min-h-0 flex-1 overflow-y-auto p-5">
-              <div class="grid gap-3 sm:grid-cols-2">
-              <AppInput v-model="roleForm.code" label="Kod roli" placeholder="np. DISPATCHER" size="sm" />
-              <AppInput v-model="roleForm.name" label="Nazwa roli" placeholder="np. Dyspozytor" size="sm" />
-              </div>
-
-              <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-              <h3 class="text-sm font-semibold text-slate-950 dark:text-slate-50">Uprawnienia</h3>
-              <AppInput v-model="rolePermissionSearch" class="sm:w-72" placeholder="Szukaj uprawnienia" size="sm" clearable />
-              </div>
-
-              <div class="mt-3 overflow-hidden rounded-2xl border border-slate-100 dark:border-app-border">
-                <table class="w-full text-left text-sm">
-                  <thead class="border-b border-slate-100 text-xs uppercase text-slate-500 dark:border-app-border dark:text-slate-400">
-                    <tr>
-                      <th class="py-2 pl-3 pr-3 font-medium">Uprawnienie</th>
-                      <th class="w-20 py-2 pr-3 text-center font-medium">Aktywne</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      v-for="permission in roleDrawerPermissions"
-                      :key="permission.code"
-                      class="cursor-pointer border-b border-slate-100 transition last:border-0 hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
-                      :title="permissionTitle(permission)"
-                      @click="canSaveRoleForm && toggleRolePermission(permission.code)"
-                    >
-                      <td class="py-2 pl-3 pr-3 font-medium text-slate-950 dark:text-slate-50">
-                        {{ permission.name || permission.code }}
-                      </td>
-                      <td class="py-2 pr-3 text-center">
-                        <AppCheckbox
-                          class="mx-auto"
-                          :model-value="roleForm.permissions.includes(permission.code)"
-                          :aria-label="permission.name || permission.code"
-                          :disabled="!canSaveRoleForm"
-                          @click.stop
-                          @update:model-value="toggleRolePermission(permission.code)"
-                        />
-                      </td>
-                    </tr>
-                    <tr v-if="!roleDrawerPermissions.length">
-                      <td colspan="2" class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-                        Brak uprawnień pasujących do filtra.
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <footer class="shrink-0 flex flex-col gap-2 border-t border-slate-100 bg-white px-5 py-4 dark:border-app-border dark:bg-app-panel sm:flex-row sm:items-center sm:justify-between">
-              <AppButton
-                v-if="roleForm.id && selectedRole?.editable !== false"
-                variant="danger"
-                type="button"
-                :disabled="!canDeleteRoles"
-                :title="!canDeleteRoles ? 'Brak uprawnienia: roles.delete' : undefined"
-                @click="requestDeleteCurrentRole"
-              >
-                <Trash2 class="h-4 w-4" />
-                Usuń rolę
-              </AppButton>
-              <span v-else></span>
-              <div class="flex justify-end gap-2">
-                <AppButton variant="secondary" type="button" @click="closeRoleDrawer">Anuluj</AppButton>
-                <AppButton
-                  type="submit"
-                  :loading="store.isMutating"
-                  :disabled="!canSaveRoleForm"
-                  :title="!canSaveRoleForm ? 'Brak uprawnień do zapisu roli' : undefined"
-                >
-                  <Save class="h-4 w-4" />
-                  {{ roleForm.id ? 'Zapisz' : 'Dodaj' }}
-                </AppButton>
-              </div>
-            </footer>
-          </form>
-        </section>
-      </div>
-
-      <div
-        v-if="isUserDrawerOpen"
-        class="fixed inset-0 z-50 flex justify-end bg-slate-950/40"
-        @click.self="closeUserDrawer"
-      >
-        <section class="company-management-drawer flex h-full w-full max-w-2xl flex-col border-l border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <div>
-              <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">{{ userForm.id ? 'Edytuj użytkownika' : 'Dodaj użytkownika' }}</h2>
-              <AppBadge v-if="userForm.id" class="mt-2" :variant="userForm.active ? 'success' : 'error'">
-                {{ userForm.active ? 'Aktywny' : 'Zablokowany' }}
-              </AppBadge>
-            </div>
-            <button type="button" class="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100" @click="closeUserDrawer">
-              <X class="h-4 w-4" />
-            </button>
-          </header>
-
-          <div class="border-b border-slate-100 px-5 py-2 dark:border-app-border">
-            <div class="flex flex-wrap gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-1 dark:border-app-border dark:bg-app-dark">
-              <button
-                v-for="tab in userDrawerTabs"
-                :key="tab.value"
-                type="button"
-                class="inline-flex h-8 items-center gap-2 rounded-xl px-3 text-xs font-semibold transition"
-                :class="userDrawerTab === tab.value ? 'bg-white text-slate-950 shadow-sm dark:bg-app-panel dark:text-slate-50' : 'text-slate-500 hover:bg-white dark:text-slate-300 dark:hover:bg-app-elevated'"
-                @click="userDrawerTab = tab.value"
-              >
-                <component :is="tab.icon" class="h-3.5 w-3.5" />
-                {{ tab.label }}
-              </button>
-            </div>
+        <form id="company-role-form" @submit.prevent="saveRole">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <AppInput v-model="roleForm.code" label="Kod roli" placeholder="np. DISPATCHER" size="sm" />
+            <AppInput v-model="roleForm.name" label="Nazwa roli" placeholder="np. Dyspozytor" size="sm" />
           </div>
 
-          <form class="min-h-0 flex flex-1 flex-col overflow-hidden" @submit.prevent="saveUser">
-            <div class="min-h-0 flex-1 overflow-y-auto p-5">
-              <div v-if="userDrawerTab === 'info'" class="grid gap-3 sm:grid-cols-2">
-              <AppInput v-model="userForm.firstName" label="Imię" placeholder="Imię" size="sm" />
-              <AppInput v-model="userForm.lastName" label="Nazwisko" placeholder="Nazwisko" size="sm" />
-              <AppInput v-model="userForm.username" label="Login" placeholder="Login" size="sm" />
-              <AppInput v-model="userForm.email" label="Email" type="email" placeholder="email@firma.pl" size="sm" />
-              <AppInput
-                v-if="!userForm.id"
-                v-model="userForm.password"
-                label="Hasło"
-                type="password"
-                placeholder="Hasło startowe"
-                autocomplete="new-password"
-                size="sm"
-              />
-            </div>
-
-            <div v-else-if="userDrawerTab === 'roles'" class="rounded-2xl border border-slate-100 dark:border-app-border">
-              <div
-                v-for="role in store.roles"
-                :key="role.id"
-                class="flex cursor-pointer items-center gap-2 border-b border-slate-100 px-3 py-2 text-sm transition last:border-0 hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
-                :title="roleTitle(role)"
-                @click="canChangeUserRoles && toggleUserRole(role.id)"
-              >
-                <AppCheckbox
-                  :model-value="userForm.roleIds.includes(role.id)"
-                  :aria-label="role.name"
-                  :disabled="!canChangeUserRoles"
-                  @click.stop
-                  @update:model-value="toggleUserRole(role.id)"
-                />
-                <span class="min-w-0 truncate font-medium text-slate-800 dark:text-slate-100">{{ role.name }}</span>
-              </div>
-            </div>
-
-            <div v-else class="space-y-3">
-              <AppInput v-model="permissionOverrideSearch" placeholder="Szukaj uprawnienia" size="sm" clearable />
-              <section class="overflow-hidden rounded-2xl border border-slate-100 dark:border-app-border">
-                <table class="w-full text-left text-sm">
-                  <thead class="border-b border-slate-100 text-xs uppercase text-slate-500 dark:border-app-border dark:text-slate-400">
-                    <tr>
-                      <th class="py-2 pl-3 pr-3 font-medium">Uprawnienie</th>
-                      <th class="w-20 py-2 pr-2 text-center font-medium">Grant</th>
-                      <th class="w-20 py-2 pr-3 text-center font-medium">Deny</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      v-for="permission in overridePermissions"
-                      :key="permission.code"
-                      class="border-b border-slate-100 last:border-0 dark:border-app-border"
-                      :title="permissionTitle(permission)"
-                    >
-                      <td class="py-2 pl-3 pr-3 font-medium text-slate-950 dark:text-slate-50">{{ permission.name || permission.code }}</td>
-                      <td class="py-2 pr-2 text-center">
-                        <button
-                          type="button"
-                          class="inline-flex h-8 w-8 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-40"
-                          :class="overrideEffectFor(permission.code) === 'GRANT' ? 'border-success-100 bg-success-50 text-success-600 dark:border-success-400 dark:bg-app-elevated dark:text-success-400' : 'border-slate-200 bg-white text-slate-300 hover:text-slate-600 dark:border-app-border dark:bg-app-panel dark:text-slate-500 dark:hover:text-slate-200'"
-                          :disabled="!canUpdateUsers"
-                          @click="toggleOverride(permission.code, 'GRANT')"
-                        >
-                          <CheckCircle2 class="h-4 w-4" />
-                        </button>
-                      </td>
-                      <td class="py-2 pr-3 text-center">
-                        <button
-                          type="button"
-                          class="inline-flex h-8 w-8 items-center justify-center rounded-xl border transition disabled:cursor-not-allowed disabled:opacity-40"
-                          :class="overrideEffectFor(permission.code) === 'DENY' ? 'border-danger-100 bg-danger-50 text-danger-600 dark:border-danger-400 dark:bg-app-elevated dark:text-danger-400' : 'border-slate-200 bg-white text-slate-300 hover:text-slate-600 dark:border-app-border dark:bg-app-panel dark:text-slate-500 dark:hover:text-slate-200'"
-                          :disabled="!canUpdateUsers"
-                          @click="toggleOverride(permission.code, 'DENY')"
-                        >
-                          <X class="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                    <tr v-if="!overridePermissions.length">
-                      <td colspan="3" class="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-                        Brak uprawnień pasujących do filtra.
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </section>
-            </div>
-
-            </div>
-
-            <footer class="shrink-0 border-t border-slate-100 bg-white px-5 py-4 dark:border-app-border dark:bg-app-panel">
-              <div class="flex flex-wrap items-center gap-2">
-                <AppButton
-                  v-if="userForm.id && canResetUserPassword"
-                  variant="secondary"
-                  type="button"
-                  @click="openPasswordResetModal"
-                >
-                  <KeyRound class="h-4 w-4" />
-                  Resetuj hasło
-                </AppButton>
-                <AppButton
-                  v-if="userForm.id && canBlockUsers"
-                  variant="secondary"
-                  type="button"
-                  :loading="isChangingUserStatus"
-                  @click="toggleSelectedUserStatus"
-                >
-                  <component :is="userForm.active ? UserRoundX : UserRoundCheck" class="h-4 w-4" />
-                  {{ userForm.active ? 'Zablokuj' : 'Odblokuj' }}
-                </AppButton>
-                <AppButton
-                  v-if="userForm.id"
-                  variant="danger"
-                  type="button"
-                  :disabled="!canDeleteUsers"
-                  :title="!canDeleteUsers ? 'Brak uprawnienia: users.delete' : undefined"
-                  @click="requestDeleteCurrentUser"
-                >
-                  <Trash2 class="h-4 w-4" />
-                  Usuń użytkownika
-                </AppButton>
-                <div class="ml-auto flex justify-end gap-2">
-                <AppButton variant="secondary" type="button" @click="closeUserDrawer">Anuluj</AppButton>
-                <AppButton
-                  type="submit"
-                  :loading="store.isMutating"
-                  :disabled="!canSaveUserForm"
-                  :title="!canSaveUserForm ? 'Brak uprawnień do zapisu użytkownika' : undefined"
-                >
-                  <Save class="h-4 w-4" />
-                  {{ userForm.id ? 'Zapisz' : 'Dodaj' }}
-                </AppButton>
-                </div>
-              </div>
-            </footer>
-          </form>
-        </section>
-      </div>
-
-      <div
-        v-if="roleToDelete || userToDelete"
-        class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="clearDeleteTargets"
-      >
-        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">
-              {{ roleToDelete ? 'Usunąć rolę?' : 'Usunąć użytkownika?' }}
-            </h2>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {{ deleteMessage }}
-            </p>
-          </header>
-          <footer class="flex justify-end gap-2 px-5 py-4">
-            <AppButton variant="secondary" @click="clearDeleteTargets">Anuluj</AppButton>
-            <AppButton
-              variant="danger"
-              :loading="store.isMutating"
-              :disabled="roleToDelete ? !canDeleteRoles : !canDeleteUsers"
-              @click="confirmDelete"
-            >
-              Usuń
-            </AppButton>
-          </footer>
-        </section>
-      </div>
-
-      <div
-        v-if="passwordResetUser"
-        class="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4"
-        @click.self="closePasswordResetModal"
-      >
-        <form
-          class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel"
-          @submit.prevent="submitPasswordReset"
-        >
-          <header class="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <div>
-              <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Resetuj hasło</h2>
-              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                {{ displayUserName(passwordResetUser) }}
-              </p>
-            </div>
-            <button
-              type="button"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
-              aria-label="Zamknij"
-              @click="closePasswordResetModal"
-            >
-              <X class="h-4 w-4" />
-            </button>
-          </header>
-
-          <div class="space-y-3 p-5">
-            <div>
-              <label for="company-user-new-password" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
-                Nowe hasło
-              </label>
-              <div class="relative">
-                <input
-                  id="company-user-new-password"
-                  v-model="passwordResetForm.newPassword"
-                  :type="passwordResetForm.showPassword ? 'text' : 'password'"
-                  autocomplete="new-password"
-                  class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 pr-11 text-sm text-slate-950 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-app-border dark:bg-app-dark dark:text-slate-50 dark:focus:border-app-muted dark:focus:ring-app-elevated"
-                />
-                <button
-                  type="button"
-                  class="absolute right-2 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
-                  :aria-label="passwordResetForm.showPassword ? 'Ukryj hasło' : 'Pokaż hasło'"
-                  @click="passwordResetForm.showPassword = !passwordResetForm.showPassword"
-                >
-                  <component :is="passwordResetForm.showPassword ? EyeOff : Eye" class="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label for="company-user-repeat-password" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
-                Powtórz hasło
-              </label>
-              <input
-                id="company-user-repeat-password"
-                v-model="passwordResetForm.repeatPassword"
-                :type="passwordResetForm.showPassword ? 'text' : 'password'"
-                autocomplete="new-password"
-                class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-4 text-sm text-slate-950 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-app-border dark:bg-app-dark dark:text-slate-50 dark:focus:border-app-muted dark:focus:ring-app-elevated"
-              />
-            </div>
-
-            <p v-if="passwordResetError" class="text-sm font-medium text-danger-600 dark:text-danger-400">
-              {{ passwordResetError }}
-            </p>
+          <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <h3 class="ui-card-title">Uprawnienia</h3>
+            <AppInput v-model="rolePermissionSearch" class="sm:w-72" placeholder="Szukaj uprawnienia" size="sm" clearable />
           </div>
 
-          <footer class="flex justify-end gap-2 border-t border-slate-100 px-5 py-4 dark:border-app-border">
-            <AppButton variant="secondary" type="button" @click="closePasswordResetModal">Anuluj</AppButton>
-            <AppButton type="submit" :loading="store.isMutating">
-              <KeyRound class="h-4 w-4" />
-              Zmień hasło
-            </AppButton>
-          </footer>
+          <div class="ui-table-shell mt-3">
+            <table class="ui-table">
+              <thead class="ui-table-head">
+                <tr>
+                  <th class="py-2 pl-3 pr-3 font-medium">Uprawnienie</th>
+                  <th class="w-20 py-2 pr-3 text-center font-medium">Aktywne</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="permission in roleDrawerPermissions"
+                  :key="permission.code"
+                  class="ui-table-row cursor-pointer"
+                  :title="permissionTitle(permission)"
+                  @click="canSaveRoleForm && toggleRolePermission(permission.code)"
+                >
+                  <td class="py-2 pl-3 pr-3 font-medium text-ui-text">{{ permission.name || permission.code }}</td>
+                  <td class="py-2 pr-3 text-center">
+                    <AppCheckbox
+                      class="mx-auto"
+                      :model-value="roleForm.permissions.includes(permission.code)"
+                      :aria-label="permission.name || permission.code"
+                      :disabled="!canSaveRoleForm"
+                      @click.stop
+                      @update:model-value="toggleRolePermission(permission.code)"
+                    />
+                  </td>
+                </tr>
+                <tr v-if="!roleDrawerPermissions.length">
+                  <td colspan="2" class="py-6 text-center ui-body-sm text-ui-mutedText">Brak uprawnień pasujących do filtra.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </form>
-      </div>
+
+        <template #footer>
+          <AppButton
+            v-if="roleForm.id && selectedRole?.editable !== false"
+            variant="danger"
+            type="button"
+            :disabled="!canDeleteRoles"
+            @click="requestDeleteCurrentRole"
+          >
+            <Trash2 class="h-4 w-4" />
+            Usuń rolę
+          </AppButton>
+          <span class="flex-1"></span>
+          <AppButton variant="secondary" type="button" @click="closeRoleDrawer">Anuluj</AppButton>
+          <AppButton form="company-role-form" type="submit" :loading="store.isMutating" :disabled="!canSaveRoleForm">
+            <Save class="h-4 w-4" />
+            {{ roleForm.id ? 'Zapisz' : 'Dodaj' }}
+          </AppButton>
+        </template>
+      </AppDrawer>
+
+      <AppDrawer
+        :open="isUserDrawerOpen"
+        :title="userForm.id ? 'Edytuj użytkownika' : 'Dodaj użytkownika'"
+        size="lg"
+        :busy="store.isMutating"
+        @close="closeUserDrawer"
+      >
+        <template #header>
+          <div>
+            <h2 class="ui-section-title">{{ userForm.id ? 'Edytuj użytkownika' : 'Dodaj użytkownika' }}</h2>
+            <AppBadge v-if="userForm.id" class="mt-2" :variant="userForm.active ? 'success' : 'error'">
+              {{ userForm.active ? 'Aktywny' : 'Zablokowany' }}
+            </AppBadge>
+          </div>
+        </template>
+
+        <template #toolbar>
+          <AppTabs
+            :model-value="userDrawerTab"
+            :items="userDrawerTabs"
+            aria-label="Sekcje użytkownika"
+            size="sm"
+            @update:model-value="setUserDrawerTab"
+          />
+        </template>
+
+        <form id="company-user-form" @submit.prevent="saveUser">
+          <div v-if="userDrawerTab === 'info'" class="grid gap-3 sm:grid-cols-2">
+            <AppInput v-model="userForm.firstName" label="Imię" placeholder="Imię" size="sm" />
+            <AppInput v-model="userForm.lastName" label="Nazwisko" placeholder="Nazwisko" size="sm" />
+            <AppInput v-model="userForm.username" label="Login" placeholder="Login" size="sm" />
+            <AppInput v-model="userForm.email" label="Email" type="email" placeholder="email@firma.pl" size="sm" />
+            <AppPasswordInput
+              v-if="!userForm.id"
+              v-model="userForm.password"
+              label="Hasło"
+              placeholder="Hasło startowe"
+              autocomplete="new-password"
+              size="sm"
+            />
+          </div>
+
+          <div v-else-if="userDrawerTab === 'roles'" class="ui-table-shell">
+            <div
+              v-for="role in store.roles"
+              :key="role.id"
+              class="flex cursor-pointer items-center gap-2 border-b border-ui-divider px-3 py-2 text-sm transition last:border-0 hover:bg-ui-hover"
+              :title="roleTitle(role)"
+              @click="canChangeUserRoles && toggleUserRole(role.id)"
+            >
+              <AppCheckbox
+                :model-value="userForm.roleIds.includes(role.id)"
+                :aria-label="role.name"
+                :disabled="!canChangeUserRoles"
+                @click.stop
+                @update:model-value="toggleUserRole(role.id)"
+              />
+              <span class="min-w-0 truncate font-medium text-ui-text">{{ role.name }}</span>
+            </div>
+          </div>
+
+          <div v-else class="space-y-3">
+            <AppInput v-model="permissionOverrideSearch" placeholder="Szukaj uprawnienia" size="sm" clearable />
+            <section class="ui-table-shell">
+              <table class="ui-table">
+                <thead class="ui-table-head">
+                  <tr>
+                    <th class="py-2 pl-3 pr-3 font-medium">Uprawnienie</th>
+                    <th class="w-20 py-2 pr-2 text-center font-medium">Grant</th>
+                    <th class="w-20 py-2 pr-3 text-center font-medium">Deny</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="permission in overridePermissions" :key="permission.code" class="ui-table-row" :title="permissionTitle(permission)">
+                    <td class="py-2 pl-3 pr-3 font-medium text-ui-text">{{ permission.name || permission.code }}</td>
+                    <td class="py-2 pr-2 text-center">
+                      <AppIconButton
+                        size="sm"
+                        label="Nadaj uprawnienie"
+                        :class="overrideEffectFor(permission.code) === 'GRANT' ? '!border-success-100 !bg-success-50 !text-success-600 dark:!border-success-400/50 dark:!bg-success-400/10 dark:!text-success-400' : ''"
+                        :disabled="!canUpdateUsers"
+                        @click="toggleOverride(permission.code, 'GRANT')"
+                      >
+                        <CheckCircle2 class="h-4 w-4" />
+                      </AppIconButton>
+                    </td>
+                    <td class="py-2 pr-3 text-center">
+                      <AppIconButton
+                        size="sm"
+                        label="Odbierz uprawnienie"
+                        :class="overrideEffectFor(permission.code) === 'DENY' ? '!border-danger-100 !bg-danger-50 !text-danger-600 dark:!border-danger-400/50 dark:!bg-danger-400/10 dark:!text-danger-400' : ''"
+                        :disabled="!canUpdateUsers"
+                        @click="toggleOverride(permission.code, 'DENY')"
+                      >
+                        <X class="h-4 w-4" />
+                      </AppIconButton>
+                    </td>
+                  </tr>
+                  <tr v-if="!overridePermissions.length">
+                    <td colspan="3" class="py-6 text-center ui-body-sm text-ui-mutedText">Brak uprawnień pasujących do filtra.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </section>
+          </div>
+        </form>
+
+        <template #footer>
+          <AppButton v-if="userForm.id && canResetUserPassword" variant="secondary" type="button" @click="openPasswordResetModal">
+            <KeyRound class="h-4 w-4" />
+            Resetuj hasło
+          </AppButton>
+          <AppButton v-if="userForm.id && canBlockUsers" variant="secondary" type="button" :loading="isChangingUserStatus" @click="toggleSelectedUserStatus">
+            <component :is="userForm.active ? UserRoundX : UserRoundCheck" class="h-4 w-4" />
+            {{ userForm.active ? 'Zablokuj' : 'Odblokuj' }}
+          </AppButton>
+          <AppButton v-if="userForm.id" variant="danger" type="button" :disabled="!canDeleteUsers" @click="requestDeleteCurrentUser">
+            <Trash2 class="h-4 w-4" />
+            Usuń użytkownika
+          </AppButton>
+          <span class="flex-1"></span>
+          <AppButton variant="secondary" type="button" @click="closeUserDrawer">Anuluj</AppButton>
+          <AppButton form="company-user-form" type="submit" :loading="store.isMutating" :disabled="!canSaveUserForm">
+            <Save class="h-4 w-4" />
+            {{ userForm.id ? 'Zapisz' : 'Dodaj' }}
+          </AppButton>
+        </template>
+      </AppDrawer>
+
+      <AppModal
+        :open="Boolean(roleToDelete || userToDelete)"
+        :title="roleToDelete ? 'Usunąć rolę?' : 'Usunąć użytkownika?'"
+        :description="deleteMessage"
+        size="sm"
+        :busy="store.isMutating"
+        @close="clearDeleteTargets"
+      >
+        <p class="ui-body-sm text-ui-mutedText">Tej operacji nie można cofnąć.</p>
+        <template #footer>
+          <AppButton variant="secondary" @click="clearDeleteTargets">Anuluj</AppButton>
+          <AppButton
+            variant="danger"
+            :loading="store.isMutating"
+            :disabled="roleToDelete ? !canDeleteRoles : !canDeleteUsers"
+            @click="confirmDelete"
+          >
+            Usuń
+          </AppButton>
+        </template>
+      </AppModal>
+
+      <AppModal
+        :open="Boolean(passwordResetUser)"
+        title="Resetuj hasło"
+        :description="passwordResetUser ? displayUserName(passwordResetUser) : undefined"
+        size="sm"
+        :busy="store.isMutating"
+        @close="closePasswordResetModal"
+      >
+        <form id="password-reset-form" class="space-y-3" @submit.prevent="submitPasswordReset">
+          <AppPasswordInput
+            id="company-user-new-password"
+            v-model="passwordResetForm.newPassword"
+            label="Nowe hasło"
+            autocomplete="new-password"
+            required
+          />
+          <AppPasswordInput
+            id="company-user-repeat-password"
+            v-model="passwordResetForm.repeatPassword"
+            label="Powtórz hasło"
+            autocomplete="new-password"
+            required
+          />
+          <p v-if="passwordResetError" class="ui-error">{{ passwordResetError }}</p>
+        </form>
+        <template #footer>
+          <AppButton variant="secondary" type="button" @click="closePasswordResetModal">Anuluj</AppButton>
+          <AppButton form="password-reset-form" type="submit" :loading="store.isMutating">
+            <KeyRound class="h-4 w-4" />
+            Zmień hasło
+          </AppButton>
+        </template>
+      </AppModal>
     </Teleport>
   </div>
 </template>
@@ -643,8 +444,6 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   CheckCircle2,
-  Eye,
-  EyeOff,
   KeyRound,
   Plus,
   Save,
@@ -662,7 +461,12 @@ import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
+import AppDrawer from '@/components/ui/AppDrawer.vue'
+import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppModal from '@/components/ui/AppModal.vue'
+import AppPasswordInput from '@/components/ui/AppPasswordInput.vue'
+import AppTabs from '@/components/ui/AppTabs.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useCompanyManagementStore } from '@/stores/companyManagementStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -772,7 +576,6 @@ const activeSection = ref<SectionKey>(readStoredSection())
 const userDrawerTab = ref<UserDrawerTab>(readStoredUserDrawerTab())
 const roleSearch = ref('')
 const userSearch = ref('')
-const permissionMatrixSearch = ref('')
 const rolePermissionSearch = ref('')
 const permissionOverrideSearch = ref('')
 const roleToDelete = ref<CompanyRole | null>(null)
@@ -803,7 +606,6 @@ const userForm = reactive({
 const passwordResetForm = reactive({
   newPassword: '',
   repeatPassword: '',
-  showPassword: false,
 })
 const passwordResetError = ref('')
 
@@ -848,7 +650,6 @@ const filteredRoles = computed(() => {
   ].some((value) => value.toLowerCase().includes(query)))
 })
 
-const matrixPermissionCategories = computed(() => groupPermissions(filterPermissions(store.permissions, permissionMatrixSearch.value)))
 const roleDrawerPermissions = computed(() => [...filterPermissions(store.permissions, rolePermissionSearch.value)].sort(comparePermissions))
 const roleDrawerPermissionCategories = computed(() => groupPermissions(filterPermissions(store.permissions, rolePermissionSearch.value)))
 const overridePermissions = computed(() => [...filterPermissions(store.permissions, permissionOverrideSearch.value)].sort(comparePermissions))
@@ -907,6 +708,14 @@ function readStoredUserDrawerTab(): UserDrawerTab {
   }
 
   return 'info'
+}
+
+function setActiveSection(value: string) {
+  if (value === 'roles' || value === 'users') activeSection.value = value
+}
+
+function setUserDrawerTab(value: string) {
+  if (value === 'info' || value === 'roles' || value === 'permissions') userDrawerTab.value = value
 }
 
 function normalizeCategory(category?: string | null) {
@@ -1019,45 +828,6 @@ function roleTitle(role: CompanyRole) {
     role.code,
     role.permissions.map(permissionLabel).join(', '),
   ].filter(Boolean).join(' · ')
-}
-
-function roleHasPermission(role: CompanyRole, permissionCode: string) {
-  return role.permissions.includes(permissionCode)
-}
-
-async function setRolePermission(role: CompanyRole, permissionCode: string, isEnabled: boolean) {
-  if (role.editable === false || !canUpdateRoles.value) {
-    return
-  }
-
-  const permissions = new Set(role.permissions)
-
-  if (isEnabled) {
-    permissions.add(permissionCode)
-  } else {
-    permissions.delete(permissionCode)
-  }
-
-  try {
-    await store.updateRolePermissions(role.id, [...permissions])
-    uiStore.addToast({
-      type: 'success',
-      title: 'Uprawnienia zapisane',
-      message: `Zaktualizowano rolę ${role.name}.`,
-    })
-  } catch {
-    uiStore.addToast({
-      type: 'error',
-      title: 'Błąd uprawnień',
-      message: 'Nie udało się zapisać uprawnień roli.',
-    })
-  }
-}
-
-function matrixTableStyle(permissionCount: number) {
-  return {
-    minWidth: `${Math.max(620, 220 + permissionCount * 150)}px`,
-  }
 }
 
 function resetRoleForm() {
@@ -1210,7 +980,6 @@ function openPasswordResetModal() {
 
   passwordResetForm.newPassword = ''
   passwordResetForm.repeatPassword = ''
-  passwordResetForm.showPassword = false
   passwordResetError.value = ''
   passwordResetUser.value = selectedUser.value
 }
@@ -1219,7 +988,6 @@ function closePasswordResetModal() {
   passwordResetUser.value = null
   passwordResetForm.newPassword = ''
   passwordResetForm.repeatPassword = ''
-  passwordResetForm.showPassword = false
   passwordResetError.value = ''
 }
 
@@ -1493,26 +1261,3 @@ onMounted(async () => {
   await reload()
 })
 </script>
-
-<style scoped>
-.company-management-drawer {
-  animation: drawer-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
-}
-
-@keyframes drawer-in {
-  from {
-    transform: translateX(100%);
-  }
-
-  to {
-    transform: translateX(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .company-management-drawer {
-    animation: none;
-  }
-}
-</style>

@@ -4,10 +4,6 @@
     :class="isKanbanTab ? 'xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:overflow-hidden' : ''"
   >
     <header class="flex w-full min-w-0 shrink-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold text-slate-950 dark:text-slate-50">Naprawy</h1>
-      </div>
-
       <div class="flex min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
         <AppInput
           v-model="repairSearch"
@@ -18,15 +14,13 @@
           clearable
         />
         <div class="flex min-w-0 max-w-full items-end gap-2">
-          <button
-            type="button"
-            class="icon-button"
+          <AppIconButton
+            label="Poprzedni tydzień"
             :disabled="!canSelectPreviousWeek"
-            aria-label="Poprzedni tydzień"
             @click="selectAdjacentWeek(-1)"
           >
             <ChevronLeft class="h-4 w-4" />
-          </button>
+          </AppIconButton>
           <AppSelect
             v-model="selectedWeekKey"
             class="min-w-0 flex-1 sm:w-72 sm:flex-none"
@@ -34,15 +28,13 @@
             :options="weekOptions"
             size="sm"
           />
-          <button
-            type="button"
-            class="icon-button"
+          <AppIconButton
+            label="Następny tydzień"
             :disabled="!canSelectNextWeek"
-            aria-label="Następny tydzień"
             @click="selectAdjacentWeek(1)"
           >
             <ChevronRight class="h-4 w-4" />
-          </button>
+          </AppIconButton>
         </div>
         <AppButton
           size="sm"
@@ -58,6 +50,8 @@
           Mechanicy
         </AppButton>
       </div>
+
+      <h1 class="shrink-0 text-right ui-page-title">Naprawy</h1>
     </header>
 
     <AppSelect
@@ -68,19 +62,13 @@
       size="sm"
     />
 
-    <div class="hidden w-full min-w-0 shrink-0 flex-wrap gap-2 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel md:flex">
-      <button
-        v-for="tab in visibleTabs"
-        :key="tab.value"
-        type="button"
-        class="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-medium transition"
-        :class="activeTab === tab.value ? 'bg-slate-950 text-white dark:bg-slate-100 dark:text-app-dark' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-app-elevated dark:hover:text-slate-50'"
-        @click="activeTab = tab.value"
-      >
-        <component :is="tab.icon" class="h-4 w-4" />
-        {{ tab.label }}
-      </button>
-    </div>
+    <AppTabs
+      class="hidden w-fit shrink-0 md:inline-flex"
+      :model-value="activeTab"
+      :items="visibleTabs"
+      aria-label="Widok napraw"
+      @update:model-value="setActiveTab"
+    />
 
     <section v-if="!isLoading && isKanbanTab" class="grid shrink-0 grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
       <article class="repair-stat-tile">
@@ -275,24 +263,22 @@
                 </td>
                 <td class="px-2 py-1.5">
                   <div class="flex justify-end gap-1">
-                    <button
-                      type="button"
-                      class="icon-button"
-                      title="Generuj PDF"
+                    <AppIconButton
+                      size="sm"
+                      label="Generuj PDF"
                       :aria-label="`Generuj PDF naprawy ${repairVehicleLabel(repair)}`"
                       @click="generateRepairsPdf([repair])"
                     >
                       <FileDown class="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      class="icon-button"
-                      title="Szczegóły naprawy"
+                    </AppIconButton>
+                    <AppIconButton
+                      size="sm"
+                      label="Szczegóły naprawy"
                       :aria-label="`Otwórz naprawę ${repairVehicleLabel(repair)}`"
                       @click="openRepairDetails(repair)"
                     >
                       <SquarePen class="h-4 w-4" />
-                    </button>
+                    </AppIconButton>
                   </div>
                 </td>
               </tr>
@@ -372,160 +358,198 @@
       </div>
     </section>
 
-    <Teleport to="body">
-      <div
-        v-if="isCreateModalOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-slate-950/55 p-3 sm:p-6"
-        @click.self="closeCreateModal"
+    <AppModal
+      :open="isCreateModalOpen"
+      title="Dodaj nową naprawę"
+      size="xl"
+      :busy="isMutating"
+      :close-on-backdrop="false"
+      :close-on-escape="false"
+      panel-class="h-[calc(100dvh-1.5rem)] sm:h-[calc(100dvh-3rem)] sm:max-h-[46rem]"
+      body-class="!flex !min-h-0 !flex-1 !flex-col !overflow-hidden !bg-ui-surface !p-4 sm:!p-5"
+      @close="closeCreateModal"
+    >
+      <div v-if="!createResult" class="flex shrink-0 justify-center border-b border-ui-divider pb-4">
+        <AppStepIndicator
+          :steps="createWizardSteps"
+          :current-step="createWizardStep"
+          :max-reachable-step="createMaxReachableStep"
+          @select="selectCreateWizardStep"
+        />
+      </div>
+
+      <form
+        v-if="!createResult"
+        id="create-repair-form"
+        class="min-h-0 flex-1 overflow-hidden pt-4"
+        @submit.prevent="createWizardStep === 0 ? goToCreateFaultsStep() : submitCreateRepair()"
       >
-        <form
-          class="flex h-[calc(100dvh-1.5rem)] w-[min(74rem,calc(100vw-1.5rem))] max-w-none flex-col overflow-hidden rounded-2xl border border-slate-300 bg-slate-100 shadow-2xl dark:border-app-border dark:bg-app-dark sm:h-[calc(100dvh-3rem)] sm:w-[min(74rem,calc(100vw-3rem))]"
-          @submit.prevent="submitCreateRepair"
-        >
-          <header class="flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4 dark:border-app-border dark:bg-app-panel">
-            <div class="min-w-0">
-              <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Dodaj nową naprawę</h2>
+          <section v-if="createWizardStep === 0" class="mx-auto h-full max-w-4xl overflow-y-auto px-1 pb-1">
+            <div class="grid gap-4 sm:grid-cols-2">
+              <AppSearchSelect
+                v-model="createForm.vehicleId"
+                label="Pojazd"
+                placeholder="Wybierz pojazd"
+                :options="vehicleOptions"
+                :error="createDetailsError && !createForm.vehicleId ? 'Wybierz pojazd.' : undefined"
+              />
+              <AppSearchSelect
+                v-model="createForm.placeId"
+                label="Miejsce"
+                placeholder="Wybierz miejsce"
+                :options="placeOptions"
+                :error="createDetailsError && !createForm.placeId ? 'Wybierz miejsce naprawy.' : undefined"
+              />
+              <div
+                v-if="existingWeekRepairForCreateVehicle"
+                class="flex flex-col gap-3 rounded-[var(--rw-radius-control)] border border-warning-100 bg-warning-50 px-4 py-3 text-warning-600 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between dark:border-warning-400/40 dark:bg-warning-400/10 dark:text-warning-400"
+              >
+                <div class="flex min-w-0 items-start gap-3">
+                  <CalendarClock class="mt-0.5 h-5 w-5 shrink-0 text-ui-icon" />
+                  <p class="min-w-0 text-sm font-semibold">Dla tego pojazdu istnieje już naprawa w tym tygodniu.</p>
+                </div>
+                <AppButton type="button" size="sm" variant="secondary" class="shrink-0" @click="openRepairFromCreate(existingWeekRepairForCreateVehicle)">
+                  Przejdź do naprawy
+                </AppButton>
+              </div>
+              <div
+                v-else-if="existingOpenRepairForCreateVehicle"
+                class="flex flex-col gap-3 rounded-[var(--rw-radius-control)] border border-warning-100 bg-warning-50 px-4 py-3 text-warning-600 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between dark:border-warning-400/40 dark:bg-warning-400/10 dark:text-warning-400"
+              >
+                <div class="flex min-w-0 items-start gap-3">
+                  <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0" />
+                  <p class="min-w-0 text-sm font-semibold">Dla tego pojazdu istnieje już niezamknięta naprawa.</p>
+                </div>
+                <AppButton type="button" size="sm" variant="secondary" class="shrink-0" @click="openRepairFromCreate(existingOpenRepairForCreateVehicle)">
+                  Przejdź do naprawy
+                </AppButton>
+              </div>
+              <AppSelect v-model="createForm.status" label="Status" :options="repairStatusOptions" />
+              <AppDateTimePicker v-model="createForm.arrivalAt" label="Planowany przyjazd" default-time="08:00" />
+              <AppDateTimePicker v-model="createForm.departureAt" label="Planowany wyjazd" default-time="16:00" />
+              <AppTextarea v-model="createForm.description" class="sm:col-span-2" label="Uwagi" placeholder="Uwagi do naprawy" :rows="4" />
             </div>
-            <button type="button" class="icon-button" aria-label="Zamknij modal" @click="closeCreateModal">
-              <X class="h-4 w-4" />
-            </button>
-          </header>
+          </section>
 
-          <div class="min-h-0 flex-1 overflow-y-auto bg-slate-100/80 p-3 dark:bg-app-dark sm:p-4 xl:overflow-hidden">
-            <div class="grid min-h-full gap-3 xl:h-full xl:min-h-0 xl:grid-cols-[minmax(18rem,0.72fr)_minmax(0,1.28fr)]">
-              <section class="self-start rounded-2xl border border-slate-300 bg-white p-3 shadow-sm dark:border-app-border dark:bg-app-panel">
-                <div class="mb-3 flex items-center justify-between gap-3">
-                  <div>
-                    <h3 class="text-sm font-semibold text-slate-950 dark:text-slate-50">Dane naprawy</h3>
-                  </div>
-                  <AppBadge>1</AppBadge>
+          <section v-else class="flex h-full min-h-0 flex-col">
+            <div class="mb-4 flex shrink-0 items-center justify-between gap-3">
+              <h3 class="ui-section-title">Usterki</h3>
+              <AppBadge>{{ draftFaults.length }}</AppBadge>
+            </div>
+
+            <div class="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+              <article
+                v-for="(fault, index) in draftFaults"
+                :key="fault.id"
+                class="rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-muted p-3.5"
+              >
+                <div class="mb-2 flex items-center justify-between gap-3">
+                  <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--rw-radius-item)] border border-ui-border bg-ui-surface text-sm font-semibold text-ui-text shadow-soft">
+                    {{ index + 1 }}
+                  </span>
+                  <AppIconButton label="Usuń usterkę" size="sm" variant="ghost" @click="removeDraftFault(fault.id)">
+                    <Trash2 class="h-4 w-4" />
+                  </AppIconButton>
                 </div>
 
-                <div class="space-y-2.5">
-                  <AppSearchSelect v-model="createForm.vehicleId" label="Pojazd" placeholder="Wybierz pojazd" :options="vehicleOptions" size="sm" />
-                  <AppSearchSelect v-model="createForm.placeId" label="Miejsce" placeholder="Wybierz miejsce" :options="placeOptions" size="sm" />
-                  <AppSelect v-model="createForm.status" label="Status" :options="repairStatusOptions" size="sm" />
-                  <AppDateTimePicker v-model="createForm.arrivalAt" label="Planowany przyjazd" default-time="08:00" size="sm" />
-                  <AppDateTimePicker v-model="createForm.departureAt" label="Planowany wyjazd" default-time="16:00" size="sm" />
-                  <label class="block">
-                    <span class="mb-1.5 block text-xs font-medium text-slate-700 dark:text-slate-200">Uwagi</span>
-                    <textarea
-                      v-model="createForm.description"
-                      class="min-h-16 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-app-border dark:bg-app-dark dark:text-slate-50 dark:placeholder:text-app-muted dark:focus:border-app-muted dark:focus:ring-app-elevated"
-                      placeholder="Uwagi do naprawy"
-                    ></textarea>
-                  </label>
-                </div>
-              </section>
+                <AppInput
+                  v-model="fault.description"
+                  label="Opis usterki"
+                  placeholder="Np. wymiana klocków, światła, plandeka..."
+                  :disabled="!canCreateFaults"
+                />
 
-              <section class="flex min-h-0 flex-col rounded-2xl border border-slate-300 bg-white p-3 shadow-sm dark:border-app-border dark:bg-app-panel xl:overflow-hidden">
-                <div class="mb-3 flex shrink-0 items-center justify-between gap-3">
-                  <div>
-                    <h3 class="text-sm font-semibold text-slate-950 dark:text-slate-50">Kolejka usterek</h3>
-                  </div>
-                  <AppBadge>{{ draftFaults.length }}</AppBadge>
-                </div>
-
-                <div class="max-h-[48dvh] min-h-0 space-y-2.5 overflow-y-auto pr-1 xl:max-h-none xl:flex-1">
-                  <article
-                    v-for="(fault, index) in draftFaults"
-                    :key="fault.id"
-                    class="rounded-2xl border border-slate-200 bg-slate-50 p-2.5 shadow-sm ring-1 ring-slate-200/70 dark:border-app-border dark:bg-app-dark dark:ring-white/5"
-                  >
-                    <div class="mb-2.5 flex items-center justify-between gap-3">
-                      <div class="flex min-w-0 items-center gap-2">
-                        <span class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-950 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-50">
-                          {{ index + 1 }}
-                        </span>
-                      </div>
-                      <button type="button" class="icon-button shrink-0" aria-label="Usuń usterkę" @click="removeDraftFault(fault.id)">
-                        <Trash2 class="h-4 w-4" />
-                      </button>
+                <section class="mt-3 rounded-[var(--rw-radius-control)] border border-ui-divider bg-ui-surface p-3">
+                  <div class="mb-2 flex items-center justify-between gap-2">
+                    <div class="flex min-w-0 items-center gap-2">
+                      <ImagePlus class="h-4 w-4 shrink-0 text-ui-icon" />
+                      <h4 class="truncate ui-label text-ui-text">Zdjęcia</h4>
                     </div>
-                    <AppInput
-                      v-model="fault.description"
-                      label="Opis usterki"
-                      placeholder="Np. Wymiana klocków, światła, plandeka..."
-                      size="sm"
-                      :disabled="!canCreateFaults"
-                    />
-
-                    <section class="mt-2 rounded-2xl border border-slate-200 bg-white p-2 dark:border-app-border dark:bg-app-panel">
-                      <div class="mb-2 flex items-center justify-between gap-2">
-                        <div class="flex min-w-0 items-center gap-2">
-                          <ImagePlus class="h-4 w-4 shrink-0 text-slate-400" />
-                          <h4 class="truncate text-xs font-semibold text-slate-950 dark:text-slate-50">Zdjęcia</h4>
-                        </div>
-                        <AppBadge>{{ fault.photos.length }}</AppBadge>
-                      </div>
-
-                      <button
-                        type="button"
-                        class="flex min-h-16 flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-center text-xs font-semibold text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated"
-                        :class="canAddFaultPhotos ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
-                        :title="!canAddFaultPhotos ? 'Brak uprawnienia: fault_photos.add' : undefined"
-                        :disabled="isMutating || !canAddFaultPhotos"
-                        @click="openDraftFaultPhotoAdd(fault.id)"
-                      >
-                        <ImagePlus class="h-4 w-4" />
-                        Dodaj zdjęcia
-                      </button>
-
-                      <p v-if="fault.photoError" class="mt-2 text-xs font-medium text-danger-600 dark:text-danger-400">
-                        {{ fault.photoError }}
-                      </p>
-
-                      <div v-if="fault.photos.length" class="mt-2 grid max-h-28 grid-cols-[repeat(auto-fill,minmax(3.75rem,1fr))] gap-2 overflow-y-auto pr-1">
-                        <article
-                          v-for="photo in fault.photos"
-                          :key="photo.id"
-                          class="group relative aspect-square overflow-hidden rounded-xl border border-slate-100 bg-slate-100 dark:border-app-border dark:bg-app-elevated"
-                        >
-                          <img :src="photo.objectUrl" :alt="photo.file.name" class="h-full w-full object-cover" />
-                          <button
-                            type="button"
-                            class="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-950/70 text-white transition hover:bg-slate-950"
-                            aria-label="Usuń zdjęcie z dodawanej usterki"
-                            @click="removeDraftFaultPhoto(fault.id, photo.id)"
-                          >
-                            <X class="h-3 w-3" />
-                          </button>
-                        </article>
-                      </div>
-                    </section>
-                  </article>
+                    <AppBadge>{{ fault.photos.length }}</AppBadge>
+                  </div>
 
                   <button
                     type="button"
-                    class="flex min-h-24 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center text-sm font-semibold text-slate-500 transition hover:border-slate-400 hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
-                    :disabled="!canCreateFaults"
-                    :title="!canCreateFaults ? 'Brak uprawnienia: faults.create' : undefined"
-                    @click="addDraftFault"
+                    class="flex min-h-16 w-full flex-col items-center justify-center gap-1.5 rounded-[var(--rw-radius-control)] border border-dashed border-ui-border bg-ui-input px-3 py-3 text-center text-sm font-medium text-ui-text-secondary transition hover:border-ui-border-strong hover:bg-ui-hover hover:text-ui-text disabled:cursor-not-allowed disabled:bg-ui-disabled disabled:text-ui-disabled-text"
+                    :disabled="isMutating || !canAddFaultPhotos"
+                    @click="openDraftFaultPhotoAdd(fault.id)"
                   >
-                    <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 dark:border-app-border dark:bg-app-panel">
-                      <Plus class="h-5 w-5" />
-                    </span>
-                    Dodaj kolejną usterkę
+                    <ImagePlus class="h-4 w-4" />
+                    Dodaj zdjęcia
                   </button>
-                </div>
-              </section>
-            </div>
-          </div>
 
-          <footer class="flex flex-col-reverse gap-2 border-t border-slate-200 bg-white px-5 py-4 dark:border-app-border dark:bg-app-panel sm:flex-row sm:justify-end">
-            <AppButton type="button" variant="secondary" @click="closeCreateModal">Anuluj</AppButton>
-            <AppButton
-              type="submit"
-              :loading="isMutating"
-              :disabled="!canCreateRepairs"
-              :title="!canCreateRepairs ? 'Brak uprawnienia: repairs.create' : undefined"
-            >
-              Zapisz naprawę
-            </AppButton>
-          </footer>
-        </form>
-      </div>
-    </Teleport>
+                  <p v-if="fault.photoError" class="mt-2 ui-error">{{ fault.photoError }}</p>
+
+                  <div v-if="fault.photos.length" class="mt-2 grid max-h-28 grid-cols-[repeat(auto-fill,minmax(3.75rem,1fr))] gap-2 overflow-y-auto pr-1">
+                    <article
+                      v-for="photo in fault.photos"
+                      :key="photo.id"
+                      class="group relative aspect-square overflow-hidden rounded-[var(--rw-radius-item)] border border-ui-border bg-ui-muted"
+                    >
+                      <img :src="photo.objectUrl" :alt="photo.file.name" class="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        class="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-ui-overlay/75 text-white transition hover:bg-ui-overlay"
+                        aria-label="Usuń zdjęcie z dodawanej usterki"
+                        @click="removeDraftFaultPhoto(fault.id, photo.id)"
+                      >
+                        <X class="h-3 w-3" />
+                      </button>
+                    </article>
+                  </div>
+                </section>
+              </article>
+
+              <button
+                type="button"
+                class="flex min-h-20 w-full flex-col items-center justify-center gap-2 rounded-[var(--rw-radius-panel)] border border-dashed border-ui-border bg-ui-surface px-4 py-4 text-center text-sm font-medium text-ui-text-secondary transition hover:border-ui-border-strong hover:bg-ui-hover hover:text-ui-text disabled:cursor-not-allowed disabled:bg-ui-disabled disabled:text-ui-disabled-text"
+                :disabled="!canCreateFaults"
+                @click="addDraftFault"
+              >
+                <span class="inline-flex h-9 w-9 items-center justify-center rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted">
+                  <Plus class="h-4 w-4" />
+                </span>
+                Dodaj kolejną usterkę
+              </button>
+            </div>
+          </section>
+      </form>
+
+      <section v-else class="mx-auto flex min-h-0 max-w-xl flex-1 flex-col items-center justify-center px-4 py-8 text-center">
+        <div
+          class="grid h-16 w-16 place-items-center rounded-full"
+          :class="createResult === 'success' ? 'bg-success-50 text-success-600 dark:bg-success-500/10 dark:text-success-400' : 'bg-danger-50 text-danger-600 dark:bg-danger-500/10 dark:text-danger-400'"
+        >
+          <CircleCheck v-if="createResult === 'success'" class="h-9 w-9" />
+          <CircleX v-else class="h-9 w-9" />
+        </div>
+        <h3 class="mt-4 text-xl font-semibold text-ui-text">
+          {{ createResult === 'success' ? 'Naprawa dodana!' : 'Napotkano problem' }}
+        </h3>
+        <p class="mt-2 max-w-md ui-body-sm text-ui-mutedText">{{ createResultMessage }}</p>
+      </section>
+
+      <template #footer>
+        <template v-if="createResult === 'success'">
+          <AppButton type="button" variant="secondary" @click="closeCreateModal">Zamknij</AppButton>
+          <AppButton type="button" @click="openCreatedRepair">Przejdź do naprawy</AppButton>
+        </template>
+        <template v-else-if="createResult === 'error'">
+          <AppButton type="button" variant="secondary" @click="returnToCreateFaults">Wróć do usterek</AppButton>
+          <AppButton type="button" :loading="isMutating" @click="submitCreateRepair">Spróbuj ponownie</AppButton>
+        </template>
+        <template v-else-if="createWizardStep === 0">
+          <AppButton type="button" variant="secondary" @click="closeCreateModal">Anuluj</AppButton>
+          <AppButton form="create-repair-form" type="submit">Dalej</AppButton>
+        </template>
+        <template v-else>
+          <AppButton type="button" variant="secondary" @click="selectCreateWizardStep(0)">Wstecz</AppButton>
+          <AppButton form="create-repair-form" type="submit" :loading="isMutating" :disabled="!canCreateRepairs">
+            Zapisz naprawę
+          </AppButton>
+        </template>
+      </template>
+    </AppModal>
 
     <input
       ref="draftFaultPhotoInput"
@@ -548,7 +572,7 @@
     <Teleport to="body">
       <div
         v-if="draftPhotoPickerFaultId"
-        class="fixed inset-0 z-[80] flex items-end justify-center bg-transparent p-3 md:hidden"
+        class="fixed inset-0 z-[360] flex items-end justify-center bg-transparent p-3 md:hidden"
         @click.self="closeDraftPhotoPickerMenu"
       >
         <section class="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-app-border dark:bg-app-panel">
@@ -585,25 +609,15 @@
       </div>
     </Teleport>
 
-    <Teleport to="body">
-      <div
-        v-if="isMechanicsModalOpen"
-        class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/40 p-3 sm:p-6"
-        @click.self="closeMechanicsModal"
-      >
-        <section class="my-auto flex max-h-[calc(100vh-2rem)] w-[min(42rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <div>
-              <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Mechanicy</h2>
-              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Zarządzanie listą osób dostępnych przy usterkach.</p>
-            </div>
-            <button type="button" class="icon-button" aria-label="Zamknij modal" @click="closeMechanicsModal">
-              <X class="h-4 w-4" />
-            </button>
-          </header>
-
-          <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-            <form class="grid gap-3 rounded-2xl border border-slate-100 p-3 dark:border-app-border sm:grid-cols-[1fr_1fr_auto]" @submit.prevent="submitMechanic">
+    <AppModal
+      :open="isMechanicsModalOpen"
+      title="Mechanicy"
+      description="Zarządzanie listą osób dostępnych przy usterkach."
+      size="md"
+      :busy="isMutating"
+      @close="closeMechanicsModal"
+    >
+            <form class="grid gap-3 rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-muted p-3 sm:grid-cols-[1fr_1fr_auto]" @submit.prevent="submitMechanic">
               <AppInput v-model="mechanicForm.firstName" label="Imię" placeholder="Imię" size="sm" />
               <AppInput v-model="mechanicForm.lastName" label="Nazwisko" placeholder="Nazwisko" size="sm" />
               <div class="flex items-end gap-2">
@@ -618,8 +632,8 @@
               </div>
             </form>
 
-            <div class="mt-4 overflow-hidden rounded-2xl border border-slate-100 dark:border-app-border">
-              <div class="hidden grid-cols-[1fr_9rem] gap-3 border-b border-slate-100 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase text-slate-500 dark:border-app-border dark:bg-app-dark dark:text-slate-400 sm:grid">
+            <div class="ui-table-shell mt-4">
+              <div class="hidden grid-cols-[1fr_9rem] gap-3 border-b border-ui-divider bg-ui-muted px-3 py-2 ui-caption sm:grid">
                 <span>Mechanik</span>
                 <span class="text-right">Akcje</span>
               </div>
@@ -627,61 +641,40 @@
               <div
                 v-for="mechanic in mechanics"
                 :key="mechanic.id"
-                class="grid gap-2 border-b border-slate-100 px-3 py-2 last:border-b-0 dark:border-app-border sm:grid-cols-[1fr_9rem] sm:items-center"
+                class="grid gap-2 border-b border-ui-divider px-3 py-2 transition last:border-b-0 hover:bg-ui-hover sm:grid-cols-[1fr_9rem] sm:items-center"
               >
                 <div class="min-w-0">
-                  <p class="truncate text-sm font-semibold text-slate-950 dark:text-slate-50">{{ mechanicDisplayName(mechanic) }}</p>
-                  <p class="text-xs text-slate-500 dark:text-slate-400">ID: {{ mechanic.id }}</p>
+                  <p class="truncate text-sm font-semibold text-ui-text">{{ mechanicDisplayName(mechanic) }}</p>
+                  <p class="ui-caption">ID: {{ mechanic.id }}</p>
                 </div>
                 <div class="flex flex-wrap justify-start gap-1 sm:justify-end">
-                  <button
-                    type="button"
-                    class="inline-flex h-8 items-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
-                    @click="editMechanic(mechanic)"
-                  >
+                  <AppButton type="button" size="sm" variant="ghost" @click="editMechanic(mechanic)">
                     <SquarePen class="h-4 w-4" />
                     Edytuj
-                  </button>
-                  <button
-                    type="button"
-                    class="inline-flex h-8 items-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
-                    @click="mechanicToDelete = mechanic"
-                  >
+                  </AppButton>
+                  <AppButton type="button" size="sm" variant="ghost" @click="mechanicToDelete = mechanic">
                     <Trash2 class="h-4 w-4" />
                     Usuń
-                  </button>
+                  </AppButton>
                 </div>
               </div>
 
-              <div v-if="!mechanics.length" class="p-4 text-sm text-slate-500 dark:text-slate-400">
+              <div v-if="!mechanics.length" class="ui-empty-state border-0">
                 Brak mechaników.
               </div>
             </div>
-          </div>
-        </section>
-      </div>
-    </Teleport>
+    </AppModal>
 
-    <Teleport to="body">
-      <div
-        v-if="mechanicToDelete"
-        class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="mechanicToDelete = null"
-      >
-        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Usunąć mechanika?</h2>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Czy na pewno chcesz usunąć mechanika {{ mechanicDisplayName(mechanicToDelete) }}?
-            </p>
-          </header>
-          <footer class="flex justify-end gap-2 px-5 py-4">
-            <AppButton variant="secondary" @click="mechanicToDelete = null">Anuluj</AppButton>
-            <AppButton variant="danger" :loading="isMutating" @click="confirmDeleteMechanic">Usuń</AppButton>
-          </footer>
-        </section>
-      </div>
-    </Teleport>
+    <AppConfirmModal
+      :open="Boolean(mechanicToDelete)"
+      title="Usunąć mechanika?"
+      :description="mechanicToDelete ? `Czy na pewno chcesz usunąć mechanika ${mechanicDisplayName(mechanicToDelete)}?` : undefined"
+      confirm-label="Usuń"
+      confirm-variant="danger"
+      :busy="isMutating"
+      @close="mechanicToDelete = null"
+      @confirm="confirmDeleteMechanic"
+    />
 
     <Teleport to="body">
       <div
@@ -701,6 +694,7 @@ import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import {
   Building2,
+  CalendarClock,
   Camera,
   Check,
   CheckCircle2,
@@ -708,6 +702,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleCheck,
+  CircleX,
   Clock,
   Columns3,
   FileDown,
@@ -716,6 +711,7 @@ import {
   Percent,
   Plus,
   SquarePen,
+  TriangleAlert,
   Trash2,
   Users,
   Wrench,
@@ -724,10 +720,17 @@ import {
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
+import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
+import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppModal from '@/components/ui/AppModal.vue'
 import AppSearchSelect, { type AppSearchSelectOption } from '@/components/ui/AppSearchSelect.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
+import AppStepIndicator from '@/components/ui/AppStepIndicator.vue'
+import AppTabs from '@/components/ui/AppTabs.vue'
+import AppTextarea from '@/components/ui/AppTextarea.vue'
+import { getApiErrorMessage } from '@/services/api'
 import { loadGoogleMaps } from '@/services/googleMapsLoader'
 import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
@@ -786,7 +789,6 @@ const collapsedRepairColumnKeys = ref<Set<RepairColumnKey>>(new Set())
 const collapsedRepairIds = ref<Set<number>>(new Set())
 const expandedFieldRepairIds = ref<Set<number>>(new Set())
 const selectedFieldRepairIds = ref<Set<number>>(new Set())
-const nowTick = ref(Date.now())
 const isCreateModalOpen = ref(false)
 const isMechanicsModalOpen = ref(false)
 const mechanicToDelete = ref<Mechanic | null>(null)
@@ -804,6 +806,16 @@ const createForm = reactive({
   departureAt: '',
   description: '',
 })
+const createWizardSteps = [
+  { label: 'Dane naprawy' },
+  { label: 'Usterki' },
+]
+const createWizardStep = ref(0)
+const createMaxReachableStep = ref(0)
+const createDetailsError = ref(false)
+const createResult = ref<'success' | 'error' | null>(null)
+const createResultMessage = ref('')
+const createdRepair = ref<Repair | null>(null)
 const draftFaults = ref<DraftFault[]>([createDraftFault()])
 const mechanicForm = reactive({
   id: null as number | null,
@@ -813,7 +825,6 @@ const mechanicForm = reactive({
 let googleRef: any = null
 let repairMap: any = null
 let repairMarkers: any[] = []
-let clockInterval: number | null = null
 
 const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 const MAX_PHOTO_SIZE = 20 * 1024 * 1024
@@ -831,6 +842,10 @@ const tabOptions = computed<AppSelectOption[]>(() => visibleTabs.value.map((tab)
   label: tab.label,
 })))
 
+function setActiveTab(value: string) {
+  if (isVisibleTabKey(value)) activeTab.value = value
+}
+
 const repairStatusOptions: AppSelectOption[] = [
   { label: 'Nowa', value: 'new' },
   { label: 'Zaplanowana', value: 'planned' },
@@ -841,7 +856,9 @@ const repairStatusOptions: AppSelectOption[] = [
   { label: 'Anulowana', value: 'cancelled' },
 ]
 
-const weekOptions = computed<AppSelectOption[]>(() => weeks.value.map((week) => ({
+const weekOptions = computed<AppSelectOption[]>(() => [...weeks.value]
+  .sort((first, second) => second.start.localeCompare(first.start))
+  .map((week) => ({
   value: weekKey(week),
   label: `Tydzień ${week.week} (${formatDate(week.start)} - ${formatDate(week.end)})`,
 })))
@@ -862,8 +879,7 @@ const selectedWeekLabel = computed(() => selectedWeek.value
 const vehicleOptions = computed<AppSearchSelectOption[]>(() => fleetStore.apiVehicles.map((vehicle) => ({
   value: String(vehicle.id),
   label: vehicle.licensePlate,
-  description: [vehicle.make, vehicle.vin].filter(Boolean).join(' • '),
-  searchText: [vehicle.licensePlate, vehicle.make, vehicle.vin, vehicle.productionYear].filter(Boolean).join(' '),
+  searchText: vehicle.licensePlate,
 })))
 
 const placeOptions = computed<AppSearchSelectOption[]>(() => places.value.map((place) => ({
@@ -874,6 +890,32 @@ const placeOptions = computed<AppSearchSelectOption[]>(() => places.value.map((p
 const selectedWeekRepairs = computed(() => selectedWeek.value?.repairs?.length
   ? uniqueRepairs(selectedWeek.value.repairs)
   : uniqueRepairs(repairs.value.filter((repair) => selectedWeek.value ? isRepairInWeek(repair, selectedWeek.value) : true)))
+
+function repairMatchesCreateVehicle(repair: Repair) {
+  return String(repair.vehicle?.id ?? repair.vehicleId) === String(createForm.vehicleId)
+}
+
+const existingOpenRepairForCreateVehicle = computed(() => {
+  if (!createForm.vehicleId) return null
+
+  const availableRepairs = uniqueRepairs([
+    ...repairs.value,
+    ...weeks.value.flatMap((week) => week.repairs || []),
+    ...fieldAndUnassigned.value,
+  ])
+
+  return availableRepairs.find((repair) => {
+    const status = normalizeRepairStatus(repair.status)
+    return repairMatchesCreateVehicle(repair)
+      && status !== 'done'
+      && status !== 'cancelled'
+  }) || null
+})
+
+const existingWeekRepairForCreateVehicle = computed(() => {
+  if (!createForm.vehicleId) return null
+  return selectedWeekRepairs.value.find(repairMatchesCreateVehicle) || null
+})
 
 const filteredSelectedWeekRepairs = computed(() => selectedWeekRepairs.value.filter((repair) => repairMatchesSearch(repair)))
 
@@ -997,12 +1039,10 @@ const RepairCardContent = defineComponent({
   },
   setup(props) {
     return () => {
-      void nowTick.value
       const isExpanded = props.preview || !collapsedRepairIds.value.has(props.repair.id)
       const faults = props.repair.faults || []
       const totalFaults = props.repair.totalFaults || faults.length
       const isDone = normalizeRepairStatus(props.repair.status) === 'done'
-      const departureCountdown = departureCountdownLabel(props.repair.plannedDepartureAt)
       const countryCode = repairCountryCode(props.repair)
 
       return h('div', { class: 'min-w-0 max-w-full overflow-hidden' }, [
@@ -1030,12 +1070,11 @@ const RepairCardContent = defineComponent({
             h('span', { class: 'text-slate-500 dark:text-slate-400' }, 'Planowany przyjazd: '),
             h('span', { class: 'font-medium text-slate-700 dark:text-slate-200' }, formatDateTime(props.repair.plannedArrivalAt)),
           ]),
-          h('p', { class: 'flex min-w-0 max-w-full flex-wrap items-center gap-x-2 gap-y-1 overflow-hidden' }, [
+          h('p', { class: 'min-w-0 max-w-full overflow-hidden' }, [
             h('span', { class: 'min-w-0 break-words' }, [
               h('span', { class: 'text-slate-500 dark:text-slate-400' }, 'Planowany odjazd: '),
               h('span', { class: 'font-medium text-slate-700 dark:text-slate-200' }, formatDateTime(props.repair.plannedDepartureAt)),
             ]),
-            h('span', { class: `${departureCountdown.className} max-w-full whitespace-normal break-words` }, departureCountdown.label),
           ]),
         ]),
         totalFaults
@@ -1202,54 +1241,6 @@ function repairMatchesSearch(repair: Repair) {
   return normalizeSearchValue(searchText).includes(query)
 }
 
-function formatCompactDuration(milliseconds: number) {
-  const totalMinutes = Math.max(0, Math.floor(milliseconds / 60000))
-  const days = Math.floor(totalMinutes / 1440)
-  const hours = Math.floor((totalMinutes % 1440) / 60)
-  const minutes = totalMinutes % 60
-
-  if (days > 0) {
-    return `${days}d ${hours}h`
-  }
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}min`
-  }
-
-  return `${minutes}min`
-}
-
-function departureCountdownLabel(value: string | null | undefined) {
-  if (!value) {
-    return {
-      label: 'Brak odjazdu',
-      className: 'rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:border-app-border dark:bg-app-elevated dark:text-slate-300',
-    }
-  }
-
-  const timestamp = new Date(value).getTime()
-
-  if (Number.isNaN(timestamp)) {
-    return {
-      label: '-',
-      className: 'rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-500 dark:border-app-border dark:bg-app-elevated dark:text-slate-300',
-    }
-  }
-
-  const diff = timestamp - nowTick.value
-  const isOverdue = diff < 0
-  const label = isOverdue
-    ? `${formatCompactDuration(Math.abs(diff))} po terminie`
-    : `za ${formatCompactDuration(diff)}`
-
-  return {
-    label,
-    className: isOverdue
-      ? 'rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-300'
-      : 'rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:border-app-border dark:bg-app-elevated dark:text-slate-200',
-  }
-}
-
 function parseDateOnly(value: string | null | undefined) {
   if (!value) {
     return null
@@ -1407,6 +1398,37 @@ function resetCreateForm() {
     description: '',
   })
   draftFaults.value = [createDraftFault()]
+  createWizardStep.value = 0
+  createMaxReachableStep.value = 0
+  createDetailsError.value = false
+  createResult.value = null
+  createResultMessage.value = ''
+  createdRepair.value = null
+}
+
+function validateCreateDetails() {
+  const isValid = Boolean(createForm.vehicleId && createForm.placeId)
+  createDetailsError.value = !isValid
+  return isValid
+}
+
+function goToCreateFaultsStep() {
+  if (!validateCreateDetails()) return
+  createWizardStep.value = 1
+  createMaxReachableStep.value = 1
+}
+
+function selectCreateWizardStep(step: number) {
+  if (createResult.value || step < 0 || step > createMaxReachableStep.value) return
+  if (step === 1 && !validateCreateDetails()) return
+  createWizardStep.value = step
+}
+
+function returnToCreateFaults() {
+  createResult.value = null
+  createResultMessage.value = ''
+  createWizardStep.value = 1
+  createMaxReachableStep.value = 1
 }
 
 function toIsoDateTime(value: string) {
@@ -1616,7 +1638,23 @@ function closeCreateModal() {
     closeDraftPhotoPickerMenu()
     selectedDraftFaultPhotoInputId.value = null
     isCreateModalOpen.value = false
+    createResult.value = null
+    createResultMessage.value = ''
+    createdRepair.value = null
   }
+}
+
+function openCreatedRepair() {
+  const repair = createdRepair.value
+  if (!repair) return
+  closeCreateModal()
+  openRepairDetails(repair)
+}
+
+function openRepairFromCreate(repair: Repair | null) {
+  if (!repair) return
+  closeCreateModal()
+  openRepairDetails(repair)
 }
 
 function mechanicDisplayName(mechanic: Mechanic) {
@@ -1997,19 +2035,18 @@ async function submitCreateRepair() {
     return
   }
 
-  if (!createForm.vehicleId || !createForm.placeId) {
-    uiStore.addToast({
-      type: 'warning',
-      title: 'Brak danych',
-      message: 'Wybierz pojazd i miejsce naprawy.',
-    })
+  if (!validateCreateDetails()) {
+    createResult.value = null
+    createWizardStep.value = 0
     return
   }
 
+  createResult.value = null
+  createResultMessage.value = ''
   isMutating.value = true
 
   try {
-    const createResult = await repairStore.createRepairWithFaults({
+    const result = await repairStore.createRepairWithFaults({
       vehicleId: Number(createForm.vehicleId),
       placeId: Number(createForm.placeId),
       plannedArrivalAt: toIsoDateTime(createForm.arrivalAt),
@@ -2022,24 +2059,18 @@ async function submitCreateRepair() {
           assignedMechanicId: null,
           photos: canAddFaultPhotos.value ? fault.photos.map((photo) => photo.file) : [],
         }))
-      : [])
+      : [], { silent: true })
 
     await refreshAfterMutation()
-    uiStore.addToast({
-      type: createResult.photoUploadFailures ? 'warning' : 'success',
-      title: 'Naprawa dodana',
-      message: createResult.photoUploadFailures
-        ? `Dodano naprawę dla ${repairVehicleLabel(createResult.repair)}, ale nie udało się wysłać zdjęć: ${createResult.photoUploadFailures}.`
-        : `Dodano naprawę dla ${repairVehicleLabel(createResult.repair)}.`,
-    })
+    createdRepair.value = result.repair
+    createResultMessage.value = result.photoUploadFailures
+      ? `Naprawa została utworzona, ale nie udało się wysłać części zdjęć (${result.photoUploadFailures}).`
+      : `Naprawa dla pojazdu ${repairVehicleLabel(result.repair)} została zapisana.`
+    createResult.value = 'success'
     clearDraftFaultPhotoDrafts()
-    isCreateModalOpen.value = false
-  } catch {
-    uiStore.addToast({
-      type: 'error',
-      title: 'Nie udało się dodać naprawy',
-      message: 'Sprawdź dane naprawy i spróbuj ponownie.',
-    })
+  } catch (error) {
+    createResultMessage.value = getApiErrorMessage(error)
+    createResult.value = 'error'
   } finally {
     isMutating.value = false
   }
@@ -2272,10 +2303,6 @@ watch([selectedWeekKey, mapRepairVehicles], () => {
 })
 
 onMounted(async () => {
-  clockInterval = window.setInterval(() => {
-    nowTick.value = Date.now()
-  }, 60000)
-
   await loadData()
 
   if (activeTab.value === 'map') {
@@ -2287,46 +2314,10 @@ onBeforeUnmount(() => {
   clearRepairMarkers()
   clearDraftFaultPhotoDrafts()
 
-  if (clockInterval) {
-    window.clearInterval(clockInterval)
-  }
 })
 </script>
 
 <style scoped>
-.icon-button {
-  display: inline-flex;
-  height: 2.25rem;
-  width: 2.25rem;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 1rem;
-  border: 1px solid rgb(226 232 240);
-  color: rgb(100 116 139);
-  transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease;
-}
-
-.icon-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.icon-button:hover:not(:disabled) {
-  background: rgb(248 250 252);
-  color: rgb(15 23 42);
-}
-
-:global(.dark) .icon-button {
-  border-color: #5a5a60;
-  color: #b9bac2;
-}
-
-:global(.dark) .icon-button:hover:not(:disabled) {
-  background: #48484d;
-  color: rgb(248 250 252);
-}
-
 .repair-stat-tile {
   display: flex;
   min-width: 0;

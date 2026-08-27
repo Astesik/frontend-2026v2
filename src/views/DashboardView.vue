@@ -3,7 +3,7 @@
     <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div>
         <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Centrum operacyjne</p>
-        <h1 class="mt-1 text-2xl font-semibold text-slate-950 dark:text-slate-50">Dashboard floty</h1>
+        <h1 class="mt-1 ui-page-title">Dashboard floty</h1>
       </div>
       <div class="grid gap-3 sm:grid-cols-2 lg:w-[34rem]">
         <VehicleSelect
@@ -43,15 +43,15 @@
             <div class="absolute left-24 top-8 h-[30rem] w-20 rotate-45 rounded-full border border-slate-300 dark:border-app-border"></div>
           </div>
 
-          <div class="absolute left-[22%] top-[35%] flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-200">
+          <div class="absolute left-[22%] top-[35%] flex items-center gap-2 rounded-[6px] border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-200">
             <Truck class="h-4 w-4" />
             WA 4829P
           </div>
-          <div class="absolute right-[18%] top-[50%] flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-200">
+          <div class="absolute right-[18%] top-[50%] flex items-center gap-2 rounded-[6px] border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-200">
             <Truck class="h-4 w-4" />
             PO 19H8C
           </div>
-          <div class="absolute bottom-[18%] left-[48%] flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-200">
+          <div class="absolute bottom-[18%] left-[48%] flex items-center gap-2 rounded-[6px] border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-200">
             <Truck class="h-4 w-4" />
             GD 1204R
           </div>

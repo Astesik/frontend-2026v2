@@ -755,7 +755,7 @@
       <div class="flex items-center gap-1.5 border-b border-white/10 px-3.5 py-2 text-[13px] font-medium text-white/90">
         <CircleAlert class="h-3.5 w-3.5" />
         <span>Alerty i terminy</span>
-        <span class="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[11px]">
+        <span class="ml-auto rounded-[6px] bg-white/10 px-2 py-0.5 text-[11px]">
           {{ activeAlertTooltip.items.length }}
         </span>
       </div>
@@ -846,15 +846,14 @@
               </label>
             </div>
 
-            <label class="block">
-              <span class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">Opis</span>
-              <textarea
-                v-model="placeForm.description"
-                class="min-h-24 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-app-border dark:bg-app-dark dark:text-slate-50 dark:placeholder:text-app-muted dark:focus:border-app-muted dark:focus:ring-app-elevated"
-                maxlength="255"
-                placeholder="Dodatkowe informacje o miejscu"
-              ></textarea>
-            </label>
+            <AppTextarea
+              v-model="placeForm.description"
+              label="Opis"
+              :maxlength="255"
+              :rows="4"
+              show-counter
+              placeholder="Dodatkowe informacje o miejscu"
+            />
 
             <MapSwitch v-model="placeForm.visible" label="Miejsce widoczne na mapie" />
 
@@ -940,6 +939,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
+import AppTextarea from '@/components/ui/AppTextarea.vue'
 import VehicleSearchSelect from '@/components/selects/VehicleSearchSelect.vue'
 import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
 import PlaceEventsPanel from '@/components/places/PlaceEventsPanel.vue'

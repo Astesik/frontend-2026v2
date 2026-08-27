@@ -4,28 +4,66 @@
 
 @layer base {
   :root {
-    /* Light theme. Edit this section to customize the light palette. */
-    --rw-app-content: 236 236 236;
-    --rw-app-sidebar: 245 246 248;
-    --rw-app-panel: 255 255 255;
-    --rw-app-elevated: 248 250 252;
-    --rw-app-hover: 243 244 246;
-    --rw-app-border: 226 232 240;
-    --rw-app-text: 15 23 42;
-    --rw-app-muted: 100 116 139;
+    /* Routewise semantic design tokens: light theme. */
+    --rw-background: 246 246 246;
+    --rw-sidebar: 246 246 246;
+    --rw-surface: 255 255 255;
+    --rw-surface-elevated: 255 255 255;
+    --rw-surface-muted: 236 236 236;
+    --rw-surface-hover: 236 236 236;
+    --rw-surface-selected: 225 225 225;
+    --rw-border: 225 225 225;
+    --rw-border-strong: 208 208 208;
+    --rw-divider: 236 236 236;
+    --rw-text-primary: 35 35 35;
+    --rw-text-secondary: 82 82 82;
+    --rw-text-muted: 116 116 116;
+    --rw-icon: 104 104 104;
+    --rw-input-background: 246 246 246;
+    --rw-input-border: 225 225 225;
+    --rw-input-hover: 236 236 236;
+    --rw-input-focus: 160 160 160;
+    --rw-dropdown-background: 255 255 255;
+    --rw-dropdown-hover: 246 246 246;
+    --rw-dropdown-selected: 236 236 236;
+    --rw-overlay: 28 28 30;
+    --rw-disabled-background: 236 236 236;
+    --rw-disabled-text: 150 150 150;
+    --rw-focus-ring: 208 208 208;
+
+    --rw-control-sm: 2.25rem;
+    --rw-control-md: 2.625rem;
+    --rw-control-lg: 3rem;
+    --rw-radius-control: 6px;
+    --rw-radius-item: 6px;
+    --rw-radius-panel: 1rem;
+    --rw-shadow-sm: 0 1px 2px rgb(20 20 20 / 0.04);
+    --rw-shadow-popover: 0 12px 32px rgb(20 20 20 / 0.10), 0 2px 8px rgb(20 20 20 / 0.06);
+    --rw-shadow-modal: 0 24px 64px rgb(20 20 20 / 0.16);
+
+    /* Compatibility aliases used by map overlays and migrated views. */
+    --rw-app-content: var(--rw-background);
+    --rw-app-sidebar: var(--rw-sidebar);
+    --rw-app-panel: var(--rw-surface);
+    --rw-app-elevated: var(--rw-surface-muted);
+    --rw-app-hover: var(--rw-surface-hover);
+    --rw-app-border: var(--rw-border);
+    --rw-app-text: var(--rw-text-primary);
+    --rw-app-muted: var(--rw-text-muted);
 
     --rw-white: 255 255 255;
-    --rw-slate-50: 248 250 252;
-    --rw-slate-100: 241 245 249;
-    --rw-slate-200: 226 232 240;
-    --rw-slate-300: 203 213 225;
-    --rw-slate-400: 148 163 184;
-    --rw-slate-500: 100 116 139;
-    --rw-slate-600: 71 85 105;
-    --rw-slate-700: 51 65 85;
-    --rw-slate-800: 30 41 59;
-    --rw-slate-900: 15 23 42;
-    --rw-slate-950: 2 6 23;
+    /* Legacy neutral utilities point at the same grayscale system. */
+    --rw-slate-50: 246 246 246;
+    --rw-slate-100: 236 236 236;
+    --rw-slate-200: 225 225 225;
+    --rw-slate-300: 208 208 208;
+    --rw-slate-400: 150 150 150;
+    --rw-slate-500: 116 116 116;
+    --rw-slate-600: 82 82 82;
+    --rw-slate-700: 62 62 62;
+    --rw-slate-800: 44 44 44;
+    --rw-slate-900: 35 35 35;
+    --rw-slate-950: 25 25 25;
 
     --rw-success-50: 236 253 243;
     --rw-success-100: 209 250 223;
@@ -37,6 +75,14 @@
     --rw-danger-400: 249 112 102;
     --rw-danger-500: 240 68 56;
     --rw-danger-600: 217 45 32;
+    --rw-warning-50: 255 249 235;
+    --rw-warning-100: 254 239 199;
+    --rw-warning-400: 245 176 65;
+    --rw-warning-600: 176 103 0;
+    --rw-info-50: 244 247 255;
+    --rw-info-100: 226 233 255;
+    --rw-info-400: 112 147 255;
+    --rw-info-600: 68 100 198;
 
     color-scheme: light;
     font-synthesis: none;
@@ -46,29 +92,58 @@
   }
 
   :root.dark {
-    /* Dark theme. Background: rgb(34 34 35). */
-    --rw-app-content: 34 34 35;
-    --rw-app-sidebar: 34 34 35;
-    --rw-app-panel: 52 52 55;
-    --rw-app-elevated: 34 34 35;
-    --rw-app-hover: 64 64 68;
-    --rw-app-border: 82 82 87;
-    --rw-app-text: 248 250 252;
-    --rw-app-muted: 185 186 194;
+    /* Routewise semantic design tokens: dark theme. */
+    --rw-background: 34 34 35;
+    --rw-sidebar: 40 40 42;
+    --rw-surface: 45 45 47;
+    --rw-surface-elevated: 49 49 52;
+    --rw-surface-muted: 52 52 55;
+    --rw-surface-hover: 61 61 65;
+    --rw-surface-selected: 68 68 73;
+    --rw-border: 67 67 71;
+    --rw-border-strong: 84 84 90;
+    --rw-divider: 58 58 61;
+    --rw-text-primary: 244 244 245;
+    --rw-text-secondary: 207 207 210;
+    --rw-text-muted: 157 157 164;
+    --rw-icon: 174 174 181;
+    --rw-input-background: 48 48 51;
+    --rw-input-border: 70 70 75;
+    --rw-input-hover: 55 55 59;
+    --rw-input-focus: 126 126 134;
+    --rw-dropdown-background: 47 47 50;
+    --rw-dropdown-hover: 57 57 61;
+    --rw-dropdown-selected: 66 66 71;
+    --rw-overlay: 12 12 13;
+    --rw-disabled-background: 43 43 45;
+    --rw-disabled-text: 112 112 118;
+    --rw-focus-ring: 94 94 101;
+    --rw-shadow-sm: 0 1px 2px rgb(0 0 0 / 0.16);
+    --rw-shadow-popover: 0 16px 40px rgb(0 0 0 / 0.34), 0 2px 8px rgb(0 0 0 / 0.22);
+    --rw-shadow-modal: 0 28px 72px rgb(0 0 0 / 0.42);
+
+    --rw-app-content: var(--rw-background);
+    --rw-app-sidebar: var(--rw-sidebar);
+    --rw-app-panel: var(--rw-surface);
+    --rw-app-elevated: var(--rw-surface-muted);
+    --rw-app-hover: var(--rw-surface-hover);
+    --rw-app-border: var(--rw-border);
+    --rw-app-text: var(--rw-text-primary);
+    --rw-app-muted: var(--rw-text-muted);
 
     /* Keep Tailwind neutral utilities stable in dark variants. */
     --rw-white: 255 255 255;
-    --rw-slate-50: 248 250 252;
-    --rw-slate-100: 241 245 249;
-    --rw-slate-200: 226 232 240;
-    --rw-slate-300: 203 213 225;
-    --rw-slate-400: 148 163 184;
-    --rw-slate-500: 100 116 139;
-    --rw-slate-600: 71 85 105;
-    --rw-slate-700: 51 65 85;
-    --rw-slate-800: 30 41 59;
-    --rw-slate-900: 15 23 42;
-    --rw-slate-950: 2 6 23;
+    --rw-slate-50: 246 246 246;
+    --rw-slate-100: 236 236 236;
+    --rw-slate-200: 225 225 225;
+    --rw-slate-300: 208 208 208;
+    --rw-slate-400: 150 150 150;
+    --rw-slate-500: 116 116 116;
+    --rw-slate-600: 82 82 82;
+    --rw-slate-700: 62 62 62;
+    --rw-slate-800: 44 44 44;
+    --rw-slate-900: 35 35 35;
+    --rw-slate-950: 25 25 25;
 
     color-scheme: dark;
   }
@@ -102,7 +177,142 @@
     font: inherit;
   }
 
+  button:not([role='switch']):not(.rounded-full):not(.rw-fleet-marker-button),
+  [role='combobox'] {
+    border-radius: var(--rw-radius-control) !important;
+  }
+
   * {
     box-sizing: border-box;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--rw-focus-ring));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .ui-page-title {
+    @apply text-2xl font-semibold leading-tight text-ui-text;
+  }
+
+  .ui-section-title {
+    @apply text-base font-semibold leading-6 text-ui-text;
+  }
+
+  .ui-card-title {
+    @apply text-sm font-semibold leading-5 text-ui-text;
+  }
+
+  .ui-body {
+    @apply text-sm leading-5 text-ui-text-secondary;
+  }
+
+  .ui-body-sm {
+    @apply text-xs leading-4 text-ui-text-secondary;
+  }
+
+  .ui-label {
+    @apply block text-xs font-medium leading-4 text-ui-text-secondary;
+  }
+
+  .ui-hint {
+    @apply text-xs leading-4 text-ui-mutedText;
+  }
+
+  .ui-error {
+    @apply text-xs font-medium leading-4 text-danger-600 dark:text-danger-400;
+  }
+
+  .ui-caption {
+    @apply text-[11px] font-medium leading-4 text-ui-mutedText;
+  }
+
+  .ui-field-control {
+    @apply w-full rounded-[var(--rw-radius-control)] border border-ui-input-border bg-ui-input text-ui-text shadow-soft outline-none transition duration-150 placeholder:text-ui-mutedText hover:border-ui-border-strong hover:bg-ui-input-hover focus:border-ui-input-focus focus:ring-2 focus:ring-ui-focus/60 disabled:cursor-not-allowed disabled:border-ui-border disabled:bg-ui-disabled disabled:text-ui-disabled-text;
+  }
+
+  .ui-field-sm {
+    height: var(--rw-control-sm);
+    @apply px-3 text-xs;
+  }
+
+  .ui-field-md {
+    height: var(--rw-control-md);
+    @apply px-3.5 text-sm;
+  }
+
+  .ui-field-lg {
+    height: var(--rw-control-lg);
+    @apply px-4 text-sm;
+  }
+
+  .ui-surface {
+    @apply rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-surface shadow-soft;
+  }
+
+  .ui-popover {
+    @apply overflow-hidden rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-dropdown text-ui-text shadow-popover;
+  }
+
+  .ui-dropdown-item {
+    @apply flex w-full min-w-0 items-center gap-2 rounded-[var(--rw-radius-item)] px-3 py-2 text-left text-sm text-ui-text-secondary outline-none transition hover:bg-ui-dropdown-hover hover:text-ui-text focus-visible:bg-ui-dropdown-hover focus-visible:text-ui-text disabled:cursor-not-allowed disabled:text-ui-disabled-text;
+  }
+
+  .ui-dropdown-item-selected {
+    @apply bg-ui-dropdown-selected font-medium text-ui-text;
+  }
+
+  .ui-icon-button {
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface text-ui-icon shadow-soft transition hover:border-ui-border-strong hover:bg-ui-hover hover:text-ui-text active:bg-ui-selected disabled:cursor-not-allowed disabled:bg-ui-disabled disabled:text-ui-disabled-text;
+  }
+
+  .ui-modal-overlay {
+    @apply fixed inset-0 bg-ui-overlay/45 backdrop-blur-[1px];
+  }
+
+  .ui-modal-panel {
+    @apply overflow-hidden rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-surface text-ui-text shadow-modal;
+  }
+
+  .ui-modal-header {
+    @apply flex shrink-0 items-start justify-between gap-4 border-b border-ui-divider px-5 py-4;
+  }
+
+  .ui-modal-body {
+    @apply min-h-0 flex-1 overflow-y-auto p-5;
+  }
+
+  .ui-modal-footer {
+    @apply flex shrink-0 flex-col-reverse gap-2 border-t border-ui-divider bg-ui-surface px-5 py-4 sm:flex-row sm:justify-end;
+  }
+
+  .ui-divider {
+    @apply border-ui-divider;
+  }
+
+  .ui-table-shell {
+    @apply overflow-hidden rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-surface shadow-soft;
+  }
+
+  .ui-table {
+    @apply w-full text-left text-sm text-ui-text-secondary;
+  }
+
+  .ui-table-head {
+    @apply border-b border-ui-divider bg-ui-muted text-xs font-medium uppercase text-ui-mutedText;
+  }
+
+  .ui-table-row {
+    @apply border-b border-ui-divider transition last:border-b-0 hover:bg-ui-hover;
+  }
+
+  .ui-table-cell {
+    @apply px-3 py-2 align-middle;
+  }
+
+  .ui-empty-state {
+    @apply rounded-[var(--rw-radius-panel)] border border-dashed border-ui-border bg-ui-muted px-5 py-8 text-center ui-body-sm text-ui-mutedText;
   }
 }

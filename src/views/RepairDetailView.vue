@@ -2,16 +2,15 @@
   <div class="space-y-3">
     <header class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
       <div class="flex items-center gap-3">
-        <RouterLink
-          class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
+        <AppIconLink
           :to="{ name: 'repairs' }"
-          aria-label="Wróć do napraw"
+          label="Wróć do napraw"
         >
           <ArrowLeft class="h-4 w-4" />
-        </RouterLink>
+        </AppIconLink>
         <div class="min-w-0">
           <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Naprawa #{{ repairId }}</p>
-          <h1 class="mt-0.5 truncate text-xl font-semibold text-slate-950 dark:text-slate-50">
+          <h1 class="mt-0.5 truncate ui-page-title !text-xl">
             {{ repair ? repairVehicleLabel(repair) : 'Szczegóły naprawy' }}
           </h1>
         </div>
@@ -126,12 +125,14 @@
                 <FileText class="h-3 w-3" />
                 Uwagi
               </p>
-              <textarea
+              <AppTextarea
                 v-if="infoEditMode"
                 v-model="editForm.description"
-                class="mt-1.5 min-h-20 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 dark:border-app-border dark:bg-app-panel dark:text-slate-50 dark:placeholder:text-app-muted dark:focus:border-app-muted dark:focus:ring-app-elevated"
+                class="mt-1.5"
                 placeholder="Uwagi do naprawy"
-              ></textarea>
+                :rows="3"
+                size="sm"
+              />
               <p v-else class="mt-0.5 text-xs font-semibold text-slate-950 dark:text-slate-50">{{ repair.description || '-' }}</p>
             </div>
           </div>
@@ -166,7 +167,7 @@
             </button>
 
             <article
-              v-for="photo in repair.photos"
+              v-for="photo in repair?.photos || []"
               :key="photo.id"
               class="group overflow-hidden rounded-2xl border border-slate-100 bg-slate-50 dark:border-app-border dark:bg-app-dark"
             >
@@ -209,7 +210,7 @@
             </article>
           </div>
 
-          <p v-if="!repair.photos.length" class="mt-3 text-sm text-slate-500 dark:text-slate-400">
+          <p v-if="!repair?.photos.length" class="mt-3 text-sm text-slate-500 dark:text-slate-400">
             Brak zdjęć dla tej naprawy.
           </p>
         </AppCard>
@@ -623,45 +624,29 @@
 
       </div>
 
-    <Teleport to="body">
-      <div
-        v-if="isAddFaultModalOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="closeAddFaultModal"
-      >
-        <section class="flex max-h-[calc(100vh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <div class="min-w-0">
-              <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Dodaj usterkę</h2>
-              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Usterka zostanie dopisana do naprawy #{{ repairId }}.
-              </p>
-            </div>
-            <button
-              type="button"
-              class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
-              aria-label="Zamknij modal dodawania usterki"
-              @click="closeAddFaultModal"
-            >
-              <X class="h-4 w-4" />
-            </button>
-          </header>
-
-          <div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+    <AppModal
+      :open="isAddFaultModalOpen"
+      title="Dodaj usterkę"
+      :description="`Usterka zostanie dopisana do naprawy #${repairId}.`"
+      size="md"
+      :busy="isMutating || isPhotoMutating"
+      @close="closeAddFaultModal"
+    >
+          <div class="space-y-4">
             <AppInput v-model="newDetailFault.description" label="Usterka" placeholder="Opis usterki" />
 
-            <section class="rounded-2xl border border-slate-100 p-3 dark:border-app-border">
+            <section class="rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-muted p-3">
               <div class="mb-3 flex items-center justify-between gap-2">
                 <div class="flex min-w-0 items-center gap-2">
-                  <ImagePlus class="h-4 w-4 shrink-0 text-slate-400" />
-                  <h3 class="truncate text-sm font-semibold text-slate-950 dark:text-slate-50">Zdjęcia do usterki</h3>
+                  <ImagePlus class="h-4 w-4 shrink-0 text-ui-icon" />
+                  <h3 class="truncate ui-card-title">Zdjęcia do usterki</h3>
                 </div>
                 <AppBadge>{{ newFaultPhotoDrafts.length }}</AppBadge>
               </div>
 
               <button
                 type="button"
-                class="flex min-h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-3 py-4 text-center text-sm font-medium text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:bg-app-dark dark:text-slate-300 dark:hover:bg-app-elevated"
+                class="flex min-h-24 w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-[var(--rw-radius-control)] border border-dashed border-ui-border-strong bg-ui-surface px-3 py-4 text-center text-sm font-medium text-ui-text-secondary transition hover:bg-ui-hover disabled:cursor-not-allowed disabled:bg-ui-disabled disabled:text-ui-disabled-text"
                 :disabled="isMutating || isPhotoMutating || !canAddFaultPhotos"
                 :title="!canAddFaultPhotos ? 'Brak uprawnienia: fault_photos.add' : undefined"
                 @click="openNewFaultPhotoAdd"
@@ -670,7 +655,7 @@
                 Dodaj zdjęcia
               </button>
 
-              <p v-if="newFaultPhotoError" class="mt-2 text-xs font-medium text-danger-600 dark:text-danger-400">
+              <p v-if="newFaultPhotoError" class="mt-2 ui-error">
                 {{ newFaultPhotoError }}
               </p>
 
@@ -678,7 +663,7 @@
                 <article
                   v-for="draft in newFaultPhotoDrafts"
                   :key="draft.id"
-                  class="group relative aspect-square overflow-hidden rounded-xl border border-slate-100 bg-slate-100 dark:border-app-border dark:bg-app-elevated"
+                  class="group relative aspect-square overflow-hidden rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface"
                 >
                   <img :src="draft.objectUrl" :alt="draft.file.name" class="h-full w-full object-cover" />
                   <button
@@ -692,23 +677,20 @@
                 </article>
               </div>
             </section>
-          </div>
-
-          <footer class="flex flex-col-reverse gap-2 border-t border-slate-100 px-5 py-4 dark:border-app-border sm:flex-row sm:justify-end">
-            <AppButton variant="secondary" :disabled="isMutating || isPhotoMutating" @click="closeAddFaultModal">Anuluj</AppButton>
-            <AppButton
-              :loading="isMutating || isPhotoMutating"
-              :disabled="!canCreateFaults"
-              :title="!canCreateFaults ? 'Brak uprawnienia: faults.create' : undefined"
-              @click="addFaultToDetail"
-            >
-              <Plus class="h-4 w-4" />
-              Dodaj usterkę
-            </AppButton>
-          </footer>
-        </section>
       </div>
-    </Teleport>
+      <template #footer>
+        <AppButton variant="secondary" :disabled="isMutating || isPhotoMutating" @click="closeAddFaultModal">Anuluj</AppButton>
+        <AppButton
+          :loading="isMutating || isPhotoMutating"
+          :disabled="!canCreateFaults"
+          :title="!canCreateFaults ? 'Brak uprawnienia: faults.create' : undefined"
+          @click="addFaultToDetail"
+        >
+          <Plus class="h-4 w-4" />
+          Dodaj usterkę
+        </AppButton>
+      </template>
+    </AppModal>
 
     <input
       ref="faultPhotoInput"
@@ -749,7 +731,7 @@
     <Teleport to="body">
       <div
         v-if="photoPickerMenu"
-        class="fixed inset-0 z-[80] flex items-end justify-center bg-transparent p-3 md:hidden"
+        class="fixed inset-0 z-[360] flex items-end justify-center bg-transparent p-3 md:hidden"
         @click.self="closePhotoPickerMenu"
       >
         <section class="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-app-border dark:bg-app-panel">
@@ -820,199 +802,104 @@
       </div>
     </Teleport>
 
-    <Teleport to="body">
-      <div
-        v-if="photoToDelete"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="photoToDelete = null"
-      >
-        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Usunąć zdjęcie?</h2>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Czy na pewno chcesz usunąć {{ photoToDelete.originalFilename }}?
-            </p>
-          </header>
-          <footer class="flex justify-end gap-2 px-5 py-4">
-            <AppButton variant="secondary" :disabled="isPhotoMutating" @click="photoToDelete = null">Anuluj</AppButton>
-            <AppButton
-              variant="danger"
-              :loading="isPhotoMutating"
-              :disabled="!canDeleteFaultPhoto(photoToDelete)"
-              @click="confirmDeletePhoto"
-            >
-              Usuń
-            </AppButton>
-          </footer>
-        </section>
-      </div>
-    </Teleport>
+    <AppConfirmModal
+      :open="Boolean(photoToDelete)"
+      title="Usunąć zdjęcie?"
+      :description="photoToDelete ? `Czy na pewno chcesz usunąć ${photoToDelete.originalFilename}?` : undefined"
+      confirm-label="Usuń"
+      confirm-variant="danger"
+      :busy="isPhotoMutating"
+      :confirm-disabled="Boolean(photoToDelete && !canDeleteFaultPhoto(photoToDelete))"
+      @close="photoToDelete = null"
+      @confirm="confirmDeletePhoto"
+    />
 
-    <Teleport to="body">
-      <div
-        v-if="commentToDelete"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="commentToDelete = null"
-      >
-        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Usunąć komentarz?</h2>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Czy na pewno chcesz usunąć ten komentarz?
-            </p>
-          </header>
-          <footer class="flex justify-end gap-2 px-5 py-4">
-            <AppButton variant="secondary" :disabled="isMutating" @click="commentToDelete = null">Anuluj</AppButton>
-            <AppButton
-              variant="danger"
-              :loading="isMutating"
-              :disabled="!canDeleteComment(commentToDelete.comment)"
-              @click="confirmDeleteComment"
-            >
-              Usuń
-            </AppButton>
-          </footer>
-        </section>
-      </div>
-    </Teleport>
+    <AppConfirmModal
+      :open="Boolean(commentToDelete)"
+      title="Usunąć komentarz?"
+      description="Czy na pewno chcesz usunąć ten komentarz?"
+      confirm-label="Usuń"
+      confirm-variant="danger"
+      :busy="isMutating"
+      :confirm-disabled="Boolean(commentToDelete && !canDeleteComment(commentToDelete.comment))"
+      @close="commentToDelete = null"
+      @confirm="confirmDeleteComment"
+    />
 
-    <Teleport to="body">
-      <div
-        v-if="repairStatusAction && repair"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="repairStatusAction = null"
-      >
-        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">
-              {{ repairStatusAction === 'close' ? 'Zamknąć naprawę?' : 'Otworzyć naprawę?' }}
-            </h2>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              {{ repairStatusAction === 'close' ? 'Czy chcesz zamknąć naprawę?' : 'Czy chcesz ponownie otworzyć naprawę i ustawić status W trakcie?' }}
-            </p>
-          </header>
-          <footer class="flex justify-end gap-2 px-5 py-4">
-            <AppButton variant="secondary" @click="repairStatusAction = null">Anuluj</AppButton>
-            <AppButton :loading="isMutating" @click="confirmRepairStatusChange">
-              {{ repairStatusAction === 'close' ? 'Zamknij naprawę' : 'Otwórz naprawę' }}
-            </AppButton>
-          </footer>
-        </section>
-      </div>
-    </Teleport>
+    <AppConfirmModal
+      :open="Boolean(repairStatusAction && repair)"
+      :title="repairStatusAction === 'close' ? 'Zamknąć naprawę?' : 'Otworzyć naprawę?'"
+      :description="repairStatusAction === 'close' ? 'Czy chcesz zamknąć naprawę?' : 'Czy chcesz ponownie otworzyć naprawę i ustawić status W trakcie?'"
+      :confirm-label="repairStatusAction === 'close' ? 'Zamknij naprawę' : 'Otwórz naprawę'"
+      :busy="isMutating"
+      @close="repairStatusAction = null"
+      @confirm="confirmRepairStatusChange"
+    />
 
-    <Teleport to="body">
-      <div
-        v-if="faultToComplete"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="faultToComplete = null"
-      >
-        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Zamknąć usterkę?</h2>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Czy chcesz oznaczyć tę usterkę jako wykonaną?
-            </p>
-          </header>
-          <footer class="flex justify-end gap-2 px-5 py-4">
-            <AppButton variant="secondary" @click="faultToComplete = null">Anuluj</AppButton>
-            <AppButton :loading="isMutating" :disabled="!canChangeFaultStatus" @click="confirmCompleteFault">Zamknij usterkę</AppButton>
-          </footer>
-        </section>
-      </div>
-    </Teleport>
+    <AppConfirmModal
+      :open="Boolean(faultToComplete)"
+      title="Zamknąć usterkę?"
+      description="Czy chcesz oznaczyć tę usterkę jako wykonaną?"
+      confirm-label="Zamknij usterkę"
+      :busy="isMutating"
+      :confirm-disabled="!canChangeFaultStatus"
+      @close="faultToComplete = null"
+      @confirm="confirmCompleteFault"
+    />
 
-    <Teleport to="body">
-      <div
-        v-if="faultToReopen"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="faultToReopen = null"
-      >
-        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Cofnąć wykonanie usterki?</h2>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Czy na pewno chcesz cofnąć wykonanie tej usterki?
-            </p>
-          </header>
-          <footer class="flex justify-end gap-2 px-5 py-4">
-            <AppButton variant="secondary" @click="faultToReopen = null">Anuluj</AppButton>
-            <AppButton :loading="isMutating" :disabled="!canChangeFaultStatus" @click="confirmReopenFault">Cofnij wykonanie</AppButton>
-          </footer>
-        </section>
-      </div>
-    </Teleport>
+    <AppConfirmModal
+      :open="Boolean(faultToReopen)"
+      title="Cofnąć wykonanie usterki?"
+      description="Czy na pewno chcesz cofnąć wykonanie tej usterki?"
+      confirm-label="Cofnij wykonanie"
+      :busy="isMutating"
+      :confirm-disabled="!canChangeFaultStatus"
+      @close="faultToReopen = null"
+      @confirm="confirmReopenFault"
+    />
 
-    <Teleport to="body">
-      <div
-        v-if="faultToDelete"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="faultToDelete = null"
-      >
-        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Usunąć usterkę?</h2>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Czy na pewno chcesz usunąć tę usterkę?
-            </p>
-          </header>
-          <footer class="flex justify-end gap-2 px-5 py-4">
-            <AppButton variant="secondary" @click="faultToDelete = null">Anuluj</AppButton>
-            <AppButton
-              variant="danger"
-              :loading="isMutating"
-              :disabled="!canDeleteFault(faultToDelete)"
-              @click="confirmDeleteFault"
-            >
-              Usuń
-            </AppButton>
-          </footer>
-        </section>
-      </div>
-    </Teleport>
+    <AppConfirmModal
+      :open="Boolean(faultToDelete)"
+      title="Usunąć usterkę?"
+      description="Czy na pewno chcesz usunąć tę usterkę?"
+      confirm-label="Usuń"
+      confirm-variant="danger"
+      :busy="isMutating"
+      :confirm-disabled="Boolean(faultToDelete && !canDeleteFault(faultToDelete))"
+      @close="faultToDelete = null"
+      @confirm="confirmDeleteFault"
+    />
 
-    <Teleport to="body">
-      <div
-        v-if="repairToDelete"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="repairToDelete = null"
-      >
-        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Usunąć naprawę?</h2>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Ta operacja usunie naprawę dla pojazdu {{ repairVehicleLabel(repairToDelete) }}.
-            </p>
-          </header>
-          <footer class="flex justify-end gap-2 px-5 py-4">
-            <AppButton variant="secondary" @click="repairToDelete = null">Anuluj</AppButton>
-            <AppButton
-              variant="danger"
-              :loading="isMutating"
-              :disabled="!canDeleteRepairs"
-              @click="confirmDeleteRepair"
-            >
-              Usuń
-            </AppButton>
-          </footer>
-        </section>
-      </div>
-    </Teleport>
+    <AppConfirmModal
+      :open="Boolean(repairToDelete)"
+      title="Usunąć naprawę?"
+      :description="repairToDelete ? `Ta operacja usunie naprawę dla pojazdu ${repairVehicleLabel(repairToDelete)}.` : undefined"
+      confirm-label="Usuń"
+      confirm-variant="danger"
+      :busy="isMutating"
+      :confirm-disabled="!canDeleteRepairs"
+      @close="repairToDelete = null"
+      @confirm="confirmDeleteRepair"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch, type Component, type PropType } from 'vue'
 import { storeToRefs } from 'pinia'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, BadgeCheck, CalendarCheck, CalendarClock, Camera, Check, ChevronDown, Circle, CircleCheck, FileText, ImageOff, ImagePlus, LoaderCircle, MapPin, MessageSquare, Plus, Send, SquarePen, Trash2, Truck, UserRound, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
+import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppIconLink from '@/components/ui/AppIconLink.vue'
+import AppModal from '@/components/ui/AppModal.vue'
 import AppSearchSelect, { type AppSearchSelectOption } from '@/components/ui/AppSearchSelect.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
+import AppTextarea from '@/components/ui/AppTextarea.vue'
 import { repairService } from '@/services/repairService'
 import { useAuthStore } from '@/stores/authStore'
 import { useRepairStore } from '@/stores/repairStore'
@@ -1247,7 +1134,7 @@ function isCurrentUser(ownerId: number | string | null | undefined) {
 }
 
 function canDeleteFault(fault: RepairFault | null | undefined) {
-  return Boolean(fault) && (canDeleteAnyFaults.value || isCurrentUser(fault.createdBy?.id))
+  return Boolean(fault) && (canDeleteAnyFaults.value || isCurrentUser(fault?.createdBy?.id))
 }
 
 function canEditComment(comment: RepairFaultComment) {
@@ -1259,7 +1146,7 @@ function canDeleteComment(comment: RepairFaultComment) {
 }
 
 function canDeleteFaultPhoto(photo: RepairFaultPhoto | null | undefined) {
-  return Boolean(photo) && (canDeleteAnyFaultPhotos.value || isCurrentUser(photo.uploadedBy?.id))
+  return Boolean(photo) && (canDeleteAnyFaultPhotos.value || isCurrentUser(photo?.uploadedBy?.id))
 }
 
 function openPhotoPicker() {
@@ -2390,33 +2277,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.icon-button {
-  display: inline-flex;
-  height: 2.25rem;
-  width: 2.25rem;
-  align-items: center;
-  justify-content: center;
-  border-radius: 1rem;
-  border: 1px solid rgb(226 232 240);
-  color: rgb(100 116 139);
-  transition: background-color 150ms ease, color 150ms ease;
-}
-
-.icon-button:hover {
-  background: rgb(248 250 252);
-  color: rgb(15 23 42);
-}
-
-:global(.dark) .icon-button {
-  border-color: #5a5a60;
-  color: #b9bac2;
-}
-
-:global(.dark) .icon-button:hover {
-  background: #48484d;
-  color: rgb(248 250 252);
-}
-
 .fault-description-scroll {
   scrollbar-color: rgb(var(--rw-app-border)) transparent;
   scrollbar-width: thin;

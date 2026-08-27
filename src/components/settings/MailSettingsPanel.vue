@@ -1,15 +1,15 @@
 <template>
   <AppCard title="Email / SMTP" compact class="max-w-4xl">
-    <div v-if="isLoadingMail" class="py-8 text-sm text-slate-500 dark:text-slate-400">Pobieranie konfiguracji...</div>
+    <div v-if="isLoadingMail" class="py-8 ui-body-sm text-ui-mutedText">Pobieranie konfiguracji...</div>
 
     <div v-else class="space-y-4">
       <form
-        class="rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-sm dark:border-app-border dark:bg-app-dark"
+        class="rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-muted p-4"
         @submit.prevent="saveSettings"
       >
-        <div class="mb-4 flex flex-col gap-3 border-b border-slate-200 pb-4 dark:border-app-border sm:flex-row sm:items-center sm:justify-between">
+        <div class="mb-4 flex flex-col gap-3 border-b border-ui-divider pb-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 class="text-sm font-semibold text-slate-950 dark:text-slate-50">Konfiguracja poczty</h3>
+            <h3 class="ui-card-title">Konfiguracja poczty</h3>
           </div>
           <AppSwitch v-model="form.enabled" label="Wysyłanie włączone" />
         </div>
@@ -43,9 +43,9 @@
         </div>
       </form>
 
-      <section class="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm dark:border-app-border dark:bg-app-dark">
+      <section class="rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-surface p-4 shadow-soft">
         <div class="mb-3">
-          <h3 class="text-sm font-semibold text-slate-950 dark:text-slate-50">Wiadomość testowa</h3>
+          <h3 class="ui-card-title">Wiadomość testowa</h3>
         </div>
         <EmailChipInput v-model="testRecipients" label="Odbiorcy" />
         <div class="mt-3 flex justify-end">

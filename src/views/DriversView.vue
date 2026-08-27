@@ -3,7 +3,7 @@
     <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
       <div>
         <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Zespol</p>
-        <h1 class="mt-1 text-2xl font-semibold text-slate-950 dark:text-slate-50">Kierowcy</h1>
+        <h1 class="mt-1 ui-page-title">Kierowcy</h1>
       </div>
       <div class="flex flex-col gap-3 sm:flex-row">
         <DriverSelect

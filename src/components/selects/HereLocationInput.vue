@@ -1,69 +1,79 @@
 <template>
-  <div ref="rootElement" class="relative">
-    <label v-if="label" :for="inputId" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
-      {{ label }}
-    </label>
+  <AppFormField :id="inputId" :label="label">
+    <template #default="{ describedBy }">
+      <div class="relative">
+        <img
+          v-if="countryCode"
+          class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full"
+          :src="`https://flagsapi.com/${countryCode}/flat/64.png`"
+          alt=""
+          loading="lazy"
+          referrerpolicy="no-referrer"
+        />
+        <input
+          :id="inputId"
+          ref="inputElement"
+          :value="modelValue"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-haspopup="listbox"
+          :aria-expanded="dropdownOpen"
+          :aria-controls="listboxId"
+          :aria-activedescendant="dropdownOpen && activeIndex >= 0 ? optionId(activeIndex) : undefined"
+          :aria-describedby="describedBy"
+          :placeholder="placeholder"
+          :disabled="disabled"
+          class="ui-field-control ui-field-md pr-10"
+          :class="countryCode ? '!pl-10' : ''"
+          @focus="openDropdown"
+          @input="onInput"
+          @keydown="handleKeydown"
+        />
+        <LoaderCircle v-if="isLoading" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-ui-icon" />
+        <Search v-else class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ui-icon" />
+      </div>
+    </template>
+  </AppFormField>
 
-    <div class="relative">
-      <img
-        v-if="countryCode"
-        class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 rounded-full"
-        :src="`https://flagsapi.com/${countryCode}/flat/64.png`"
-        alt=""
-        loading="lazy"
-        referrerpolicy="no-referrer"
-      />
-      <input
-        :id="inputId"
-        :value="modelValue"
-        :placeholder="placeholder"
-        :disabled="disabled"
-        class="h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 pr-9 text-sm text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:border-app-border dark:bg-app-panel dark:text-slate-50 dark:placeholder:text-app-muted dark:focus:border-app-muted dark:focus:ring-app-elevated"
-        :class="countryCode ? 'pl-10' : ''"
-        @focus="isOpen = true"
-        @input="onInput"
-        @keydown.escape.prevent="isOpen = false"
-      />
-      <LoaderCircle v-if="isLoading" class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-slate-400" />
-      <Search v-else class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-    </div>
-
-    <div
-      v-if="isOpen && (suggestions.length || emptyMessage)"
-      class="absolute z-40 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel"
-    >
-      <button
-        v-for="item in suggestions"
+  <AppDropdown :open="dropdownOpen" :anchor="inputElement" :max-height="288" role="listbox" @close="closeDropdown">
+    <div :id="listboxId" class="p-1" role="listbox" :aria-labelledby="inputId">
+      <AppDropdownItem
+        v-for="(item, index) in suggestions"
+        :id="optionId(index)"
         :key="item.id"
-        type="button"
-        class="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-app-elevated"
+        :class="activeIndex === index ? '!bg-ui-dropdown-hover !text-ui-text' : ''"
+        @mouseenter="activeIndex = index"
+        @mousedown.prevent
         @click="selectSuggestion(item)"
       >
         <img
           v-if="item.countryCode"
-          class="mt-0.5 h-5 w-5 shrink-0 rounded-full"
+          class="h-5 w-5 shrink-0 rounded-full"
           :src="`https://flagsapi.com/${item.countryCode}/flat/64.png`"
           alt=""
           loading="lazy"
           referrerpolicy="no-referrer"
         />
-        <span v-else class="mt-0.5 h-5 w-5 shrink-0 rounded-full bg-slate-100 dark:bg-app-elevated"></span>
-        <span class="min-w-0">
-          <span class="block truncate text-sm font-semibold text-slate-950 dark:text-slate-50">{{ item.title }}</span>
-          <span class="mt-1 block truncate text-xs text-slate-500 dark:text-app-muted">{{ item.addressLabel }}</span>
+        <span v-else class="h-5 w-5 shrink-0 rounded-full bg-ui-muted"></span>
+        <span class="min-w-0 flex-1">
+          <span class="block truncate text-sm font-medium text-ui-text">{{ item.title }}</span>
+          <span class="mt-0.5 block truncate ui-caption">{{ item.addressLabel }}</span>
         </span>
-      </button>
+      </AppDropdownItem>
 
-      <div v-if="emptyMessage && !suggestions.length" class="px-3 py-2 text-xs text-slate-500 dark:text-app-muted">
+      <div v-if="emptyMessage && !suggestions.length" class="px-3 py-2 ui-body-sm text-ui-mutedText">
         {{ emptyMessage }}
       </div>
     </div>
-  </div>
+  </AppDropdown>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { LoaderCircle, Search } from 'lucide-vue-next'
+import AppDropdown from '@/components/ui/AppDropdown.vue'
+import AppDropdownItem from '@/components/ui/AppDropdownItem.vue'
+import AppFormField from '@/components/ui/AppFormField.vue'
 import {
   autosuggestHereLocations,
   type HereAutosuggestItem,
@@ -83,7 +93,7 @@ const props = withDefaults(defineProps<{
 }>(), {
   apiKey: undefined,
   label: undefined,
-  placeholder: 'Wpisz lokalizacje',
+  placeholder: 'Wpisz lokalizację',
   disabled: false,
   at: null,
   countryCode: null,
@@ -95,39 +105,73 @@ const emit = defineEmits<{
   select: [item: HereAutosuggestItem]
 }>()
 
-const rootElement = ref<HTMLElement | null>(null)
+const inputElement = ref<HTMLInputElement | null>(null)
 const isOpen = ref(false)
 const isLoading = ref(false)
 const suggestions = ref<HereAutosuggestItem[]>([])
 const queryTouched = ref(false)
+const activeIndex = ref(-1)
 const inputId = `here-location-${Math.random().toString(16).slice(2)}`
+const listboxId = `${inputId}-listbox`
 let debounceTimer: number | null = null
 let requestId = 0
 
 const emptyMessage = computed(() => {
-  if (!props.apiKey) {
-    return 'Brak klucza HERE'
-  }
-
-  if (queryTouched.value && props.modelValue.trim().length >= 3 && !isLoading.value) {
-    return 'Brak podpowiedzi'
-  }
-
+  if (!props.apiKey) return 'Brak klucza HERE'
+  if (queryTouched.value && props.modelValue.trim().length >= 3 && !isLoading.value) return 'Brak podpowiedzi'
   return ''
 })
+const dropdownOpen = computed(() => isOpen.value && Boolean(suggestions.value.length || emptyMessage.value))
+
+function optionId(index: number) {
+  return `${inputId}-option-${index}`
+}
+
+function openDropdown() {
+  if (!props.disabled) isOpen.value = true
+}
+
+function closeDropdown() {
+  isOpen.value = false
+  activeIndex.value = -1
+}
 
 function onInput(event: Event) {
   queryTouched.value = true
   emit('update:modelValue', (event.target as HTMLInputElement).value)
   isOpen.value = true
+  activeIndex.value = 0
 }
 
 function selectSuggestion(item: HereAutosuggestItem) {
   emit('update:modelValue', item.addressLabel || item.title)
   emit('select', item)
-  isOpen.value = false
+  closeDropdown()
   suggestions.value = []
   queryTouched.value = false
+  inputElement.value?.focus()
+}
+
+function moveActive(direction: 1 | -1) {
+  if (!suggestions.value.length) return
+  activeIndex.value = (activeIndex.value + direction + suggestions.value.length) % suggestions.value.length
+  void nextTick(() => document.getElementById(optionId(activeIndex.value))?.scrollIntoView({ block: 'nearest' }))
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    if (!isOpen.value) openDropdown()
+    else moveActive(event.key === 'ArrowDown' ? 1 : -1)
+  } else if (event.key === 'Enter' && dropdownOpen.value && activeIndex.value >= 0) {
+    event.preventDefault()
+    selectSuggestion(suggestions.value[activeIndex.value])
+  } else if (event.key === 'Escape') {
+    event.preventDefault()
+    closeDropdown()
+  } else if (event.key === 'Tab') {
+    closeDropdown()
+  }
 }
 
 async function loadSuggestions(query: string) {
@@ -138,57 +182,32 @@ async function loadSuggestions(query: string) {
 
   const currentRequestId = ++requestId
   isLoading.value = true
-
   try {
     const items = await autosuggestHereLocations(query, props.apiKey, {
       at: props.at || undefined,
       onDebug: props.debugLogger || undefined,
     })
-
     if (currentRequestId === requestId) {
       suggestions.value = items
+      activeIndex.value = items.length ? 0 : -1
     }
   } catch {
-    if (currentRequestId === requestId) {
-      suggestions.value = []
-    }
+    if (currentRequestId === requestId) suggestions.value = []
   } finally {
-    if (currentRequestId === requestId) {
-      isLoading.value = false
-    }
+    if (currentRequestId === requestId) isLoading.value = false
   }
 }
 
 function scheduleSuggestions(query: string) {
-  if (debounceTimer !== null) {
-    window.clearTimeout(debounceTimer)
-  }
-
-  debounceTimer = window.setTimeout(() => {
-    void loadSuggestions(query)
-  }, 260)
-}
-
-function onDocumentClick(event: MouseEvent) {
-  if (!rootElement.value?.contains(event.target as Node)) {
-    isOpen.value = false
-  }
+  if (debounceTimer !== null) window.clearTimeout(debounceTimer)
+  debounceTimer = window.setTimeout(() => void loadSuggestions(query), 260)
 }
 
 watch(() => props.modelValue, (value) => {
-  if (!isOpen.value && !queryTouched.value) {
-    return
-  }
-
-  scheduleSuggestions(value)
+  if (isOpen.value || queryTouched.value) scheduleSuggestions(value)
 })
 
-onMounted(() => document.addEventListener('click', onDocumentClick))
 onBeforeUnmount(() => {
-  document.removeEventListener('click', onDocumentClick)
-
-  if (debounceTimer !== null) {
-    window.clearTimeout(debounceTimer)
-  }
+  if (debounceTimer !== null) window.clearTimeout(debounceTimer)
 })
 </script>

@@ -2,16 +2,15 @@
   <div class="space-y-5">
     <header class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
       <div class="flex items-center gap-3">
-        <RouterLink
-          class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-slate-200 dark:hover:bg-app-elevated"
+        <AppIconLink
           :to="{ name: 'devices' }"
-          aria-label="Wróć do urządzeń"
+          label="Wróć do urządzeń"
         >
           <ArrowLeft class="h-4 w-4" />
-        </RouterLink>
+        </AppIconLink>
         <div class="min-w-0">
           <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Urządzenie #{{ deviceId }}</p>
-          <h1 class="mt-1 truncate text-2xl font-semibold text-slate-950 dark:text-slate-50">
+          <h1 class="mt-1 truncate ui-page-title">
             {{ device?.deviceName || 'Szczegóły urządzenia' }}
           </h1>
         </div>
@@ -92,47 +91,32 @@
       </AppCard>
     </div>
 
-    <Teleport to="body">
-      <div
-        v-if="showDeleteConfirmation && device"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4"
-        @click.self="showDeleteConfirmation = false"
-      >
-        <section class="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="border-b border-slate-100 px-5 py-4 dark:border-app-border">
-            <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Usunąć urządzenie?</h2>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Czy na pewno chcesz usunąć urządzenie {{ device.deviceName || `#${device.id}` }}?
-            </p>
-            <p v-if="device.assignedToVehicle" class="mt-2 text-sm font-medium text-danger-600 dark:text-danger-400">
-              Urządzenie jest obecnie przypisane do pojazdu.
-            </p>
-          </header>
-          <footer class="flex justify-end gap-2 px-5 py-4">
-            <AppButton variant="secondary" :disabled="deviceStore.isMutating" @click="showDeleteConfirmation = false">Anuluj</AppButton>
-            <AppButton
-              variant="danger"
-              :loading="deviceStore.isMutating"
-              :disabled="!canDeleteDevices"
-              :title="!canDeleteDevices ? 'Brak uprawnienia: devices.delete' : undefined"
-              @click="confirmDelete"
-            >
-              Usuń
-            </AppButton>
-          </footer>
-        </section>
-      </div>
-    </Teleport>
+    <AppConfirmModal
+      :open="Boolean(showDeleteConfirmation && device)"
+      title="Usunąć urządzenie?"
+      :description="device ? `Czy na pewno chcesz usunąć urządzenie ${device.deviceName || `#${device.id}`}?` : undefined"
+      confirm-label="Usuń"
+      confirm-variant="danger"
+      :busy="deviceStore.isMutating"
+      @close="showDeleteConfirmation = false"
+      @confirm="confirmDelete"
+    >
+      <p v-if="device?.assignedToVehicle" class="ui-error">
+        Urządzenie jest obecnie przypisane do pojazdu.
+      </p>
+    </AppConfirmModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Check, SquarePen, Trash2, X } from 'lucide-vue-next'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
+import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
+import AppIconLink from '@/components/ui/AppIconLink.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import { useAuthStore } from '@/stores/authStore'

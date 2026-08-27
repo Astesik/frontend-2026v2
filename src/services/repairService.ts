@@ -17,19 +17,18 @@ import type {
   RepairWeeksResponse,
 } from '@/types/repair'
 
-export type VehicleRepairHistoryItem = Repair & {
+export type VehicleRepairHistoryItem = Omit<Partial<Repair>, 'id' | 'place' | 'faults' | 'status'> & {
   id?: number | string | null
   number?: number | string | null
   title?: string | null
   status?: string
-  place?: string | null
+  place?: Repair['place'] | string | null
   description?: string | null
   startedAt?: string | null
   finishedAt?: string | null
   createdAt?: string | null
   updatedAt?: string | null
-  faults?: Array<string | { name?: string | null; description?: string | null }>
-  [key: string]: unknown
+  faults?: Array<RepairFault | string | { id?: number | string; name?: string | null; description?: string | null; status?: string | null; note?: string | null; assignedMechanicFullName?: string | null }>
 }
 
 function normalizeComment(comment: RepairComment): RepairComment {
@@ -229,8 +228,10 @@ export const repairService = {
     }
   },
 
-  async createRepair(payload: RepairPayload) {
-    const { data } = await api.post<Repair>('/api/repairs', payload)
+  async createRepair(payload: RepairPayload, options?: { silent?: boolean }) {
+    const { data } = await api.post<Repair>('/api/repairs', payload, {
+      skipErrorToast: options?.silent,
+    })
     return normalizeRepair(data)
   },
 
@@ -272,7 +273,9 @@ export const repairService = {
       },
     )
 
-    return Array.isArray(data) ? data.map(normalizeRepair) : []
+    return Array.isArray(data)
+      ? data.map((repair) => normalizeRepair(repair as Repair) as VehicleRepairHistoryItem)
+      : []
   },
 
   async getRepairComments(repairId: number | string, options?: { silent?: boolean }) {
@@ -287,8 +290,10 @@ export const repairService = {
     return normalizeComment(data)
   },
 
-  async addRepairFault(repairId: number | string, payload: RepairFaultPayload) {
-    const { data } = await api.post<RepairFault>(`/api/repairs/${repairId}/faults`, payload)
+  async addRepairFault(repairId: number | string, payload: RepairFaultPayload, options?: { silent?: boolean }) {
+    const { data } = await api.post<RepairFault>(`/api/repairs/${repairId}/faults`, payload, {
+      skipErrorToast: options?.silent,
+    })
     return normalizeFault(data)
   },
 
@@ -334,11 +339,13 @@ export const repairService = {
     await api.delete(`/api/repairs/${repairId}/faults/${faultId}/comments/${commentId}`)
   },
 
-  async uploadRepairFaultPhoto(repairId: number | string, faultId: number | string, file: File) {
+  async uploadRepairFaultPhoto(repairId: number | string, faultId: number | string, file: File, options?: { silent?: boolean }) {
     const formData = new FormData()
     formData.append('file', file, file.name)
 
-    const { data } = await api.post<RepairFaultPhoto>(`/api/repairs/${repairId}/faults/${faultId}/photos`, formData)
+    const { data } = await api.post<RepairFaultPhoto>(`/api/repairs/${repairId}/faults/${faultId}/photos`, formData, {
+      skipErrorToast: options?.silent,
+    })
     return normalizeFaultPhoto(data)
   },
 

@@ -1,14 +1,15 @@
 <template>
-  <div class="block">
-    <div v-if="label || showCounter" class="mb-2 flex items-center justify-between gap-3">
-      <label v-if="label" :for="textareaId" class="text-sm font-medium text-slate-700 dark:text-slate-200">
-        {{ label }}
-      </label>
-      <span v-if="showCounter" class="ml-auto shrink-0 text-xs tabular-nums text-slate-500 dark:text-app-muted">
+  <AppFormField :id="textareaId" :hint="hint" :error="error" :required="required" :compact="size === 'sm'">
+    <template v-if="label || showCounter" #label>
+      <div class="flex w-full items-center justify-between gap-3">
+        <span>{{ label }}</span>
+        <span v-if="showCounter" class="ml-auto shrink-0 text-xs font-normal tabular-nums text-ui-mutedText">
         {{ modelValue.length }} / {{ maxlength }}
-      </span>
-    </div>
+        </span>
+      </div>
+    </template>
 
+    <template #default="{ describedBy }">
     <textarea
       :id="textareaId"
       :value="modelValue"
@@ -17,18 +18,22 @@
       :maxlength="maxlength"
       :disabled="disabled"
       :readonly="readonly"
-      class="min-h-24 w-full resize-y rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:border-app-border dark:bg-app-panel dark:text-slate-50 dark:placeholder:text-app-muted dark:focus:border-app-muted dark:focus:ring-app-elevated"
+      :aria-invalid="Boolean(error)"
+      :aria-describedby="describedBy"
+      class="ui-field-control resize-y leading-5"
+      :class="[
+        size === 'sm' ? 'min-h-16 px-3 py-2 text-xs' : 'min-h-24 px-3.5 py-3 text-sm',
+        error ? '!border-danger-500 focus:!ring-danger-100 dark:!border-danger-400' : '',
+      ]"
       @input="onInput"
     ></textarea>
-
-    <span v-if="error" class="mt-2 block text-sm text-slate-700 dark:text-slate-300">
-      {{ error }}
-    </span>
-  </div>
+    </template>
+  </AppFormField>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import AppFormField from './AppFormField.vue'
 
 const props = withDefaults(defineProps<{
   modelValue: string
@@ -41,6 +46,9 @@ const props = withDefaults(defineProps<{
   disabled?: boolean
   readonly?: boolean
   error?: string
+  hint?: string
+  required?: boolean
+  size?: 'sm' | 'md'
 }>(), {
   id: undefined,
   label: undefined,
@@ -51,6 +59,9 @@ const props = withDefaults(defineProps<{
   disabled: false,
   readonly: false,
   error: undefined,
+  hint: undefined,
+  required: false,
+  size: 'md',
 })
 
 const emit = defineEmits<{

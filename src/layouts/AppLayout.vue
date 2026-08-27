@@ -1,17 +1,12 @@
 <template>
-  <div class="flex h-dvh overflow-hidden bg-app-content text-slate-950 dark:text-slate-50">
+  <div class="flex h-dvh overflow-hidden bg-ui-canvas text-ui-text">
     <AppSidebar />
-    <main class="flex h-dvh min-w-0 flex-1 flex-col overflow-hidden bg-app-content">
-      <header class="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-app-light px-3 dark:border-app-border dark:bg-app-dark md:hidden">
-        <button
-          type="button"
-          class="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-app-border dark:bg-app-panel dark:text-slate-100 dark:hover:bg-app-elevated"
-          aria-label="Otwórz menu"
-          @click="uiStore.toggleMobileSidebar()"
-        >
+    <main class="flex h-dvh min-w-0 flex-1 flex-col overflow-hidden bg-ui-canvas">
+      <header class="flex h-14 shrink-0 items-center justify-between border-b border-ui-border bg-ui-surface px-3 md:hidden">
+        <AppIconButton label="Otwórz menu" size="lg" @click="uiStore.toggleMobileSidebar()">
           <Menu class="h-5 w-5" />
-        </button>
-        <p class="text-sm font-semibold text-slate-950 dark:text-slate-50">Routewise</p>
+        </AppIconButton>
+        <p class="ui-card-title">Routewise</p>
         <span class="h-10 w-10" aria-hidden="true"></span>
       </header>
         <div class="min-h-0 flex-1 overflow-y-auto">
@@ -28,6 +23,7 @@ import { computed, onMounted } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { Menu } from 'lucide-vue-next'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
+import AppIconButton from '@/components/ui/AppIconButton.vue'
 import { useFleetStore } from '@/stores/fleetStore'
 import { useUiStore } from '@/stores/uiStore'
 

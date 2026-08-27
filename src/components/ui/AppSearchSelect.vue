@@ -1,62 +1,69 @@
 <template>
-  <div ref="rootElement" class="relative">
-    <label v-if="label" :for="inputId" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-200">
-      {{ label }}
-    </label>
-
-    <div class="relative">
-      <input
-        :id="inputId"
-        ref="inputElement"
-        v-model="query"
-        :placeholder="placeholder"
-        :disabled="disabled"
-        class="w-full rounded-2xl border border-slate-200 bg-white pr-9 text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 dark:border-app-border dark:bg-app-panel dark:text-slate-50 dark:placeholder:text-app-muted dark:focus:border-app-muted dark:focus:ring-app-elevated"
-        :class="size === 'sm' ? 'h-9 px-3 text-xs' : 'h-11 px-4 text-sm'"
-        @focus="openDropdown"
-        @click="openDropdown"
-        @input="isOpen = true"
-        @keydown.escape.prevent="closeDropdown"
-      />
-      <Search class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-    </div>
-
-    <Teleport to="body">
-      <div
-        v-if="isOpen"
-        ref="dropdownElement"
-        class="fixed z-[220] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-1 shadow-sm dark:border-app-border dark:bg-app-panel"
-        :style="dropdownStyle"
-      >
-        <button
-          v-for="option in filteredOptions"
-          :key="option.value"
-          type="button"
-          :disabled="option.disabled"
-          class="flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
-          :class="[size === 'sm' ? 'text-xs' : 'text-sm', option.value === modelValue ? 'bg-slate-100 text-slate-950 dark:bg-app-elevated dark:text-slate-50' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-950 dark:text-slate-200 dark:hover:bg-app-elevated dark:hover:text-slate-50']"
-          @click="selectOption(option)"
-        >
-          <span class="min-w-0">
-            <span class="block truncate">{{ option.label }}</span>
-            <span v-if="option.description" class="mt-0.5 block truncate text-[11px] text-slate-400 dark:text-app-muted">
-              {{ option.description }}
-            </span>
-          </span>
-          <Check v-if="option.value === modelValue" class="h-4 w-4 shrink-0" />
-        </button>
-
-        <div v-if="!filteredOptions.length" class="px-3 py-2 text-xs text-slate-500 dark:text-app-muted">
-          {{ emptyText }}
-        </div>
+  <AppFormField v-bind="$attrs" :id="inputId" :label="label" :hint="hint" :error="error" :required="required" :compact="size === 'sm'">
+    <template #default="{ describedBy }">
+      <div class="relative">
+        <input
+          :id="inputId"
+          ref="inputElement"
+          v-model="query"
+          role="combobox"
+          aria-autocomplete="list"
+          aria-haspopup="listbox"
+          :aria-expanded="isOpen"
+          :aria-controls="listboxId"
+          :aria-activedescendant="isOpen && activeIndex >= 0 ? optionId(activeIndex) : undefined"
+          :aria-describedby="describedBy"
+          :aria-invalid="Boolean(error)"
+          :placeholder="placeholder"
+          :disabled="disabled"
+          class="ui-field-control pr-10"
+          :class="[
+            size === 'sm' ? 'ui-field-sm' : 'ui-field-md',
+            error ? '!border-danger-500 focus:!ring-danger-100 dark:!border-danger-400' : '',
+            isOpen ? '!border-ui-input-focus !bg-ui-input-hover ring-2 ring-ui-focus/60' : '',
+          ]"
+          @focus="openDropdown"
+          @click="openDropdown"
+          @input="handleInput"
+          @keydown="handleKeydown"
+        />
+        <Search class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ui-icon" />
       </div>
-    </Teleport>
-  </div>
+    </template>
+  </AppFormField>
+
+  <AppDropdown :open="isOpen" :anchor="inputElement" :max-height="maxHeight" role="listbox" @close="closeDropdown">
+    <div :id="listboxId" class="p-1" role="listbox" :aria-labelledby="inputId">
+      <AppDropdownItem
+        v-for="(option, index) in filteredOptions"
+        :id="optionId(index)"
+        :key="option.value"
+        :selected="option.value === modelValue"
+        :disabled="option.disabled"
+        :class="activeIndex === index ? '!bg-ui-dropdown-hover !text-ui-text' : ''"
+        @mouseenter="activeIndex = index"
+        @mousedown.prevent
+        @click="selectOption(option)"
+      >
+        <span class="min-w-0 flex-1">
+          <span class="block truncate" :class="size === 'sm' ? 'text-xs' : 'text-sm'">{{ option.label }}</span>
+          <span v-if="option.description" class="mt-0.5 block truncate ui-caption">{{ option.description }}</span>
+        </span>
+        <Check v-if="option.value === modelValue" class="h-4 w-4 shrink-0 text-ui-icon" />
+      </AppDropdownItem>
+      <div v-if="!filteredOptions.length" class="px-3 py-2 ui-body-sm text-ui-mutedText">{{ emptyText }}</div>
+    </div>
+  </AppDropdown>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+defineOptions({ inheritAttrs: false })
+
+import { computed, nextTick, ref, watch } from 'vue'
 import { Check, Search } from 'lucide-vue-next'
+import AppDropdown from './AppDropdown.vue'
+import AppDropdownItem from './AppDropdownItem.vue'
+import AppFormField from './AppFormField.vue'
 
 export interface AppSearchSelectOption {
   label: string
@@ -70,132 +77,120 @@ const props = withDefaults(defineProps<{
   modelValue: string
   options: AppSearchSelectOption[]
   label?: string
+  hint?: string
+  error?: string
   placeholder?: string
   disabled?: boolean
+  required?: boolean
   size?: 'sm' | 'md'
   emptyText?: string
   showAllOnOpen?: boolean
+  maxHeight?: number
 }>(), {
   label: undefined,
+  hint: undefined,
+  error: undefined,
   placeholder: 'Szukaj',
   disabled: false,
+  required: false,
   size: 'md',
   emptyText: 'Brak wyników',
-  showAllOnOpen: false,
+  showAllOnOpen: true,
+  maxHeight: 288,
 })
 
-const emit = defineEmits<{
-  'update:modelValue': [value: string]
-}>()
-
-const rootElement = ref<HTMLElement | null>(null)
+const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 const inputElement = ref<HTMLInputElement | null>(null)
-const dropdownElement = ref<HTMLElement | null>(null)
 const isOpen = ref(false)
+const activeIndex = ref(-1)
 const query = ref('')
-const dropdownStyle = ref<Record<string, string>>({})
 const inputId = `search-select-${Math.random().toString(16).slice(2)}`
-
+const listboxId = `${inputId}-listbox`
 const selectedOption = computed(() => props.options.find((option) => option.value === props.modelValue))
-
 const filteredOptions = computed(() => {
-  const normalizedQuery = query.value.trim().toLowerCase()
-
-  return props.options.filter((option) => {
-    if (!normalizedQuery) {
-      return true
-    }
-
-    return [
-      option.label,
-      option.description,
-      option.searchText,
-    ]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(normalizedQuery))
-  })
+  const normalizedQuery = query.value.trim().toLocaleLowerCase('pl')
+  if (!normalizedQuery) return props.options
+  return props.options.filter((option) => [option.label, option.description, option.searchText]
+    .filter(Boolean)
+    .some((value) => String(value).toLocaleLowerCase('pl').includes(normalizedQuery)))
 })
 
-function closeDropdown() {
-  isOpen.value = false
+function optionId(index: number) {
+  return `${inputId}-option-${index}`
+}
+
+function firstEnabledIndex() {
+  return filteredOptions.value.findIndex((option) => !option.disabled)
+}
+
+function syncSelectedLabel() {
   query.value = selectedOption.value?.label || ''
 }
 
 function openDropdown() {
-  const wasOpen = isOpen.value
+  if (props.disabled) return
+  if (!isOpen.value && props.showAllOnOpen) query.value = ''
   isOpen.value = true
+  activeIndex.value = firstEnabledIndex()
+}
 
-  if (props.showAllOnOpen && !wasOpen) {
-    query.value = ''
+function closeDropdown() {
+  isOpen.value = false
+  activeIndex.value = -1
+  syncSelectedLabel()
+}
+
+function handleInput() {
+  isOpen.value = true
+  activeIndex.value = firstEnabledIndex()
+}
+
+function moveActive(direction: 1 | -1) {
+  const options = filteredOptions.value
+  if (!options.length) return
+  let index = activeIndex.value
+  for (let attempts = 0; attempts < options.length; attempts += 1) {
+    index = (index + direction + options.length) % options.length
+    if (!options[index].disabled) {
+      activeIndex.value = index
+      void nextTick(() => document.getElementById(optionId(index))?.scrollIntoView({ block: 'nearest' }))
+      return
+    }
   }
-
-  void nextTick(updateDropdownPosition)
 }
 
 function selectOption(option: AppSearchSelectOption) {
-  if (option.disabled) {
-    return
-  }
-
+  if (option.disabled) return
   emit('update:modelValue', option.value)
   query.value = option.label
   isOpen.value = false
+  activeIndex.value = -1
+  inputElement.value?.focus()
 }
 
-function onDocumentClick(event: MouseEvent) {
-  const target = event.target as Node
-
-  if (!rootElement.value?.contains(target) && !dropdownElement.value?.contains(target)) {
-    closeDropdown()
-  }
-}
-
-function updateDropdownPosition() {
-  if (!isOpen.value || !inputElement.value) {
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault()
+    if (!isOpen.value) openDropdown()
+    else moveActive(event.key === 'ArrowDown' ? 1 : -1)
     return
   }
-
-  const rect = inputElement.value.getBoundingClientRect()
-  const gap = 8
-  const preferredHeight = 288
-  const minimumHeight = 96
-  const spaceBelow = window.innerHeight - rect.bottom - gap
-  const spaceAbove = rect.top - gap
-  const openAbove = spaceBelow < 160 && spaceAbove > spaceBelow
-  const availableHeight = openAbove ? spaceAbove : spaceBelow
-  const maxHeight = Math.min(preferredHeight, Math.max(minimumHeight, availableHeight))
-  const width = Math.min(rect.width, window.innerWidth - gap * 2)
-  const left = Math.min(Math.max(rect.left, gap), window.innerWidth - width - gap)
-
-  dropdownStyle.value = openAbove
-    ? {
-        bottom: `${window.innerHeight - rect.top + gap}px`,
-        left: `${left}px`,
-        width: `${width}px`,
-        maxHeight: `${maxHeight}px`,
-      }
-    : {
-        top: `${rect.bottom + gap}px`,
-        left: `${left}px`,
-        width: `${width}px`,
-        maxHeight: `${maxHeight}px`,
-      }
+  if (event.key === 'Enter' && isOpen.value && activeIndex.value >= 0) {
+    event.preventDefault()
+    selectOption(filteredOptions.value[activeIndex.value])
+  } else if (event.key === 'Escape') {
+    event.preventDefault()
+    closeDropdown()
+  } else if (event.key === 'Tab') closeDropdown()
+  else if (event.key === 'Home' && isOpen.value) {
+    event.preventDefault()
+    activeIndex.value = firstEnabledIndex()
+  } else if (event.key === 'End' && isOpen.value) {
+    event.preventDefault()
+    activeIndex.value = filteredOptions.value.length - 1
+  }
 }
 
-watch(() => props.modelValue, () => {
-  query.value = selectedOption.value?.label || ''
-}, { immediate: true })
-
-watch(() => props.options, () => {
-  query.value = selectedOption.value?.label || ''
-})
-
-onMounted(() => document.addEventListener('click', onDocumentClick))
-onMounted(() => window.addEventListener('resize', updateDropdownPosition))
-onMounted(() => window.addEventListener('scroll', updateDropdownPosition, true))
-onBeforeUnmount(() => {
-  document.removeEventListener('click', onDocumentClick)
-  window.removeEventListener('resize', updateDropdownPosition)
-  window.removeEventListener('scroll', updateDropdownPosition, true)
-})
+watch(() => props.modelValue, syncSelectedLabel, { immediate: true })
+watch(() => props.options, syncSelectedLabel)
 </script>

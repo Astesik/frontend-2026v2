@@ -9,16 +9,15 @@
           placeholder="operator@routewise.pl"
           required
         />
-        <AppInput
+        <AppPasswordInput
           v-model="form.password"
-          label="Haslo"
-          type="password"
+          label="Hasło"
           autocomplete="current-password"
           placeholder="••••••••"
           required
         />
 
-        <p v-if="formError" class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-app-border dark:bg-app-elevated dark:text-slate-300">
+        <p v-if="formError" class="rounded-[var(--rw-radius-control)] border border-danger-100 bg-danger-50 px-4 py-3 text-sm text-danger-600 dark:border-danger-400/40 dark:bg-danger-400/10 dark:text-danger-400">
           {{ formError }}
         </p>
 
@@ -36,6 +35,7 @@ import { useRoute, useRouter } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppPasswordInput from '@/components/ui/AppPasswordInput.vue'
 import { useAuthStore } from '@/stores/authStore'
 
 const authStore = useAuthStore()

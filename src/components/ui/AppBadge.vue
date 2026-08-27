@@ -14,15 +14,15 @@ const props = withDefaults(defineProps<{
 })
 
 const variants = {
-  neutral: 'border-slate-200 bg-slate-50 text-slate-600 dark:border-app-border dark:bg-app-elevated dark:text-slate-300',
+  neutral: 'border-ui-border bg-ui-muted text-ui-text-secondary',
   success: 'border-success-100 bg-success-50 text-success-600 dark:border-success-400 dark:bg-app-elevated dark:text-success-400',
-  warning: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-400 dark:bg-app-elevated dark:text-amber-300',
+  warning: 'border-warning-100 bg-warning-50 text-warning-600 dark:border-warning-400/50 dark:bg-warning-400/10 dark:text-warning-400',
   error: 'border-danger-100 bg-danger-50 text-danger-600 dark:border-danger-400 dark:bg-app-elevated dark:text-danger-400',
-  info: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-app-border dark:bg-app-elevated dark:text-slate-300',
+  info: 'border-info-100 bg-info-50 text-info-600 dark:border-info-400/50 dark:bg-info-400/10 dark:text-info-400',
 }
 
 const badgeClasses = computed(() => [
-  'inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium',
+  'inline-flex items-center rounded-[6px] border px-2 py-0.5 text-[11px] font-medium leading-4',
   variants[props.variant],
 ])
 </script>
