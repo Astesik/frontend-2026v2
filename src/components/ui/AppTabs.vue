@@ -1,7 +1,8 @@
 <template>
   <div
     ref="tabListElement"
-    class="inline-flex max-w-full flex-wrap items-center gap-1 rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-muted p-1"
+    class="inline-flex max-w-full flex-wrap items-center gap-1 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted"
+    :class="size === 'sm' ? 'p-0.5' : 'p-1'"
     :aria-label="ariaLabel"
     role="tablist"
     @keydown="handleKeydown"

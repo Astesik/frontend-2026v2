@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-5 xl:flex xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:flex-col xl:space-y-0 xl:gap-4 xl:overflow-hidden">
-    <header class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+    <header class="flex flex-col gap-4">
       <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
         <AppInput
           v-model="searchQuery"
@@ -29,8 +29,6 @@
           size="sm"
         />
       </div>
-
-      <h1 class="shrink-0 text-right ui-page-title">Urządzenia</h1>
     </header>
 
     <AppCard compact class="xl:min-h-0 xl:flex-1 xl:overflow-hidden" content-class="xl:flex xl:h-full xl:min-h-0 xl:flex-col">
@@ -67,10 +65,10 @@
                 <span class="ml-2 text-xs font-medium text-ui-mutedText">#{{ device.id }}</span>
               </td>
               <td class="py-1.5 pr-3 font-mono text-xs text-ui-text-secondary">{{ device.serialNumber }}</td>
-              <td class="py-1.5 pr-3"><AppBadge variant="neutral">{{ deviceTypeLabel(device.type) }}</AppBadge></td>
-              <td class="py-1.5 pr-3"><AppBadge :variant="device.status === 'ACTIVE' ? 'success' : 'neutral'">{{ deviceStatusLabel(device.status) }}</AppBadge></td>
+              <td class="py-1.5 pr-3"><AppBadge fixed-width="sm" variant="neutral">{{ deviceTypeLabel(device.type) }}</AppBadge></td>
+              <td class="py-1.5 pr-3"><AppBadge fixed-width="sm" :variant="device.status === 'ACTIVE' ? 'success' : 'neutral'">{{ deviceStatusLabel(device.status) }}</AppBadge></td>
               <td class="py-1.5 pr-3 text-ui-text-secondary">{{ providerLabel(device.provider) }}</td>
-              <td class="py-1.5 pr-3"><AppBadge :variant="device.assignedToVehicle ? 'info' : 'neutral'">{{ device.assignedToVehicle ? 'Przypisane' : 'Wolne' }}</AppBadge></td>
+              <td class="py-1.5 pr-3"><AppBadge fixed-width="md" :variant="device.assignedToVehicle ? 'info' : 'neutral'">{{ device.assignedToVehicle ? 'Przypisane' : 'Wolne' }}</AppBadge></td>
               <td class="py-1.5 pr-3 font-medium" :class="lastPositionClasses(device.lastPositionAt)">{{ formatDateTime(device.lastPositionAt) }}</td>
               <td class="py-1.5 pr-3 text-ui-text-secondary">{{ formatDateTime(device.createdAt) }}</td>
               <td class="sticky right-0 z-10 bg-ui-surface py-1.5 pr-1 text-right shadow-[-1px_0_0_0_rgb(var(--rw-border))] transition group-hover:bg-ui-hover">

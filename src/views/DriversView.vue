@@ -25,7 +25,7 @@
             <p class="font-medium text-slate-950 dark:text-slate-50">{{ driver.name }}</p>
             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ driver.phone }}</p>
           </div>
-          <AppBadge :variant="driverVariant(driver.status)">{{ driverLabel(driver.status) }}</AppBadge>
+          <AppBadge fixed-width="md" :variant="driverVariant(driver.status)">{{ driverLabel(driver.status) }}</AppBadge>
         </div>
         <p class="mt-4 text-sm text-slate-500 dark:text-slate-400">
           Pojazd: {{ assignedVehicle(driver.assignedVehicleId) }}

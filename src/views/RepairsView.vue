@@ -51,24 +51,25 @@
         </AppButton>
       </div>
 
-      <h1 class="shrink-0 text-right ui-page-title">Naprawy</h1>
+      <div class="w-full shrink-0 md:flex md:justify-end xl:w-auto">
+        <AppSelect
+          v-model="activeTab"
+          class="w-full md:hidden"
+          label="Widok napraw"
+          :options="tabOptions"
+          size="sm"
+        />
+
+        <AppTabs
+          class="hidden w-fit shrink-0 md:inline-flex"
+          :model-value="activeTab"
+          :items="visibleTabs"
+          size="sm"
+          aria-label="Widok napraw"
+          @update:model-value="setActiveTab"
+        />
+      </div>
     </header>
-
-    <AppSelect
-      v-model="activeTab"
-      class="md:hidden"
-      label="Widok napraw"
-      :options="tabOptions"
-      size="sm"
-    />
-
-    <AppTabs
-      class="hidden w-fit shrink-0 md:inline-flex"
-      :model-value="activeTab"
-      :items="visibleTabs"
-      aria-label="Widok napraw"
-      @update:model-value="setActiveTab"
-    />
 
     <section v-if="!isLoading && isKanbanTab" class="grid shrink-0 grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
       <article class="repair-stat-tile">
@@ -122,7 +123,7 @@
         :key="column.key"
         class="flex w-full min-w-0 max-w-full min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel"
         :class="[
-          dragOverColumn === column.key ? 'ring-2 ring-slate-300 dark:ring-app-muted' : '',
+          dragOverColumn === column.key ? 'ring-2 ring-inset ring-slate-400 dark:ring-app-muted' : '',
           isRepairColumnCollapsed(column.key) ? 'self-start' : '',
         ]"
         @dragenter.prevent="dragOverColumn = column.key"
@@ -245,7 +246,7 @@
                   {{ formatDateTime(repair.plannedDepartureAt) }}
                 </td>
                 <td class="px-2 py-2">
-                  <AppBadge :variant="statusVariant(repair.status)">{{ statusLabel(repair.status) }}</AppBadge>
+                  <AppBadge fixed-width="lg" :variant="statusVariant(repair.status)">{{ statusLabel(repair.status) }}</AppBadge>
                 </td>
                 <td class="px-2 py-1.5">
                   <button
@@ -1061,7 +1062,7 @@ const RepairCardContent = defineComponent({
           ]),
           h('div', { class: 'flex min-w-0 shrink-0 items-center gap-1.5' }, [
             isDone ? h(CircleCheck, { class: 'h-5 w-5 text-success-600 dark:text-success-400' }) : null,
-            h(AppBadge, { variant: statusVariant(props.repair.status) }, () => statusLabel(props.repair.status)),
+            h(AppBadge, { variant: statusVariant(props.repair.status), fixedWidth: 'lg' }, () => statusLabel(props.repair.status)),
           ]),
         ]),
         h('div', { class: 'mt-2 min-w-0 space-y-1 text-xs leading-5 text-slate-600 dark:text-slate-300' }, [

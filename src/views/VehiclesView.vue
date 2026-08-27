@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-5 xl:flex xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:flex-col xl:space-y-0 xl:gap-4 xl:overflow-hidden">
-    <header class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+    <header class="flex flex-col gap-4">
       <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
         <AppInput
           v-model="searchQuery"
@@ -38,8 +38,6 @@
           Dodaj pojazd
         </AppButton>
       </div>
-
-      <h1 class="shrink-0 text-right ui-page-title">Pojazdy</h1>
     </header>
 
     <AppCard compact class="xl:min-h-0 xl:flex-1 xl:overflow-hidden" content-class="xl:flex xl:h-full xl:min-h-0 xl:flex-col">
@@ -94,7 +92,7 @@
                 <span class="ml-2 text-xs font-medium text-ui-mutedText">#{{ vehicle.id }}</span>
               </td>
               <td class="py-1.5 pr-3">
-                <AppBadge :variant="vehicleTypeVariant(vehicle.type)">{{ vehicleTypeLabel(vehicle.type) }}</AppBadge>
+                <AppBadge fixed-width="sm" :variant="vehicleTypeVariant(vehicle.type)">{{ vehicleTypeLabel(vehicle.type) }}</AppBadge>
               </td>
               <td class="py-1.5 pr-3 text-ui-text-secondary">{{ vehicle.make || '-' }}</td>
               <td class="py-1.5 pr-3 text-ui-text-secondary">{{ vehicle.productionYear || '-' }}</td>
