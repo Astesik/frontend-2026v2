@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="repairsViewRoot"
     class="flex min-h-full w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden"
     :class="isKanbanTab ? 'xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:overflow-hidden' : ''"
   >
@@ -154,6 +155,7 @@
 
         <div
           v-if="!isRepairColumnCollapsed(column.key)"
+          :data-repairs-scroll-key="`column:${column.key}`"
           class="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
         >
           <article
@@ -202,7 +204,7 @@
         </div>
       </header>
 
-      <div class="min-h-0 min-w-0 flex-1 overflow-auto">
+      <div data-repairs-scroll-key="field-table" class="min-h-0 min-w-0 flex-1 overflow-auto">
         <table class="w-full min-w-[920px] table-fixed text-left text-xs">
           <thead class="sticky top-0 z-10 border-b border-slate-200 bg-white text-[10px] uppercase text-slate-500 dark:border-app-border dark:bg-app-panel dark:text-app-muted">
             <tr>
@@ -783,6 +785,7 @@ const authStore = useAuthStore()
 const fleetStore = useFleetStore()
 const repairStore = useRepairStore()
 const uiStore = useUiStore()
+const repairsViewRoot = ref<HTMLElement | null>(null)
 const {
   repairs,
   weeks,
@@ -1784,9 +1787,50 @@ async function confirmDeleteMechanic() {
   }
 }
 
-function openRepairDetails(repair: Repair) {
+function captureRepairsReturnPosition() {
+  const contentScrollTop = document.querySelector<HTMLElement>('[data-app-scroll-container]')?.scrollTop || 0
+  const nestedScrollTops: Record<string, number> = {}
+
+  repairsViewRoot.value?.querySelectorAll<HTMLElement>('[data-repairs-scroll-key]').forEach((element) => {
+    const key = element.dataset.repairsScrollKey
+
+    if (key) {
+      nestedScrollTops[key] = element.scrollTop
+    }
+  })
+
+  repairStore.setRepairsReturnPosition({ contentScrollTop, nestedScrollTops })
+}
+
+async function restoreRepairsReturnPosition() {
+  const position = repairStore.consumeRepairsReturnPosition()
+
+  if (!position) {
+    return
+  }
+
+  await nextTick()
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+
+  const contentScroller = document.querySelector<HTMLElement>('[data-app-scroll-container]')
+  if (contentScroller) {
+    contentScroller.scrollTop = position.contentScrollTop
+  }
+
+  repairsViewRoot.value?.querySelectorAll<HTMLElement>('[data-repairs-scroll-key]').forEach((element) => {
+    const key = element.dataset.repairsScrollKey
+
+    if (key && position.nestedScrollTops[key] !== undefined) {
+      element.scrollTop = position.nestedScrollTops[key]
+    }
+  })
+}
+
+async function openRepairDetails(repair: Repair) {
   persistRepairsViewState()
-  void router.push({ name: 'repair-detail', params: { id: repair.id } })
+  captureRepairsReturnPosition()
+  await router.push({ name: 'repair-detail', params: { id: repair.id } })
+  document.querySelector<HTMLElement>('[data-app-scroll-container]')?.scrollTo({ top: 0 })
 }
 
 function isFieldRepairSelected(repairId: number) {
@@ -2334,6 +2378,7 @@ watch([selectedWeekKey, mapRepairVehicles], () => {
 
 onMounted(async () => {
   await loadData()
+  await restoreRepairsReturnPosition()
 
   if (activeTab.value === 'map') {
     await initializeRepairMap()

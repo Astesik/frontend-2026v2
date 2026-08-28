@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-3">
-    <header class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+    <header class="flex items-center gap-3">
       <div class="flex items-center gap-3">
         <AppIconLink
           :to="{ name: 'repairs' }"
@@ -16,32 +16,6 @@
         </div>
       </div>
 
-      <div v-if="repair" class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-        <AppBadge :variant="statusVariant(repair.status)">{{ statusLabel(repair.status) }}</AppBadge>
-        <AppButton
-          class="w-full sm:w-auto"
-          size="sm"
-          variant="secondary"
-          :loading="isMutating"
-          :disabled="!canUpdateRepairs"
-          :title="!canUpdateRepairs ? 'Brak uprawnienia: repairs.update' : undefined"
-          @click="requestRepairStatusChange"
-        >
-          <CircleCheck class="h-4 w-4" />
-          {{ normalizeRepairStatus(repair.status) === 'done' ? 'Otwórz naprawę' : 'Zamknij naprawę' }}
-        </AppButton>
-        <AppButton
-          class="w-full sm:w-auto"
-          size="sm"
-          variant="danger"
-          :disabled="!canDeleteRepairs"
-          :title="!canDeleteRepairs ? 'Brak uprawnienia: repairs.delete' : undefined"
-          @click="repairToDelete = repair"
-        >
-          <Trash2 class="h-4 w-4" />
-          Usuń naprawę
-        </AppButton>
-      </div>
     </header>
 
     <div v-if="isLoading" class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-400">
@@ -52,8 +26,8 @@
       Nie znaleziono naprawy.
     </div>
 
-    <div v-else class="space-y-3">
-        <AppCard title="Informacje" compact content-class="!p-3">
+    <div v-else class="grid min-w-0 gap-3 xl:grid-cols-[22rem_minmax(0,1fr)] xl:items-start">
+        <AppCard class="order-1 min-w-0 xl:sticky xl:top-0" title="Informacje" :icon="Info" compact content-class="!p-0">
           <template #actions>
             <AppButton
               v-if="!infoEditMode"
@@ -85,56 +59,108 @@
             </div>
           </template>
 
-          <div class="grid gap-2 md:grid-cols-3">
-            <InfoLine label="Pojazd" :value="repairVehicleLabel(repair)" :icon="Truck" />
-            <InfoLine label="Utworzył" :value="repairCreatorName(repair)" :icon="UserRound" />
-            <div class="rounded-xl border border-slate-100 p-2.5 dark:border-app-border">
-              <p class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                <BadgeCheck class="h-3 w-3" />
-                Status
-              </p>
-              <AppSelect v-if="infoEditMode" v-model="editForm.status" :options="repairStatusOptions" size="sm" class="mt-1.5" />
-              <p v-else class="mt-0.5 break-words text-xs font-semibold text-slate-950 dark:text-slate-50">{{ statusLabel(repair.status) }}</p>
+          <div class="border-b border-ui-divider bg-ui-muted px-4 py-3">
+            <div class="flex min-w-0 items-center justify-between gap-3">
+              <div class="flex min-w-0 items-center gap-2.5">
+                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface text-ui-mutedText">
+                  <Truck class="h-4 w-4" />
+                </span>
+                <div class="min-w-0">
+                  <p class="ui-caption">Pojazd</p>
+                  <p class="truncate text-sm font-semibold text-ui-text">{{ repairVehicleLabel(repair) }}</p>
+                </div>
+              </div>
+              <AppBadge :variant="statusVariant(repair.status)">{{ statusLabel(repair.status) }}</AppBadge>
             </div>
-            <div class="rounded-xl border border-slate-100 p-2.5 dark:border-app-border">
-              <p class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                <MapPin class="h-3 w-3" />
-                Miejsce naprawy
-              </p>
-              <AppSearchSelect v-if="infoEditMode" v-model="editForm.placeId" placeholder="Wybierz miejsce" :options="placeOptions" size="sm" class="mt-1.5" />
-              <p v-else class="mt-0.5 break-words text-xs font-semibold text-slate-950 dark:text-slate-50">{{ repairPlaceLabel(repair) }}</p>
+          </div>
+
+          <div v-if="!infoEditMode" class="divide-y divide-ui-divider px-4">
+            <div class="repair-detail-row">
+              <UserRound class="repair-detail-row__icon" />
+              <div class="min-w-0">
+                <dt class="ui-caption">Utworzył</dt>
+                <dd class="repair-detail-row__value">{{ repairCreatorName(repair) }}</dd>
+              </div>
             </div>
-            <div class="rounded-xl border border-slate-100 p-2.5 dark:border-app-border">
-              <p class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                <CalendarClock class="h-3 w-3" />
-                Planowany przyjazd
-              </p>
-              <AppDateTimePicker v-if="infoEditMode" v-model="editForm.arrivalAt" size="sm" default-time="08:00" class="mt-1.5" />
-              <p v-else class="mt-0.5 break-words text-xs font-semibold text-slate-950 dark:text-slate-50">{{ formatDateTime(repair.plannedArrivalAt) }}</p>
+            <div class="repair-detail-row">
+              <MapPin class="repair-detail-row__icon" />
+              <div class="min-w-0">
+                <dt class="ui-caption">Miejsce naprawy</dt>
+                <dd class="repair-detail-row__value">{{ repairPlaceLabel(repair) }}</dd>
+              </div>
             </div>
-            <div class="rounded-xl border border-slate-100 p-2.5 dark:border-app-border">
-              <p class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                <CalendarCheck class="h-3 w-3" />
-                Planowany odjazd
-              </p>
-              <AppDateTimePicker v-if="infoEditMode" v-model="editForm.departureAt" size="sm" default-time="16:00" class="mt-1.5" />
-              <p v-else class="mt-0.5 break-words text-xs font-semibold text-slate-950 dark:text-slate-50">{{ formatDateTime(repair.plannedDepartureAt) }}</p>
+            <div class="repair-detail-row">
+              <CalendarClock class="repair-detail-row__icon" />
+              <div class="min-w-0">
+                <dt class="ui-caption">Planowany przyjazd</dt>
+                <dd class="repair-detail-row__value">{{ formatDateTime(repair.plannedArrivalAt) }}</dd>
+              </div>
             </div>
-            <div class="rounded-xl border border-slate-100 p-2.5 dark:border-app-border md:col-span-3">
-              <p class="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                <FileText class="h-3 w-3" />
-                Uwagi
-              </p>
-              <AppTextarea
-                v-if="infoEditMode"
-                v-model="editForm.description"
-                class="mt-1.5"
-                placeholder="Uwagi do naprawy"
-                :rows="3"
-                size="sm"
-              />
-              <p v-else class="mt-0.5 text-xs font-semibold text-slate-950 dark:text-slate-50">{{ repair.description || '-' }}</p>
+            <div class="repair-detail-row">
+              <CalendarCheck class="repair-detail-row__icon" />
+              <div class="min-w-0">
+                <dt class="ui-caption">Planowany odjazd</dt>
+                <dd class="repair-detail-row__value">{{ formatDateTime(repair.plannedDepartureAt) }}</dd>
+              </div>
             </div>
+            <div class="repair-detail-row items-start">
+              <FileText class="repair-detail-row__icon mt-0.5" />
+              <div class="min-w-0">
+                <dt class="ui-caption">Uwagi</dt>
+                <dd class="repair-detail-row__value whitespace-pre-wrap">{{ repair.description || '-' }}</dd>
+              </div>
+            </div>
+          </div>
+
+          <div v-else class="space-y-3 px-4 py-3">
+            <div class="space-y-1.5">
+              <label class="ui-form-label">Status</label>
+              <AppSelect v-model="editForm.status" :options="repairStatusOptions" size="sm" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="ui-form-label">Miejsce naprawy</label>
+              <AppSearchSelect v-model="editForm.placeId" placeholder="Wybierz miejsce" :options="placeOptions" size="sm" />
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <div class="space-y-1.5">
+                <label class="ui-form-label">Planowany przyjazd</label>
+                <AppDateTimePicker v-model="editForm.arrivalAt" size="sm" default-time="08:00" />
+              </div>
+              <div class="space-y-1.5">
+                <label class="ui-form-label">Planowany odjazd</label>
+                <AppDateTimePicker v-model="editForm.departureAt" size="sm" default-time="16:00" />
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              <label class="ui-form-label">Uwagi</label>
+              <AppTextarea v-model="editForm.description" placeholder="Uwagi do naprawy" :rows="4" size="sm" />
+            </div>
+          </div>
+
+          <div class="grid gap-2 border-t border-ui-divider p-3 sm:grid-cols-2 xl:grid-cols-1">
+            <AppButton
+              class="w-full"
+              size="sm"
+              variant="secondary"
+              :loading="isMutating"
+              :disabled="!canUpdateRepairs"
+              :title="!canUpdateRepairs ? 'Brak uprawnienia: repairs.update' : undefined"
+              @click="requestRepairStatusChange"
+            >
+              <CircleCheck class="h-4 w-4" />
+              {{ normalizeRepairStatus(repair.status) === 'done' ? 'Otwórz naprawę' : 'Zamknij naprawę' }}
+            </AppButton>
+            <AppButton
+              class="w-full"
+              size="sm"
+              variant="danger"
+              :disabled="!canDeleteRepairs"
+              :title="!canDeleteRepairs ? 'Brak uprawnienia: repairs.delete' : undefined"
+              @click="repairToDelete = repair"
+            >
+              <Trash2 class="h-4 w-4" />
+              Usuń naprawę
+            </AppButton>
           </div>
         </AppCard>
 
@@ -215,7 +241,7 @@
           </p>
         </AppCard>
         </template>
-        <AppCard v-if="canReadFaults" title="Usterki" compact content-class="!p-3">
+        <AppCard v-if="canReadFaults" class="order-2 min-w-0" title="Usterki" :icon="Wrench" compact content-class="!p-3">
           <template #actions>
             <div class="flex flex-wrap justify-end gap-2">
               <AppButton
@@ -235,7 +261,7 @@
             <article
               v-for="fault in repair.faults"
               :key="fault.id"
-              class="overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm ring-1 ring-slate-200/70 dark:border-app-border dark:bg-app-dark dark:ring-white/5"
+              class="overflow-hidden rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface shadow-soft"
             >
               <div
                 class="grid cursor-pointer grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-2 gap-y-2 px-2 py-2 transition hover:bg-slate-50 sm:px-3 md:grid-cols-[2rem_minmax(10rem,1fr)_12rem] md:gap-2 dark:hover:bg-app-elevated"
@@ -616,7 +642,7 @@
           </div>
         </AppCard>
 
-        <AppCard v-else title="Usterki" compact content-class="!p-3">
+        <AppCard v-else class="order-2 min-w-0" title="Usterki" :icon="Wrench" compact content-class="!p-3">
           <div class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
             Brak uprawnień do wyświetlania usterek.
           </div>
@@ -885,10 +911,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch, type Component, type PropType } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, BadgeCheck, CalendarCheck, CalendarClock, Camera, Check, ChevronDown, Circle, CircleCheck, FileText, ImageOff, ImagePlus, LoaderCircle, MapPin, MessageSquare, Plus, Send, SquarePen, Trash2, Truck, UserRound, X } from 'lucide-vue-next'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { ArrowLeft, CalendarCheck, CalendarClock, Camera, Check, ChevronDown, Circle, CircleCheck, FileText, ImageOff, ImagePlus, Info, LoaderCircle, MapPin, MessageSquare, Plus, Send, SquarePen, Trash2, Truck, UserRound, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
@@ -1002,32 +1028,6 @@ const placeOptions = computed<AppSearchSelectOption[]>(() => places.value.map((p
   value: String(place.id),
   label: place.name,
 })))
-
-const InfoLine = defineComponent({
-  props: {
-    label: {
-      type: String,
-      required: true,
-    },
-    value: {
-      type: String as PropType<string>,
-      required: true,
-    },
-    icon: {
-      type: Object as PropType<Component>,
-      default: null,
-    },
-  },
-  setup(props) {
-    return () => h('div', { class: 'rounded-xl border border-slate-100 p-2.5 dark:border-app-border' }, [
-      h('p', { class: 'flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400' }, [
-        props.icon ? h(props.icon, { class: 'h-3 w-3' }) : null,
-        props.label,
-      ]),
-      h('p', { class: 'mt-0.5 break-words text-xs font-semibold text-slate-950 dark:text-slate-50' }, props.value),
-    ])
-  },
-})
 
 function normalizeRepairStatus(status: string | null | undefined): RepairStatus {
   const normalized = String(status || 'new').trim()
@@ -2268,6 +2268,12 @@ onMounted(() => {
   void Promise.allSettled([loadRepair(), repairStore.loadDictionaries()])
 })
 
+onBeforeRouteLeave((to) => {
+  if (to.name !== 'repairs') {
+    repairStore.clearRepairsReturnPosition()
+  }
+})
+
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', handlePreviewKeydown)
   clearNewFaultPhotoDrafts()
@@ -2277,6 +2283,29 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.repair-detail-row {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.625rem;
+  padding-block: 0.75rem;
+}
+
+.repair-detail-row__icon {
+  width: 1rem;
+  height: 1rem;
+  color: rgb(var(--rw-icon));
+}
+
+.repair-detail-row__value {
+  margin-top: 0.125rem;
+  overflow-wrap: anywhere;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  color: rgb(var(--rw-text-primary));
+}
+
 .fault-description-scroll {
   scrollbar-color: rgb(var(--rw-app-border)) transparent;
   scrollbar-width: thin;

@@ -10,6 +10,8 @@
         :data-placement="placement"
         :role="role"
         data-ui-floating-layer
+        @mouseenter="emit('pointer-enter')"
+        @mouseleave="emit('pointer-leave')"
         @keydown.escape.prevent.stop="emitClose"
       >
         <slot :placement="placement" />
@@ -41,6 +43,8 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   close: []
+  'pointer-enter': []
+  'pointer-leave': []
 }>()
 
 const dropdownElement = ref<HTMLElement | null>(null)
@@ -61,7 +65,7 @@ function updatePosition() {
   const spaceBelow = window.innerHeight - rect.bottom - props.gap - viewportPadding
   const spaceAbove = rect.top - props.gap - viewportPadding
   const desiredHeight = Math.min(props.maxHeight, Math.max(props.minHeight, dropdownElement.value?.scrollHeight || props.maxHeight))
-  const openAbove = spaceBelow < Math.min(desiredHeight, 160) && spaceAbove > spaceBelow
+  const openAbove = spaceBelow < desiredHeight && spaceAbove > spaceBelow
   const availableHeight = Math.max(48, openAbove ? spaceAbove : spaceBelow)
   const maxHeight = Math.min(props.maxHeight, availableHeight)
   const width = props.matchWidth

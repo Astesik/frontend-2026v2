@@ -24,7 +24,14 @@
     </template>
   </AppFormField>
 
-  <AppDropdown :open="isOpen" :anchor="buttonElement" role="listbox" @close="isOpen = false">
+  <AppDropdown
+    :open="isOpen"
+    :anchor="buttonElement"
+    :match-width="false"
+    content-class="min-w-[12rem]"
+    role="listbox"
+    @close="isOpen = false"
+  >
     <div :id="listboxId" class="p-1" role="listbox" aria-multiselectable="true">
       <AppDropdownItem v-if="showSelectAll && enabledOptions.length" :selected="allOptionsSelected" @click="toggleAllOptions">
         <span
@@ -34,7 +41,7 @@
           <Check v-if="allOptionsSelected" class="h-3 w-3" />
           <Minus v-else-if="someOptionsSelected" class="h-3 w-3" />
         </span>
-        <span class="min-w-0 flex-1 truncate font-medium">{{ selectAllLabel }}</span>
+        <span class="min-w-max flex-1 whitespace-nowrap font-medium">{{ selectAllLabel }}</span>
       </AppDropdownItem>
       <div v-if="showSelectAll && enabledOptions.length" class="mx-2 my-1 h-px bg-ui-divider"></div>
       <AppDropdownItem

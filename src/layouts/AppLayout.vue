@@ -9,7 +9,7 @@
         <p class="ui-card-title">Routewise</p>
         <span class="h-10 w-10" aria-hidden="true"></span>
       </header>
-        <div class="min-h-0 flex-1 overflow-y-auto">
+        <div data-app-scroll-container class="min-h-0 flex-1 overflow-y-auto">
       <div :class="contentClasses">
         <RouterView />
       </div>

@@ -1,6 +1,6 @@
 <template>
-  <div class="space-y-5">
-    <header class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+  <div class="space-y-3">
+    <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div class="flex items-center gap-3">
         <AppIconLink
           :to="{ name: 'vehicles' }"
@@ -16,22 +16,11 @@
         </div>
       </div>
 
-      <div class="flex flex-wrap gap-2">
-        <AppButton
-          size="sm"
-          variant="secondary"
-          :disabled="!vehicle || !canUpdateVehicles"
-          :title="!canUpdateVehicles ? 'Brak uprawnienia: vehicles.update' : undefined"
-          @click="openEditModal"
-        >
-          <SquarePen class="h-4 w-4" />
-          Edytuj
-        </AppButton>
-        <AppButton disabled size="sm" variant="danger">
-          <Trash2 class="h-4 w-4" />
-          Usuń
-        </AppButton>
-      </div>
+      <AppButton v-if="vehicle" size="sm" variant="secondary" @click="openServiceHistory">
+        <History class="h-4 w-4" />
+        Historia serwisowa
+      </AppButton>
+
     </header>
 
     <div v-if="!vehicle && fleetStore.isVehiclesLoading" class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-400">
@@ -42,10 +31,54 @@
       Nie znaleziono pojazdu.
     </div>
 
-    <div v-else class="space-y-5">
-      <div class="grid gap-5 xl:grid-cols-[1.1fr_0.9fr] xl:items-stretch">
-        <AppCard class="h-full" title="Dane podstawowe" compact>
-          <div class="grid gap-3 md:grid-cols-2">
+    <div
+      v-else
+      class="grid min-w-0 gap-3"
+      :class="isEditModalOpen
+        ? 'xl:grid-cols-[32rem_minmax(0,1fr)] xl:items-start'
+        : 'xl:grid-cols-[22rem_minmax(0,1fr)] xl:items-stretch'"
+    >
+        <AppCard class="h-full min-w-0" title="Informacje" :icon="Info" compact content-class="!p-0">
+          <template #actions>
+            <AppButton
+              v-if="!isEditModalOpen"
+              size="sm"
+              variant="secondary"
+              :disabled="!canUpdateVehicles"
+              :title="!canUpdateVehicles ? 'Brak uprawnienia: vehicles.update' : undefined"
+              @click="openEditModal"
+            >
+              <SquarePen class="h-4 w-4" />
+              Edytuj
+            </AppButton>
+            <div v-else class="flex items-center gap-2">
+              <AppButton size="sm" variant="ghost" :disabled="isUpdatingVehicle" @click="closeEditModal">
+                <X class="h-4 w-4" />
+                Anuluj
+              </AppButton>
+              <AppButton form="vehicle-inline-edit-form" type="submit" size="sm" :loading="isUpdatingVehicle">
+                <Check class="h-4 w-4" />
+                Zapisz
+              </AppButton>
+            </div>
+          </template>
+
+          <div class="border-b border-ui-divider bg-ui-muted px-4 py-3">
+            <div class="flex min-w-0 items-center justify-between gap-3">
+              <div class="flex min-w-0 items-center gap-2.5">
+                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface text-ui-mutedText">
+                  <Truck class="h-4 w-4" />
+                </span>
+                <div class="min-w-0">
+                  <p class="ui-caption">Pojazd</p>
+                  <p class="truncate text-sm font-semibold text-ui-text">{{ vehicle.licensePlate }}</p>
+                </div>
+              </div>
+              <AppBadge :variant="vehicle.status === 'ACTIVE' ? 'success' : 'neutral'">{{ statusLabel(vehicle.status) }}</AppBadge>
+            </div>
+          </div>
+
+          <div v-if="!isEditModalOpen" class="divide-y divide-ui-divider px-4">
             <InfoRow label="Numer rejestracyjny" :value="vehicle.licensePlate" />
             <InfoRow label="Typ pojazdu" :value="vehicleTypeLabel(vehicle.type)" />
             <InfoRow label="Marka" :value="vehicle.make" />
@@ -55,29 +88,56 @@
             <InfoRow label="Klasa Euro" :value="vehicle.euroClass" />
             <InfoRow label="Własność" :value="ownershipLabel(vehicle.ownership)" />
             <InfoRow label="Własność do" :value="formatDate(vehicle.ownershipUntil)" />
-            <InfoRow label="Status" :value="statusLabel(vehicle.status)" />
             <InfoRow label="Zbiornik paliwa" :value="fuelTankLabel(vehicle.fuelTank)" />
             <InfoRow label="Ostatnia pozycja" :value="formatDateTime(vehicle.lastPositionAt)" />
-            <div class="rounded-2xl border border-slate-100 p-3 md:col-span-2 dark:border-app-border">
-              <p class="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Opis pojazdu</p>
-              <p class="mt-1 whitespace-pre-wrap break-words text-sm font-medium leading-5 text-slate-700 dark:text-slate-200">
+            <div class="grid min-w-0 grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] items-start gap-3 py-3">
+              <p class="ui-caption">Opis pojazdu</p>
+              <p class="whitespace-pre-wrap break-words text-right text-[13px] font-semibold leading-5 text-ui-text">
                 {{ vehicle.description || '—' }}
               </p>
             </div>
           </div>
+
+          <form v-else id="vehicle-inline-edit-form" class="grid gap-3 px-4 py-3 sm:grid-cols-2" @submit.prevent="submitVehicleEdit">
+            <AppInput v-model="editForm.licensePlate" label="Numer rejestracyjny" size="sm" required />
+            <AppSelect v-model="editForm.type" label="Typ pojazdu" :options="vehicleTypeFormOptions" size="sm" />
+            <AppInput v-model="editForm.make" label="Marka" size="sm" />
+            <AppInput v-model="editForm.vin" label="VIN" size="sm" />
+            <AppInput v-model="editForm.productionYear" label="Rok produkcji" type="number" size="sm" />
+            <AppDatePicker v-model="editForm.firstRegistration" label="Pierwsza rejestracja" size="sm" />
+            <AppInput v-model="editForm.euroClass" label="Klasa Euro" size="sm" />
+            <AppSelect v-model="editForm.ownership" label="Własność" :options="vehicleOwnershipFormOptions" size="sm" />
+            <AppDatePicker v-model="editForm.ownershipUntil" label="Własność do" size="sm" />
+            <AppDatePicker v-model="editForm.technicalInspection" label="Przegląd techniczny" size="sm" />
+            <AppDatePicker v-model="editForm.tachographInspection" label="Legalizacja tachografu" size="sm" />
+            <AppDatePicker v-model="editForm.vignetteUk" label="Winieta UK" size="sm" />
+            <AppInput v-model="editForm.fuelTank" label="Zbiornik paliwa" type="number" size="sm" />
+            <AppSelect v-model="editForm.status" label="Status" :options="vehicleStatusFormOptions" size="sm" />
+            <AppTextarea
+              v-model="editForm.description"
+              class="sm:col-span-2"
+              label="Opis pojazdu"
+              placeholder="Wpisz dodatkowe informacje o pojeździe"
+              :maxlength="1000"
+              :rows="4"
+              size="sm"
+              show-counter
+            />
+          </form>
         </AppCard>
 
-        <div class="grid gap-5 xl:grid-rows-2">
-          <AppCard class="h-full" title="Przeglądy i winiety" compact>
-            <div class="space-y-2">
+        <div class="flex min-h-0 min-w-0 flex-col gap-3">
+          <div class="grid gap-3 lg:grid-cols-2">
+          <AppCard class="h-full min-w-0" title="Przeglądy i winiety" :icon="CalendarCheck" compact content-class="!p-3">
+            <div class="space-y-1.5">
               <InspectionRow label="Przegląd techniczny" :date="vehicle.technicalInspection" />
               <InspectionRow label="Legalizacja tachografu" :date="vehicle.tachographInspection" />
               <InspectionRow label="Winieta UK" :date="vehicle.vignetteUk" />
             </div>
           </AppCard>
 
-          <AppCard class="h-full" title="Urządzenia" compact>
-            <div class="flex items-start justify-between gap-4 rounded-2xl border border-slate-100 p-3 dark:border-app-border">
+          <AppCard class="h-full min-w-0" title="Urządzenie" :icon="Cpu" compact content-class="!p-3">
+            <div class="flex items-start justify-between gap-4 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted p-2.5">
               <div>
                 <p class="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Przypisane urządzenie</p>
                 <p class="mt-1 text-lg font-semibold text-slate-950 dark:text-slate-50">
@@ -116,128 +176,10 @@
               </AppButton>
             </div>
           </AppCard>
-        </div>
-      </div>
-
-      <div class="grid gap-5 xl:grid-cols-2">
-        <AppCard title="Historia serwisowa" compact>
-          <div v-if="isRepairsLoading" class="py-6 text-sm text-slate-500 dark:text-slate-400">
-            Pobieranie historii...
           </div>
 
-          <div v-else-if="!repairHistory.length" class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
-            Brak wpisów w książce serwisowej.
-          </div>
-
-          <div v-else class="space-y-2">
-            <article
-              v-for="repair in repairHistory"
-              :key="repairKey(repair)"
-              class="overflow-hidden rounded-2xl border border-slate-100 transition dark:border-app-border"
-            >
-              <button
-                type="button"
-                class="flex w-full items-start justify-between gap-3 p-3 text-left transition hover:bg-slate-50 dark:hover:bg-app-elevated"
-                @click="toggleRepairHistory(repair)"
-              >
-                <div class="min-w-0">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <p class="font-semibold text-slate-950 dark:text-slate-50">{{ repairTitle(repair) }}</p>
-                    <AppBadge :variant="repairStatusVariant(repair)">{{ repairStatus(repair) }}</AppBadge>
-                  </div>
-                  <div class="mt-2 grid gap-1 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-3">
-                    <span>Data: {{ repairDate(repair) }}</span>
-                    <span>Miejsce: {{ repairPlace(repair) }}</span>
-                    <span>Usterki: {{ repairFaultsSummary(repair) }}</span>
-                  </div>
-                </div>
-                <ChevronDown
-                  class="mt-1 h-4 w-4 shrink-0 text-slate-400 transition"
-                  :class="{ 'rotate-180': isRepairExpanded(repair) }"
-                />
-              </button>
-
-              <div v-if="isRepairExpanded(repair)" class="border-t border-slate-100 p-3 dark:border-app-border">
-                <p v-if="repairDescription(repairDetail(repair))" class="mb-3 rounded-2xl bg-slate-50 p-3 text-sm text-slate-700 dark:bg-app-elevated dark:text-slate-200">
-                  {{ repairDescription(repairDetail(repair)) }}
-                </p>
-
-                <div class="grid gap-2 text-xs text-slate-500 dark:text-slate-400 sm:grid-cols-2">
-                  <span>Przyjazd: {{ repairDate(repairDetail(repair)) }}</span>
-                  <span>Wyjazd: {{ repairDepartureDate(repairDetail(repair)) }}</span>
-                  <span>Miejsce: {{ repairPlace(repairDetail(repair)) }}</span>
-                  <span>Utworzył: {{ repairCreatedBy(repairDetail(repair)) }}</span>
-                </div>
-
-                <section class="mt-4">
-                  <div class="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
-                    <Wrench class="h-3.5 w-3.5" />
-                    Usterki
-                  </div>
-
-                  <div v-if="!repairFaults(repairDetail(repair)).length" class="rounded-2xl border border-dashed border-slate-200 p-3 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
-                    Brak usterek w tej naprawie.
-                  </div>
-
-                  <ul v-else class="space-y-2">
-                    <li
-                      v-for="fault in repairFaults(repairDetail(repair))"
-                      :key="repairFaultKey(fault)"
-                      class="flex items-start justify-between gap-3 rounded-2xl border border-slate-100 p-3 dark:border-app-border"
-                    >
-                      <div class="min-w-0">
-                        <p class="text-sm font-medium text-slate-950 dark:text-slate-50">{{ repairFaultDescription(fault) }}</p>
-                        <p v-if="repairFaultMechanic(fault)" class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          Mechanik: {{ repairFaultMechanic(fault) }}
-                        </p>
-                        <p v-if="repairFaultNote(fault)" class="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                          Notatka: {{ repairFaultNote(fault) }}
-                        </p>
-                      </div>
-                      <AppBadge :variant="repairFaultStatusVariant(fault)">{{ repairFaultStatusLabel(fault) }}</AppBadge>
-                    </li>
-                  </ul>
-                </section>
-
-                <section class="mt-4">
-                  <div class="mb-2 flex items-center gap-2 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
-                    <MessageSquare class="h-3.5 w-3.5" />
-                    Komentarze
-                  </div>
-
-                  <div v-if="!repairComments(repairDetail(repair)).length" class="rounded-2xl border border-dashed border-slate-200 p-3 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
-                    Brak komentarzy.
-                  </div>
-
-                  <div v-else class="space-y-2">
-                    <div
-                      v-for="comment in repairComments(repairDetail(repair))"
-                      :key="comment.id"
-                      class="rounded-2xl bg-slate-50 p-3 dark:bg-app-elevated"
-                    >
-                      <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-                        <span class="font-semibold text-slate-700 dark:text-slate-200">{{ repairCommentAuthor(comment) }}</span>
-                        <span>{{ formatDateTime(comment.createdAt) }}</span>
-                      </div>
-                      <p class="mt-1 text-sm text-slate-700 dark:text-slate-200">{{ comment.content }}</p>
-                    </div>
-                  </div>
-                </section>
-
-                <RouterLink
-                  v-if="repair.id"
-                  class="mt-4 inline-flex items-center gap-2 rounded-2xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-app-border dark:text-slate-200 dark:hover:bg-app-elevated"
-                  :to="{ name: 'repair-detail', params: { id: repair.id } }"
-                >
-                  <ExternalLink class="h-3.5 w-3.5" />
-                  Pełne szczegóły
-                </RouterLink>
-              </div>
-            </article>
-          </div>
-        </AppCard>
-
-        <AppCard title="Dokumenty pojazdu" compact>
+      <div class="min-w-0 space-y-3">
+        <AppCard title="Dokumenty pojazdu" :icon="Files" compact>
           <div class="grid gap-2 sm:grid-cols-2">
             <div
               v-for="document in mockedDocuments"
@@ -253,48 +195,189 @@
           </div>
         </AppCard>
 
-        <AppCard v-if="canReadVehiclePhotos" class="xl:col-span-2" title="Zdjęcia pojazdu" compact>
+        <AppCard v-if="canReadVehiclePhotos" title="Zdjęcia pojazdu" :icon="Images" compact>
           <VehiclePhotoGallery :vehicle-id="vehicle.id" />
         </AppCard>
+        </div>
       </div>
-    </div>
-
+        </div>
     <AppModal
-      :open="isEditModalOpen"
-      title="Edytuj pojazd"
-      size="lg"
-      :busy="isUpdatingVehicle"
-      @close="closeEditModal"
+      :open="isServiceHistoryOpen"
+      title="Historia serwisowa"
+      size="full"
+      body-class="!min-h-0 !overflow-hidden !p-0"
+      @close="isServiceHistoryOpen = false"
     >
-      <form id="vehicle-edit-form" class="grid gap-3 md:grid-cols-2" @submit.prevent="submitVehicleEdit">
-            <AppInput v-model="editForm.licensePlate" label="Numer rejestracyjny" required />
-            <AppSelect v-model="editForm.type" label="Typ pojazdu" :options="vehicleTypeFormOptions" />
-            <AppInput v-model="editForm.make" label="Marka" />
-            <AppInput v-model="editForm.vin" label="VIN" />
-            <AppInput v-model="editForm.productionYear" label="Rok produkcji" type="number" />
-            <AppDatePicker v-model="editForm.firstRegistration" label="Pierwsza rejestracja" />
-            <AppInput v-model="editForm.euroClass" label="Klasa Euro" />
-            <AppSelect v-model="editForm.ownership" label="Własność" :options="vehicleOwnershipFormOptions" />
-            <AppDatePicker v-model="editForm.ownershipUntil" label="Własność do" />
-            <AppDatePicker v-model="editForm.technicalInspection" label="Przegląd techniczny" />
-            <AppDatePicker v-model="editForm.tachographInspection" label="Legalizacja tachografu" />
-            <AppDatePicker v-model="editForm.vignetteUk" label="Winieta UK" />
-            <AppInput v-model="editForm.fuelTank" label="Zbiornik paliwa" type="number" />
-            <AppSelect v-model="editForm.status" label="Status" :options="vehicleStatusFormOptions" />
-            <AppTextarea
-              v-model="editForm.description"
-              class="md:col-span-2"
-              label="Opis pojazdu"
-              placeholder="Wpisz dodatkowe informacje o pojeździe"
-              :maxlength="1000"
-              :rows="5"
-              show-counter
-            />
-      </form>
-      <template #footer>
-        <AppButton type="button" variant="secondary" @click="closeEditModal">Anuluj</AppButton>
-        <AppButton form="vehicle-edit-form" type="submit" :loading="isUpdatingVehicle">Zapisz zmiany</AppButton>
-      </template>
+      <div class="grid h-full min-h-0 lg:grid-cols-[30rem_minmax(0,1fr)]">
+        <aside class="min-h-0 overflow-y-auto border-b border-ui-divider bg-ui-muted p-3 lg:border-b-0 lg:border-r">
+          <div v-if="isRepairsLoading" class="p-4 ui-body-sm text-ui-mutedText">Pobieranie historii...</div>
+          <div v-else-if="!repairHistory.length" class="rounded-[var(--rw-radius-control)] border border-dashed border-ui-border p-4 ui-body-sm text-ui-mutedText">
+            Brak wpisów w książce serwisowej.
+          </div>
+          <div v-else class="ui-table-shell overflow-x-auto">
+            <table class="ui-table w-full min-w-[27rem]">
+              <thead class="ui-table-head">
+                <tr>
+                  <th class="ui-table-cell font-medium">Naprawa</th>
+                  <th class="ui-table-cell w-28 font-medium">Termin</th>
+                  <th class="ui-table-cell w-28 font-medium">Status</th>
+                  <th class="ui-table-cell w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="repair in repairHistory" :key="repairKey(repair)">
+                  <tr class="ui-table-row cursor-pointer" @click="handleRepairHistoryClick(repair)">
+                    <td class="ui-table-cell">
+                      <p class="truncate font-semibold text-ui-text">{{ repairTitle(repair) }}</p>
+                      <p class="mt-0.5 truncate ui-caption">{{ repairPlace(repair) }}</p>
+                    </td>
+                    <td class="ui-table-cell w-36 align-middle ui-caption">{{ serviceRepairRangeLabel(repair) }}</td>
+                    <td class="ui-table-cell align-middle">
+                      <AppBadge :variant="repairStatusVariant(repair)">{{ repairStatus(repair) }}</AppBadge>
+                    </td>
+                    <td class="ui-table-cell text-right">
+                      <ChevronDown class="h-4 w-4 text-ui-icon transition" :class="isRepairExpanded(repair) ? 'rotate-180' : ''" />
+                    </td>
+                  </tr>
+                  <tr v-if="isRepairExpanded(repair)">
+                    <td colspan="4" class="border-b border-ui-divider bg-ui-muted p-3">
+                      <div class="space-y-3">
+                        <div class="grid gap-2 text-xs text-ui-text-secondary sm:grid-cols-2">
+                          <span>Przyjazd: <strong class="text-ui-text">{{ repairDate(repairDetail(repair)) }}</strong></span>
+                          <span>Wyjazd: <strong class="text-ui-text">{{ repairDepartureDate(repairDetail(repair)) }}</strong></span>
+                          <span>Utworzył: <strong class="text-ui-text">{{ repairCreatedBy(repairDetail(repair)) }}</strong></span>
+                          <span>Usterki: <strong class="text-ui-text">{{ repairFaultsSummary(repairDetail(repair)) }}</strong></span>
+                        </div>
+                        <p v-if="repairDescription(repairDetail(repair))" class="rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface p-2.5 ui-body-sm text-ui-text-secondary">
+                          {{ repairDescription(repairDetail(repair)) }}
+                        </p>
+                        <ul v-if="repairFaults(repairDetail(repair)).length" class="space-y-1.5">
+                          <li
+                            v-for="fault in repairFaults(repairDetail(repair))"
+                            :key="repairFaultKey(fault)"
+                            class="flex items-start justify-between gap-2 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface p-2"
+                          >
+                            <span class="min-w-0 text-xs font-medium text-ui-text">{{ repairFaultDescription(fault) }}</span>
+                            <AppBadge :variant="repairFaultStatusVariant(fault)">{{ repairFaultStatusLabel(fault) }}</AppBadge>
+                          </li>
+                        </ul>
+                        <RouterLink
+                          v-if="repair.id"
+                          class="inline-flex h-8 items-center gap-1.5 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface px-2.5 text-xs font-semibold text-ui-text transition hover:bg-ui-hover"
+                          :to="{ name: 'repair-detail', params: { id: repair.id } }"
+                        >
+                          <ExternalLink class="h-3.5 w-3.5" />
+                          Przejdź do szczegółów
+                        </RouterLink>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
+          </div>
+        </aside>
+
+        <section class="hidden min-h-0 flex-col bg-ui-surface p-3 sm:p-4 lg:flex">
+          <header class="mb-3 flex items-center justify-between gap-3">
+            <AppIconButton label="Poprzedni miesiąc" @click="changeServiceHistoryMonth(-1)">
+              <ChevronLeft class="h-4 w-4" />
+            </AppIconButton>
+            <h3 class="text-sm font-semibold capitalize text-ui-text sm:text-base">{{ serviceHistoryMonthLabel }}</h3>
+            <AppIconButton label="Następny miesiąc" @click="changeServiceHistoryMonth(1)">
+              <ChevronRight class="h-4 w-4" />
+            </AppIconButton>
+          </header>
+
+          <div class="grid grid-cols-7 border-l border-t border-ui-divider text-center">
+            <div v-for="dayName in serviceCalendarWeekdays" :key="dayName" class="border-b border-r border-ui-divider bg-ui-muted px-1 py-2 ui-caption">
+              {{ dayName }}
+            </div>
+          </div>
+          <div class="service-calendar-grid relative grid min-h-0 flex-1 grid-cols-7 grid-rows-6 overflow-hidden border-l border-ui-divider">
+            <div
+              v-for="day in serviceCalendarDays"
+              :key="day.key"
+              class="service-calendar-day min-h-16 border-b border-r border-ui-divider p-1.5 sm:min-h-20 sm:p-2"
+              :class="day.isCurrentMonth ? 'bg-ui-surface' : 'bg-ui-muted text-ui-mutedText'"
+            >
+              <span class="inline-flex h-5 min-w-5 items-center justify-center text-[11px] font-semibold" :class="day.isToday ? 'rounded-full bg-ui-text px-1 text-ui-surface' : ''">
+                {{ day.date.getDate() }}
+              </span>
+            </div>
+
+            <div class="pointer-events-none absolute inset-0 grid grid-cols-7 grid-rows-6">
+              <AppPopover
+                  v-for="segment in serviceCalendarRangeSegments"
+                  :key="segment.key"
+                  :open="openServiceCalendarPopoverKey === segment.key"
+                  :open-on-hover="true"
+                  :hover-delay="700"
+                  :match-width="false"
+                  :max-height="440"
+                  :trigger-class="serviceCalendarSegmentTriggerClass(segment)"
+                  :trigger-style="serviceCalendarSegmentStyle(segment)"
+                  :trigger-id="segment.isFirstForRepair ? serviceRepairAnchorId(segment.repair) : undefined"
+                  content-class="w-80 overflow-hidden p-0"
+                  @update:open="setServiceCalendarPopover(segment.key, $event)"
+                >
+                  <template #trigger>
+                    <button
+                      type="button"
+                      class="block h-5 w-full truncate px-2 py-1 text-left text-[10px] font-semibold leading-3 outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ui-focus sm:text-[11px]"
+                      :class="serviceCalendarRepairClass(segment.repair)"
+                      :aria-label="`Pokaż szczegóły: ${repairTitle(segment.repair)}`"
+                    >
+                      {{ repairPlace(segment.repair) }}
+                    </button>
+                  </template>
+
+                  <div class="border-b border-ui-divider bg-ui-muted px-3 py-2.5">
+                    <div class="flex items-start justify-between gap-3">
+                      <div class="min-w-0">
+                        <p class="truncate text-sm font-semibold text-ui-text">{{ repairTitle(segment.repair) }}</p>
+                        <p class="mt-0.5 truncate ui-caption">{{ repairPlace(segment.repair) }}</p>
+                        <p class="mt-1 text-xs font-medium text-ui-text-secondary">{{ serviceRepairRangeLabel(segment.repair) }}</p>
+                      </div>
+                      <AppBadge :variant="repairStatusVariant(segment.repair)">{{ repairStatus(segment.repair) }}</AppBadge>
+                    </div>
+                  </div>
+                  <div class="space-y-2.5 p-3">
+                    <p v-if="repairDescription(segment.repair)" class="line-clamp-3 border-t border-ui-divider pt-2 text-xs leading-5 text-ui-text-secondary">
+                      {{ repairDescription(segment.repair) }}
+                    </p>
+                    <div class="border-t border-ui-divider pt-2">
+                      <p class="mb-1.5 text-xs font-semibold text-ui-text">Usterki</p>
+                      <div v-if="repairFaults(repairDetail(segment.repair)).length" class="max-h-36 space-y-1 overflow-y-auto pr-1">
+                        <div
+                          v-for="fault in repairFaults(repairDetail(segment.repair))"
+                          :key="repairFaultKey(fault)"
+                          class="flex items-start gap-2 rounded-[6px] bg-ui-muted px-2 py-1.5"
+                        >
+                          <Check v-if="repairFaultStatusLabel(fault) === 'Zrobiona'" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-success-600 dark:text-success-400" />
+                          <span v-else class="mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border border-ui-border-strong" />
+                          <div class="min-w-0 flex-1">
+                            <p class="break-words text-xs font-medium leading-4 text-ui-text">{{ repairFaultDescription(fault) }}</p>
+                            <p v-if="repairFaultVisibleNote(fault)" class="mt-0.5 break-words ui-caption">{{ repairFaultVisibleNote(fault) }}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <p v-else class="rounded-[6px] bg-ui-muted px-2 py-1.5 ui-caption">Brak usterek.</p>
+                    </div>
+                    <RouterLink
+                      v-if="segment.repair.id"
+                      :to="{ name: 'repair-detail', params: { id: segment.repair.id } }"
+                      class="inline-flex h-9 w-full items-center justify-center gap-2 rounded-[6px] border border-ui-border bg-ui-surface px-3 text-sm font-medium text-ui-text-secondary shadow-soft transition hover:border-ui-border-strong hover:bg-ui-hover hover:text-ui-text focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"
+                    >
+                      <ExternalLink class="h-4 w-4" />
+                      Przejdź do szczegółów
+                    </RouterLink>
+                  </div>
+              </AppPopover>
+            </div>
+          </div>
+        </section>
+      </div>
     </AppModal>
 
     <AppConfirmModal
@@ -311,18 +394,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, onMounted, reactive, ref, watch, type PropType } from 'vue'
+import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type PropType } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
-import { ArrowLeft, ChevronDown, Cpu, ExternalLink, FileText, MessageSquare, SquarePen, Trash2, Wrench } from 'lucide-vue-next'
+import { ArrowLeft, CalendarCheck, Check, ChevronDown, ChevronLeft, ChevronRight, Cpu, ExternalLink, FileText, Files, History, Images, Info, SquarePen, Truck, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppIconLink from '@/components/ui/AppIconLink.vue'
+import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
+import AppPopover from '@/components/ui/AppPopover.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import AppTextarea from '@/components/ui/AppTextarea.vue'
 import DeviceSelect from '@/components/selects/DeviceSelect.vue'
@@ -338,6 +423,21 @@ import type { RepairComment, RepairFault } from '@/types/repair'
 type VehicleForm = ReturnType<typeof createEmptyVehicleForm>
 type RepairHistoryLike = VehicleRepairHistoryItem
 type BadgeVariant = 'neutral' | 'success' | 'warning' | 'error' | 'info'
+interface ServiceCalendarDay {
+  date: Date
+  key: string
+  isCurrentMonth: boolean
+  isToday: boolean
+}
+interface ServiceCalendarRangeSegment {
+  key: string
+  repair: RepairHistoryLike
+  row: number
+  startColumn: number
+  columnSpan: number
+  lane: number
+  isFirstForRepair: boolean
+}
 type RepairHistoryFault = RepairFault | string | {
   id?: number | string
   name?: string | null
@@ -368,6 +468,11 @@ const devicesReloadKey = ref(0)
 const editForm = reactive(createEmptyVehicleForm())
 const originalEditForm = ref<VehicleForm>(createEmptyVehicleForm())
 const expandedRepairIds = ref<Set<string>>(new Set())
+const isServiceHistoryOpen = ref(false)
+const openServiceCalendarPopoverKey = ref<string | null>(null)
+const focusedServiceRepairKey = ref<string | null>(null)
+const serviceHistoryMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+const serviceCalendarWeekdays = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd']
 
 const vehicleId = computed(() => String(route.params.id || ''))
 const vehicle = computed(() => fleetStore.apiVehicles.find((item) => String(item.id) === vehicleId.value) || null)
@@ -377,6 +482,83 @@ const unassignDeviceDescription = computed(() => {
   return `Czy na pewno chcesz odpiąć urządzenie ${deviceLabel} od pojazdu ${vehicle.value.licensePlate}?`
 })
 const repairHistory = computed(() => [...(vehicleRepairHistory.value[vehicleId.value] || [])].sort((first, second) => repairTimestamp(second) - repairTimestamp(first)))
+const serviceHistoryMonthLabel = computed(() => serviceHistoryMonth.value.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' }))
+const serviceCalendarDays = computed<ServiceCalendarDay[]>(() => {
+  const year = serviceHistoryMonth.value.getFullYear()
+  const month = serviceHistoryMonth.value.getMonth()
+  const firstDay = new Date(year, month, 1)
+  const mondayOffset = (firstDay.getDay() + 6) % 7
+  const start = new Date(year, month, 1 - mondayOffset)
+  const todayKey = calendarDateKey(new Date())
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(start)
+    date.setDate(start.getDate() + index)
+    return {
+      date,
+      key: calendarDateKey(date),
+      isCurrentMonth: date.getMonth() === month,
+      isToday: calendarDateKey(date) === todayKey,
+    }
+  })
+})
+const serviceCalendarRangeSegments = computed<ServiceCalendarRangeSegment[]>(() => {
+  const days = serviceCalendarDays.value
+  if (!days.length) return []
+
+  const dayIndexByKey = new Map(days.map((day, index) => [day.key, index]))
+  const firstDayTimestamp = new Date(days[0].date.getFullYear(), days[0].date.getMonth(), days[0].date.getDate()).getTime()
+  const lastDay = days[days.length - 1].date
+  const lastDayTimestamp = new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate()).getTime()
+  const occupiedLanes = Array.from({ length: 6 }, () => [] as Array<{ start: number; end: number; lane: number }>)
+  const segments: ServiceCalendarRangeSegment[] = []
+
+  const repairs = [...repairHistory.value].sort((first, second) => repairTimestamp(first) - repairTimestamp(second))
+
+  for (const repair of repairs) {
+    const range = normalizedServiceRepairRange(repair)
+    if (!range) continue
+
+    const rangeStartTimestamp = new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate()).getTime()
+    const rangeEndTimestamp = new Date(range.end.getFullYear(), range.end.getMonth(), range.end.getDate()).getTime()
+    if (rangeEndTimestamp < firstDayTimestamp || rangeStartTimestamp > lastDayTimestamp) continue
+
+    const clippedStart = new Date(Math.max(rangeStartTimestamp, firstDayTimestamp))
+    const clippedEnd = new Date(Math.min(rangeEndTimestamp, lastDayTimestamp))
+    const startIndex = dayIndexByKey.get(calendarDateKey(clippedStart))
+    const endIndex = dayIndexByKey.get(calendarDateKey(clippedEnd))
+    if (startIndex === undefined || endIndex === undefined) continue
+
+    let isFirstForRepair = true
+
+    for (let row = Math.floor(startIndex / 7); row <= Math.floor(endIndex / 7); row += 1) {
+      const segmentStart = Math.max(startIndex, row * 7)
+      const segmentEnd = Math.min(endIndex, row * 7 + 6)
+      const startColumn = segmentStart % 7
+      const endColumn = segmentEnd % 7
+      const rowLanes = occupiedLanes[row]
+      let lane = 0
+
+      while (rowLanes.some((item) => item.lane === lane && item.start <= endColumn && item.end >= startColumn)) {
+        lane += 1
+      }
+
+      rowLanes.push({ start: startColumn, end: endColumn, lane })
+      segments.push({
+        key: `${repairKey(repair)}-${row}-${startColumn}-${endColumn}`,
+        repair,
+        row,
+        startColumn,
+        columnSpan: endColumn - startColumn + 1,
+        lane,
+        isFirstForRepair,
+      })
+      isFirstForRepair = false
+    }
+  }
+
+  return segments
+})
 const canUpdateVehicles = computed(() => hasPermission('vehicles.update'))
 const canAssignDevices = computed(() => hasPermission('devices.assign'))
 const canReadVehiclePhotos = computed(() => authStore.hasActiveCompanyPermission('vehicle_photos.read'))
@@ -417,9 +599,9 @@ const InfoRow = defineComponent({
     },
   },
   setup(props) {
-    return () => h('div', { class: 'rounded-2xl border border-slate-100 p-3 dark:border-app-border' }, [
-      h('p', { class: 'text-xs font-medium uppercase text-slate-500 dark:text-slate-400' }, props.label),
-      h('p', { class: 'mt-1 break-words text-sm font-semibold text-slate-950 dark:text-slate-50' }, formatValue(props.value)),
+    return () => h('div', { class: 'grid min-w-0 grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] items-center gap-3 py-3' }, [
+      h('p', { class: 'ui-caption' }, props.label),
+      h('p', { class: 'min-w-0 break-words text-right text-[13px] font-semibold text-ui-text' }, formatValue(props.value)),
     ])
   },
 })
@@ -441,10 +623,10 @@ const InspectionRow = defineComponent({
       const variant: 'neutral' | 'success' | 'warning' | 'error' =
         days === null ? 'neutral' : days < 15 ? 'error' : days < 30 ? 'warning' : 'success'
 
-      return h('div', { class: 'flex items-center justify-between gap-3 rounded-2xl border border-slate-100 p-3 dark:border-app-border' }, [
+      return h('div', { class: 'flex items-center justify-between gap-3 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted px-2.5 py-2' }, [
         h('div', [
-          h('p', { class: 'text-sm font-semibold text-slate-950 dark:text-slate-50' }, props.label),
-          h('p', { class: 'mt-1 text-xs text-slate-500 dark:text-slate-400' }, formatDate(props.date)),
+          h('p', { class: 'text-xs font-semibold text-ui-text' }, props.label),
+          h('p', { class: 'mt-0.5 ui-caption' }, formatDate(props.date)),
         ]),
         h(AppBadge, { variant }, () => daysLabel(days)),
       ])
@@ -670,6 +852,106 @@ function hasPermission(permission: string) {
   return authStore.canManageCompany || authStore.hasActiveCompanyPermission(permission)
 }
 
+function calendarDateKey(value: Date) {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  const day = String(value.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function serviceRepairStart(repair: RepairHistoryLike) {
+  const value = repair.arrivalTime || repair.plannedArrivalAt
+  const date = value ? new Date(value) : null
+  return date && !Number.isNaN(date.getTime()) ? date : null
+}
+
+function serviceRepairEnd(repair: RepairHistoryLike) {
+  const value = repair.departureTime || repair.plannedDepartureAt || repair.arrivalTime || repair.plannedArrivalAt
+  const date = value ? new Date(value) : null
+  return date && !Number.isNaN(date.getTime()) ? date : null
+}
+
+function serviceCalendarRepairClass(repair: RepairHistoryLike) {
+  const status = String(repair.status || '').toLowerCase()
+
+  if (status === 'done') return 'bg-success-100/80 text-success-700 dark:bg-success-400/15 dark:text-success-400'
+  if (status === 'cancelled') return 'bg-ui-muted text-ui-mutedText'
+  if (status === 'at_location' || status === 'ready_to_be_repaired') return 'bg-warning-100/80 text-warning-700 dark:bg-warning-400/15 dark:text-warning-400'
+  if (status === 'in_field') return 'bg-info-100/80 text-info-700 dark:bg-info-400/15 dark:text-info-400'
+  return 'bg-ui-selected text-ui-text'
+}
+
+function isSameCalendarDay(first: Date, second: Date) {
+  return calendarDateKey(first) === calendarDateKey(second)
+}
+
+function normalizedServiceRepairRange(repair: RepairHistoryLike) {
+  const start = serviceRepairStart(repair)
+  const end = serviceRepairEnd(repair)
+
+  if (!start || !end) return null
+  return start.getTime() <= end.getTime() ? { start, end } : { start: end, end: start }
+}
+
+function serviceCalendarSegmentStyle(segment: ServiceCalendarRangeSegment) {
+  return {
+    gridColumn: `${segment.startColumn + 1} / span ${segment.columnSpan}`,
+    gridRow: `${segment.row + 1}`,
+    marginTop: `${28 + segment.lane * 24}px`,
+  }
+}
+
+function serviceCalendarSegmentTriggerClass(segment: ServiceCalendarRangeSegment) {
+  return [
+    'service-calendar-overlay-range',
+    focusedServiceRepairKey.value === repairKey(segment.repair) ? 'service-calendar-overlay-range--focused' : '',
+  ].filter(Boolean).join(' ')
+}
+
+function serviceRepairAnchorId(repair: RepairHistoryLike) {
+  return `service-repair-${repairKey(repair).replace(/[^a-zA-Z0-9_-]/g, '-')}`
+}
+
+function setServiceCalendarPopover(key: string, open: boolean) {
+  if (open) {
+    openServiceCalendarPopoverKey.value = key
+  } else if (openServiceCalendarPopoverKey.value === key) {
+    openServiceCalendarPopoverKey.value = null
+  }
+}
+
+function serviceRepairRangeLabel(repair: RepairHistoryLike) {
+  const range = normalizedServiceRepairRange(repair)
+  if (!range) return '-'
+
+  const format = (date: Date) => date.toLocaleDateString('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+
+  if (isSameCalendarDay(range.start, range.end)) return format(range.start)
+  return `${format(range.start)} - ${format(range.end)}`
+}
+
+function changeServiceHistoryMonth(offset: number) {
+  serviceHistoryMonth.value = new Date(
+    serviceHistoryMonth.value.getFullYear(),
+    serviceHistoryMonth.value.getMonth() + offset,
+    1,
+  )
+}
+
+function openServiceHistory() {
+  const newestRepairDate = repairHistory.value.map(serviceRepairStart).find(Boolean)
+
+  if (newestRepairDate) {
+    serviceHistoryMonth.value = new Date(newestRepairDate.getFullYear(), newestRepairDate.getMonth(), 1)
+  }
+
+  isServiceHistoryOpen.value = true
+}
+
 function openEditModal() {
   if (!vehicle.value || !canUpdateVehicles.value) {
     return
@@ -888,6 +1170,32 @@ async function toggleRepairHistory(repair: RepairHistoryLike) {
   }
 }
 
+let serviceRepairFocusTimer: number | null = null
+
+async function handleRepairHistoryClick(repair: RepairHistoryLike) {
+  void toggleRepairHistory(repair)
+
+  const start = serviceRepairStart(repair)
+  if (!start) return
+
+  serviceHistoryMonth.value = new Date(start.getFullYear(), start.getMonth(), 1)
+  focusedServiceRepairKey.value = repairKey(repair)
+  openServiceCalendarPopoverKey.value = null
+  await nextTick()
+
+  document.getElementById(serviceRepairAnchorId(repair))?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'center',
+    inline: 'center',
+  })
+
+  if (serviceRepairFocusTimer !== null) window.clearTimeout(serviceRepairFocusTimer)
+  serviceRepairFocusTimer = window.setTimeout(() => {
+    focusedServiceRepairKey.value = null
+    serviceRepairFocusTimer = null
+  }, 1800)
+}
+
 function repairDetail(repair: RepairHistoryLike): RepairHistoryLike {
   return (repair.id ? repairDetailsById.value[String(repair.id)] || repair : repair) as RepairHistoryLike
 }
@@ -933,6 +1241,11 @@ function repairFaultMechanic(fault: RepairHistoryFault) {
 
 function repairFaultNote(fault: RepairHistoryFault) {
   return typeof fault === 'string' ? '' : fault.note || ''
+}
+
+function repairFaultVisibleNote(fault: RepairHistoryFault) {
+  const note = repairFaultNote(fault).trim()
+  return note.toLocaleLowerCase('pl-PL') === 'oznaczone jako wykonane' ? '' : note
 }
 
 function repairCreatedBy(repair: RepairHistoryLike) {
@@ -988,4 +1301,35 @@ watch(vehicleId, () => {
   expandedRepairIds.value = new Set()
   void loadRepairHistory()
 })
+
+watch(isServiceHistoryOpen, (open) => {
+  if (!open) openServiceCalendarPopoverKey.value = null
+})
+
+onBeforeUnmount(() => {
+  if (serviceRepairFocusTimer !== null) window.clearTimeout(serviceRepairFocusTimer)
+})
 </script>
+
+<style scoped>
+:global(.service-calendar-overlay-range) {
+  display: block;
+  min-width: 0;
+  height: 1.25rem;
+  overflow: hidden;
+  align-self: start;
+  pointer-events: auto;
+  position: relative;
+  z-index: 5;
+  margin-right: 1px;
+  margin-left: 1px;
+  border-radius: 4px;
+  transition: box-shadow 180ms ease, transform 180ms ease;
+}
+
+:global(.service-calendar-overlay-range--focused) {
+  z-index: 8;
+  box-shadow: 0 0 0 2px rgb(var(--rw-focus-ring));
+  transform: translateY(-1px);
+}
+</style>

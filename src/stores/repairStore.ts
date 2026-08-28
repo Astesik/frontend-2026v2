@@ -31,6 +31,11 @@ interface RepairCreateResult {
   photoUploadFailures: number
 }
 
+interface RepairsReturnPosition {
+  contentScrollTop: number
+  nestedScrollTops: Record<string, number>
+}
+
 export const useRepairStore = defineStore('repairs', () => {
   const repairs = ref<Repair[]>([])
   const weeks = ref<RepairWeek[]>([])
@@ -47,8 +52,23 @@ export const useRepairStore = defineStore('repairs', () => {
   const isVehicleRepairHistoryLoading = ref(false)
   const isMutating = ref(false)
   const isPhotoMutating = ref(false)
+  const repairsReturnPosition = ref<RepairsReturnPosition | null>(null)
 
   const repairById = computed(() => new Map(repairs.value.map((repair) => [repair.id, repair])))
+
+  function setRepairsReturnPosition(position: RepairsReturnPosition) {
+    repairsReturnPosition.value = position
+  }
+
+  function consumeRepairsReturnPosition() {
+    const position = repairsReturnPosition.value
+    repairsReturnPosition.value = null
+    return position
+  }
+
+  function clearRepairsReturnPosition() {
+    repairsReturnPosition.value = null
+  }
 
   function updateRepairFaultCollections(repairId: number | string, faultId: number | string, updater: (fault: RepairFault) => RepairFault) {
     const repairKey = String(repairId)
@@ -607,6 +627,7 @@ export const useRepairStore = defineStore('repairs', () => {
     isVehicleRepairHistoryLoading.value = false
     isMutating.value = false
     isPhotoMutating.value = false
+    repairsReturnPosition.value = null
   }
 
   return {
@@ -625,7 +646,11 @@ export const useRepairStore = defineStore('repairs', () => {
     isVehicleRepairHistoryLoading,
     isMutating,
     isPhotoMutating,
+    repairsReturnPosition,
     repairById,
+    setRepairsReturnPosition,
+    consumeRepairsReturnPosition,
+    clearRepairsReturnPosition,
     loadRepairs,
     loadListData,
     loadDictionaries,

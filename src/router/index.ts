@@ -121,4 +121,18 @@ router.beforeEach((to) => {
   return true
 })
 
+router.afterEach((to, from) => {
+  if (to.fullPath === from.fullPath) {
+    return
+  }
+
+  requestAnimationFrame(() => {
+    const contentScroller = document.querySelector<HTMLElement>('[data-app-scroll-container]')
+
+    if (contentScroller) {
+      contentScroller.scrollTop = 0
+    }
+  })
+})
+
 export default router
