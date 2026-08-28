@@ -613,57 +613,72 @@
     <AppModal
       :open="isMechanicsModalOpen"
       title="Mechanicy"
-      description="Zarządzanie listą osób dostępnych przy usterkach."
       size="md"
       :busy="isMutating"
       @close="closeMechanicsModal"
     >
-            <form class="grid gap-3 rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-muted p-3 sm:grid-cols-[1fr_1fr_auto]" @submit.prevent="submitMechanic">
-              <AppInput v-model="mechanicForm.firstName" label="Imię" placeholder="Imię" size="sm" />
-              <AppInput v-model="mechanicForm.lastName" label="Nazwisko" placeholder="Nazwisko" size="sm" />
-              <div class="flex items-end gap-2">
-                <AppButton type="submit" size="sm" :loading="isMutating">
-                  <Check v-if="mechanicForm.id" class="h-4 w-4" />
-                  <Plus v-else class="h-4 w-4" />
-                  {{ mechanicForm.id ? 'Zapisz' : 'Dodaj' }}
-                </AppButton>
-                <AppButton v-if="mechanicForm.id" type="button" size="sm" variant="ghost" @click="resetMechanicForm">
-                  Anuluj
-                </AppButton>
-              </div>
-            </form>
-
-            <div class="ui-table-shell mt-4">
-              <div class="hidden grid-cols-[1fr_9rem] gap-3 border-b border-ui-divider bg-ui-muted px-3 py-2 ui-caption sm:grid">
-                <span>Mechanik</span>
-                <span class="text-right">Akcje</span>
-              </div>
-
-              <div
-                v-for="mechanic in mechanics"
-                :key="mechanic.id"
-                class="grid gap-2 border-b border-ui-divider px-3 py-2 transition last:border-b-0 hover:bg-ui-hover sm:grid-cols-[1fr_9rem] sm:items-center"
-              >
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-semibold text-ui-text">{{ mechanicDisplayName(mechanic) }}</p>
-                  <p class="ui-caption">ID: {{ mechanic.id }}</p>
-                </div>
-                <div class="flex flex-wrap justify-start gap-1 sm:justify-end">
-                  <AppButton type="button" size="sm" variant="ghost" @click="editMechanic(mechanic)">
+      <div class="ui-table-shell max-h-[55dvh] overflow-auto">
+        <table class="ui-table w-full min-w-[32rem]">
+          <thead class="ui-table-head">
+            <tr>
+              <th class="ui-table-cell font-medium">Imię</th>
+              <th class="ui-table-cell font-medium">Nazwisko</th>
+              <th class="ui-table-cell w-24 text-right font-medium">Akcje</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="mechanic in mechanics" :key="mechanic.id" class="ui-table-row group">
+              <td class="ui-table-cell font-semibold text-ui-text">{{ mechanic.firstName || '-' }}</td>
+              <td class="ui-table-cell text-ui-text-secondary">{{ mechanic.lastName || '-' }}</td>
+              <td class="ui-table-cell text-right">
+                <div class="flex justify-end gap-1">
+                  <AppIconButton label="Edytuj mechanika" size="sm" variant="ghost" @click="editMechanic(mechanic)">
                     <SquarePen class="h-4 w-4" />
-                    Edytuj
-                  </AppButton>
-                  <AppButton type="button" size="sm" variant="ghost" @click="mechanicToDelete = mechanic">
+                  </AppIconButton>
+                  <AppIconButton label="Usuń mechanika" size="sm" variant="ghost" @click="mechanicToDelete = mechanic">
                     <Trash2 class="h-4 w-4" />
-                    Usuń
-                  </AppButton>
+                  </AppIconButton>
                 </div>
-              </div>
+              </td>
+            </tr>
+            <tr v-if="!mechanics.length">
+              <td colspan="3" class="py-10 text-center ui-body-sm text-ui-mutedText">Brak mechaników.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-              <div v-if="!mechanics.length" class="ui-empty-state border-0">
-                Brak mechaników.
-              </div>
-            </div>
+      <template #footer>
+        <AppButton type="button" @click="openNewMechanicForm">
+          <Plus class="h-4 w-4" />
+          Dodaj mechanika
+        </AppButton>
+      </template>
+    </AppModal>
+
+    <AppModal
+      :open="isMechanicFormModalOpen"
+      :title="mechanicForm.id ? 'Edytuj mechanika' : 'Dodaj mechanika'"
+      size="sm"
+      :busy="isMutating"
+      :close-on-backdrop="false"
+      @close="closeMechanicForm"
+    >
+      <form id="mechanic-form" class="flex flex-col gap-4" @submit.prevent="submitMechanic">
+        <AppInput v-model="mechanicForm.firstName" label="Imię" placeholder="Wpisz imię" required />
+        <AppInput v-model="mechanicForm.lastName" label="Nazwisko" placeholder="Wpisz nazwisko" required />
+      </form>
+
+      <template #footer>
+        <div class="flex w-full flex-col gap-2">
+          <AppButton form="mechanic-form" type="submit" full-width :loading="isMutating">
+            <Check v-if="mechanicForm.id" class="h-4 w-4" />
+            <Plus v-else class="h-4 w-4" />
+            {{ mechanicForm.id ? 'Zapisz zmiany' : 'Dodaj mechanika' }}
+          </AppButton>
+          <AppButton type="button" variant="secondary" full-width @click="closeMechanicForm">Anuluj</AppButton>
+        </div>
+      </template>
     </AppModal>
 
     <AppConfirmModal
@@ -792,6 +807,7 @@ const expandedFieldRepairIds = ref<Set<number>>(new Set())
 const selectedFieldRepairIds = ref<Set<number>>(new Set())
 const isCreateModalOpen = ref(false)
 const isMechanicsModalOpen = ref(false)
+const isMechanicFormModalOpen = ref(false)
 const mechanicToDelete = ref<Mechanic | null>(null)
 const draftFaultPhotoInput = ref<HTMLInputElement | null>(null)
 const draftFaultCameraInput = ref<HTMLInputElement | null>(null)
@@ -1678,10 +1694,22 @@ function openMechanicsModal() {
 
 function closeMechanicsModal() {
   if (!isMutating.value) {
+    isMechanicFormModalOpen.value = false
     isMechanicsModalOpen.value = false
     mechanicToDelete.value = null
     resetMechanicForm()
   }
+}
+
+function openNewMechanicForm() {
+  resetMechanicForm()
+  isMechanicFormModalOpen.value = true
+}
+
+function closeMechanicForm() {
+  if (isMutating.value) return
+  isMechanicFormModalOpen.value = false
+  resetMechanicForm()
 }
 
 function editMechanic(mechanic: Mechanic) {
@@ -1690,6 +1718,7 @@ function editMechanic(mechanic: Mechanic) {
     firstName: mechanic.firstName || '',
     lastName: mechanic.lastName || '',
   })
+  isMechanicFormModalOpen.value = true
 }
 
 async function submitMechanic() {
@@ -1722,7 +1751,7 @@ async function submitMechanic() {
       })
     }
 
-    resetMechanicForm()
+    closeMechanicForm()
   } catch {
     uiStore.addToast({
       type: 'error',
