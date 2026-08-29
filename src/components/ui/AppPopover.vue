@@ -15,6 +15,7 @@
     :anchor="anchorElement"
     role="dialog"
     :match-width="matchWidth"
+    :use-anchor-min-width="useAnchorMinWidth"
     :max-height="maxHeight"
     :content-class="contentClass"
     @close="closePopover"
@@ -32,6 +33,7 @@ import AppDropdown from './AppDropdown.vue'
 const props = withDefaults(defineProps<{
   open: boolean
   matchWidth?: boolean
+  useAnchorMinWidth?: boolean
   maxHeight?: number
   contentClass?: string
   triggerClass?: string
@@ -41,6 +43,7 @@ const props = withDefaults(defineProps<{
   hoverDelay?: number
 }>(), {
   matchWidth: false,
+  useAnchorMinWidth: true,
   maxHeight: 320,
   contentClass: 'p-3',
   triggerClass: '',

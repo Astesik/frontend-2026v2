@@ -102,6 +102,8 @@ function normalizeAuthUser(userValue: AuthUser | null | undefined): AuthUser | n
     userId: userValue.userId ?? userId,
     uid: userValue.uid ?? userId,
     name,
+    firstName: typeof userValue.firstName === 'string' ? userValue.firstName.trim() || undefined : undefined,
+    lastName: typeof userValue.lastName === 'string' ? userValue.lastName.trim() || undefined : undefined,
     username: userValue.username || userValue.login || name,
     login: userValue.login || userValue.username || name,
     ccid: userValue.ccid ?? normalizedCompanyId,
@@ -177,6 +179,30 @@ function mergeUserWithJwt(userValue: AuthUser | null, tokenValue: string | null)
   })
 }
 
+function mergeSessionUsers(existingUser: AuthUser | null, incomingUser: AuthUser | null | undefined) {
+  if (!existingUser) {
+    return incomingUser || null
+  }
+
+  if (!incomingUser) {
+    return existingUser
+  }
+
+  const incomingFirstName = typeof incomingUser.firstName === 'string' && incomingUser.firstName.trim()
+    ? incomingUser.firstName
+    : existingUser.firstName
+  const incomingLastName = typeof incomingUser.lastName === 'string' && incomingUser.lastName.trim()
+    ? incomingUser.lastName
+    : existingUser.lastName
+
+  return {
+    ...existingUser,
+    ...incomingUser,
+    firstName: incomingFirstName,
+    lastName: incomingLastName,
+  }
+}
+
 function jwtExpiresAt(tokenValue: string | null) {
   const payload = decodeJwtPayload(tokenValue)
   const exp = payload?.exp
@@ -221,7 +247,14 @@ export const useAuthStore = defineStore('auth', () => {
   let proactiveRefreshTimer: number | null = null
 
   const isAuthenticated = computed(() => Boolean(token.value))
-  const displayName = computed(() => user.value?.name || user.value?.username || user.value?.login || user.value?.email || 'Operator')
+  const displayName = computed(() => {
+    const fullName = [user.value?.firstName, user.value?.lastName]
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .map((value) => value.trim())
+      .join(' ')
+
+    return fullName || user.value?.name || user.value?.username || user.value?.login || user.value?.email || 'Operator'
+  })
   const activeCompanyId = computed(() => {
     const explicitCompanyId = user.value?.currentCompanyId ?? user.value?.activeCompanyId ?? user.value?.companyId ?? user.value?.ccid
 
@@ -297,8 +330,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   function applySession(session: AuthSession, options?: { preserveExistingUser?: boolean }) {
     token.value = session.token
+    const sessionUser = options?.preserveExistingUser
+      ? mergeSessionUsers(user.value, session.user)
+      : session.user
     user.value = mergeUserWithJwt(
-      options?.preserveExistingUser && !session.user ? user.value : session.user,
+      sessionUser,
       session.token,
     )
     accessTokenExpiresAt.value = expiresAtToTimestamp(session.accessTokenExpiresAt, session.token)
@@ -340,7 +376,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       if (session.user) {
-        user.value = mergeUserWithJwt(session.user, token.value)
+        user.value = mergeUserWithJwt(mergeSessionUsers(user.value, session.user), token.value)
         persistUser(user.value)
       }
     } catch {

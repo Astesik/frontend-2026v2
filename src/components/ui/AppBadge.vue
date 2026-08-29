@@ -30,7 +30,7 @@ const fixedWidths = {
 }
 
 const badgeClasses = computed(() => [
-  'inline-flex items-center rounded-[6px] border px-2 py-0.5 text-[11px] font-medium leading-4',
+  'inline-flex items-center whitespace-nowrap rounded-[6px] border px-2 py-0.5 text-[11px] font-medium leading-4',
   variants[props.variant],
   props.fixedWidth ? fixedWidths[props.fixedWidth] : '',
 ])

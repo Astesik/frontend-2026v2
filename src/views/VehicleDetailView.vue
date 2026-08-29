@@ -241,16 +241,7 @@
                   </tr>
                   <tr v-if="isRepairExpanded(repair)">
                     <td colspan="4" class="border-b border-ui-divider bg-ui-muted p-3">
-                      <div class="space-y-3">
-                        <div class="grid gap-2 text-xs text-ui-text-secondary sm:grid-cols-2">
-                          <span>Przyjazd: <strong class="text-ui-text">{{ repairDate(repairDetail(repair)) }}</strong></span>
-                          <span>Wyjazd: <strong class="text-ui-text">{{ repairDepartureDate(repairDetail(repair)) }}</strong></span>
-                          <span>Utworzył: <strong class="text-ui-text">{{ repairCreatedBy(repairDetail(repair)) }}</strong></span>
-                          <span>Usterki: <strong class="text-ui-text">{{ repairFaultsSummary(repairDetail(repair)) }}</strong></span>
-                        </div>
-                        <p v-if="repairDescription(repairDetail(repair))" class="rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface p-2.5 ui-body-sm text-ui-text-secondary">
-                          {{ repairDescription(repairDetail(repair)) }}
-                        </p>
+                      <div class="space-y-2.5">
                         <ul v-if="repairFaults(repairDetail(repair)).length" class="space-y-1.5">
                           <li
                             v-for="fault in repairFaults(repairDetail(repair))"
@@ -261,6 +252,7 @@
                             <AppBadge :variant="repairFaultStatusVariant(fault)">{{ repairFaultStatusLabel(fault) }}</AppBadge>
                           </li>
                         </ul>
+                        <p v-else class="rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface p-2 ui-caption">Brak usterek.</p>
                         <RouterLink
                           v-if="repair.id"
                           class="inline-flex h-8 items-center gap-1.5 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface px-2.5 text-xs font-semibold text-ui-text transition hover:bg-ui-hover"
@@ -279,41 +271,56 @@
         </aside>
 
         <section class="hidden min-h-0 flex-col bg-ui-surface p-3 sm:p-4 lg:flex">
-          <header class="mb-3 flex items-center justify-between gap-3">
-            <AppIconButton label="Poprzedni miesiąc" @click="changeServiceHistoryMonth(-1)">
+          <header class="mb-3 flex items-center justify-between gap-3 border-b border-ui-divider pb-3">
+            <AppIconButton label="Poprzedni miesiąc" :disabled="!canGoToPreviousServiceMonth" @click="changeServiceHistoryMonth(-1)">
               <ChevronLeft class="h-4 w-4" />
             </AppIconButton>
             <h3 class="text-sm font-semibold capitalize text-ui-text sm:text-base">{{ serviceHistoryMonthLabel }}</h3>
-            <AppIconButton label="Następny miesiąc" @click="changeServiceHistoryMonth(1)">
+            <AppIconButton label="Następny miesiąc" :disabled="!canGoToNextServiceMonth" @click="changeServiceHistoryMonth(1)">
               <ChevronRight class="h-4 w-4" />
             </AppIconButton>
           </header>
 
-          <div class="grid grid-cols-7 border-l border-t border-ui-divider text-center">
-            <div v-for="dayName in serviceCalendarWeekdays" :key="dayName" class="border-b border-r border-ui-divider bg-ui-muted px-1 py-2 ui-caption">
-              {{ dayName }}
-            </div>
-          </div>
-          <div class="service-calendar-grid relative grid min-h-0 flex-1 grid-cols-7 grid-rows-6 overflow-hidden border-l border-ui-divider">
-            <div
-              v-for="day in serviceCalendarDays"
-              :key="day.key"
-              class="service-calendar-day min-h-16 border-b border-r border-ui-divider p-1.5 sm:min-h-20 sm:p-2"
-              :class="day.isCurrentMonth ? 'bg-ui-surface' : 'bg-ui-muted text-ui-mutedText'"
+          <div ref="serviceCalendarScrollElement" class="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain pr-1" @scroll.passive="syncServiceHistoryMonthFromScroll">
+            <article
+              v-for="month in serviceCalendarMonths"
+              :id="serviceCalendarMonthId(month.date)"
+              :key="month.key"
+              class="service-calendar-month scroll-mt-2"
+              :data-month-date="month.key"
             >
-              <span class="inline-flex h-5 min-w-5 items-center justify-center text-[11px] font-semibold" :class="day.isToday ? 'rounded-full bg-ui-text px-1 text-ui-surface' : ''">
-                {{ day.date.getDate() }}
-              </span>
-            </div>
+              <h4 class="mb-2 text-sm font-semibold capitalize text-ui-text">{{ month.label }}</h4>
+              <div class="grid grid-cols-7 border-l border-t border-ui-divider text-center">
+                <div v-for="dayName in serviceCalendarWeekdays" :key="`${month.key}-${dayName}`" class="border-b border-r border-ui-divider bg-ui-muted px-1 py-2 ui-caption">
+                  {{ dayName }}
+                </div>
+              </div>
+              <div class="service-calendar-grid relative grid grid-cols-7 grid-rows-6 overflow-hidden border-l border-ui-divider">
+                <div
+                  v-for="day in month.days"
+                  :key="`${month.key}-${day.key}`"
+                  class="service-calendar-day min-h-20 border-b border-r border-ui-divider p-2"
+                  :class="[
+                    day.isCurrentMonth ? 'bg-ui-surface' : 'bg-ui-muted text-ui-mutedText',
+                    day.isToday ? 'relative z-[1] ring-1 ring-inset ring-danger-400 bg-danger-50/30 dark:bg-danger-500/5' : '',
+                  ]"
+                >
+                  <span
+                    class="inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-transparent px-1 text-[11px] font-semibold"
+                  >
+                    {{ day.date.getDate() }}
+                  </span>
+                </div>
 
-            <div class="pointer-events-none absolute inset-0 grid grid-cols-7 grid-rows-6">
-              <AppPopover
-                  v-for="segment in serviceCalendarRangeSegments"
+                <div class="pointer-events-none absolute inset-0 grid grid-cols-7 grid-rows-6">
+                  <AppPopover
+                  v-for="segment in month.segments"
                   :key="segment.key"
                   :open="openServiceCalendarPopoverKey === segment.key"
                   :open-on-hover="true"
                   :hover-delay="700"
                   :match-width="false"
+                  :use-anchor-min-width="false"
                   :max-height="440"
                   :trigger-class="serviceCalendarSegmentTriggerClass(segment)"
                   :trigger-style="serviceCalendarSegmentStyle(segment)"
@@ -373,8 +380,10 @@
                       Przejdź do szczegółów
                     </RouterLink>
                   </div>
-              </AppPopover>
-            </div>
+                  </AppPopover>
+                </div>
+              </div>
+            </article>
           </div>
         </section>
       </div>
@@ -438,6 +447,13 @@ interface ServiceCalendarRangeSegment {
   lane: number
   isFirstForRepair: boolean
 }
+interface ServiceCalendarMonth {
+  key: string
+  date: Date
+  label: string
+  days: ServiceCalendarDay[]
+  segments: ServiceCalendarRangeSegment[]
+}
 type RepairHistoryFault = RepairFault | string | {
   id?: number | string
   name?: string | null
@@ -471,6 +487,7 @@ const expandedRepairIds = ref<Set<string>>(new Set())
 const isServiceHistoryOpen = ref(false)
 const openServiceCalendarPopoverKey = ref<string | null>(null)
 const focusedServiceRepairKey = ref<string | null>(null)
+const serviceCalendarScrollElement = ref<HTMLElement | null>(null)
 const serviceHistoryMonth = ref(new Date(new Date().getFullYear(), new Date().getMonth(), 1))
 const serviceCalendarWeekdays = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd']
 
@@ -483,9 +500,46 @@ const unassignDeviceDescription = computed(() => {
 })
 const repairHistory = computed(() => [...(vehicleRepairHistory.value[vehicleId.value] || [])].sort((first, second) => repairTimestamp(second) - repairTimestamp(first)))
 const serviceHistoryMonthLabel = computed(() => serviceHistoryMonth.value.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' }))
-const serviceCalendarDays = computed<ServiceCalendarDay[]>(() => {
-  const year = serviceHistoryMonth.value.getFullYear()
-  const month = serviceHistoryMonth.value.getMonth()
+const serviceCalendarMonths = computed<ServiceCalendarMonth[]>(() => {
+  const currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  let firstMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 11, 1)
+
+  for (const repair of repairHistory.value) {
+    const start = serviceRepairStart(repair)
+    if (!start) continue
+    const repairMonth = new Date(start.getFullYear(), start.getMonth(), 1)
+    if (repairMonth.getTime() < firstMonth.getTime()) firstMonth = repairMonth
+  }
+
+  const months: ServiceCalendarMonth[] = []
+  const cursor = new Date(firstMonth)
+
+  while (cursor.getTime() <= currentMonth.getTime()) {
+    const date = new Date(cursor)
+    const days = createServiceCalendarDays(date)
+    months.push({
+      key: serviceCalendarMonthKey(date),
+      date,
+      label: date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' }),
+      days,
+      segments: createServiceCalendarSegments(date, days),
+    })
+    cursor.setMonth(cursor.getMonth() + 1)
+  }
+
+  return months
+})
+const canGoToPreviousServiceMonth = computed(() => {
+  const firstMonth = serviceCalendarMonths.value[0]?.date
+  return Boolean(firstMonth && serviceHistoryMonth.value.getTime() > firstMonth.getTime())
+})
+const canGoToNextServiceMonth = computed(() => {
+  const currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  return serviceHistoryMonth.value.getTime() < currentMonth.getTime()
+})
+function createServiceCalendarDays(monthDate: Date) {
+  const year = monthDate.getFullYear()
+  const month = monthDate.getMonth()
   const firstDay = new Date(year, month, 1)
   const mondayOffset = (firstDay.getDay() + 6) % 7
   const start = new Date(year, month, 1 - mondayOffset)
@@ -501,15 +555,14 @@ const serviceCalendarDays = computed<ServiceCalendarDay[]>(() => {
       isToday: calendarDateKey(date) === todayKey,
     }
   })
-})
-const serviceCalendarRangeSegments = computed<ServiceCalendarRangeSegment[]>(() => {
-  const days = serviceCalendarDays.value
+}
+
+function createServiceCalendarSegments(monthDate: Date, days: ServiceCalendarDay[]) {
   if (!days.length) return []
 
   const dayIndexByKey = new Map(days.map((day, index) => [day.key, index]))
-  const firstDayTimestamp = new Date(days[0].date.getFullYear(), days[0].date.getMonth(), days[0].date.getDate()).getTime()
-  const lastDay = days[days.length - 1].date
-  const lastDayTimestamp = new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate()).getTime()
+  const firstDayTimestamp = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1).getTime()
+  const lastDayTimestamp = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getTime()
   const occupiedLanes = Array.from({ length: 6 }, () => [] as Array<{ start: number; end: number; lane: number }>)
   const segments: ServiceCalendarRangeSegment[] = []
 
@@ -529,7 +582,7 @@ const serviceCalendarRangeSegments = computed<ServiceCalendarRangeSegment[]>(() 
     const endIndex = dayIndexByKey.get(calendarDateKey(clippedEnd))
     if (startIndex === undefined || endIndex === undefined) continue
 
-    let isFirstForRepair = true
+    let isFirstForRepair = serviceCalendarMonthKey(range.start) === serviceCalendarMonthKey(monthDate)
 
     for (let row = Math.floor(startIndex / 7); row <= Math.floor(endIndex / 7); row += 1) {
       const segmentStart = Math.max(startIndex, row * 7)
@@ -545,7 +598,7 @@ const serviceCalendarRangeSegments = computed<ServiceCalendarRangeSegment[]>(() 
 
       rowLanes.push({ start: startColumn, end: endColumn, lane })
       segments.push({
-        key: `${repairKey(repair)}-${row}-${startColumn}-${endColumn}`,
+        key: `${serviceCalendarMonthKey(monthDate)}-${repairKey(repair)}-${row}-${startColumn}-${endColumn}`,
         repair,
         row,
         startColumn,
@@ -558,7 +611,7 @@ const serviceCalendarRangeSegments = computed<ServiceCalendarRangeSegment[]>(() 
   }
 
   return segments
-})
+}
 const canUpdateVehicles = computed(() => hasPermission('vehicles.update'))
 const canAssignDevices = computed(() => hasPermission('devices.assign'))
 const canReadVehiclePhotos = computed(() => authStore.hasActiveCompanyPermission('vehicle_photos.read'))
@@ -859,6 +912,16 @@ function calendarDateKey(value: Date) {
   return `${year}-${month}-${day}`
 }
 
+function serviceCalendarMonthKey(value: Date) {
+  const year = value.getFullYear()
+  const month = String(value.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
+}
+
+function serviceCalendarMonthId(value: Date) {
+  return `service-calendar-month-${serviceCalendarMonthKey(value)}`
+}
+
 function serviceRepairStart(repair: RepairHistoryLike) {
   const value = repair.arrivalTime || repair.plannedArrivalAt
   const date = value ? new Date(value) : null
@@ -934,22 +997,79 @@ function serviceRepairRangeLabel(repair: RepairHistoryLike) {
   return `${format(range.start)} - ${format(range.end)}`
 }
 
-function changeServiceHistoryMonth(offset: number) {
-  serviceHistoryMonth.value = new Date(
+function clampServiceHistoryMonth(value: Date) {
+  const requestedMonth = new Date(value.getFullYear(), value.getMonth(), 1)
+  const currentMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  return requestedMonth.getTime() > currentMonth.getTime() ? currentMonth : requestedMonth
+}
+
+async function scrollToServiceCalendarMonth(value: Date, behavior: ScrollBehavior = 'smooth') {
+  await nextTick()
+  const container = serviceCalendarScrollElement.value
+  const panel = document.getElementById(serviceCalendarMonthId(value))
+  if (!container || !panel) return
+
+  const containerRect = container.getBoundingClientRect()
+  const panelRect = panel.getBoundingClientRect()
+  container.scrollTo({
+    top: container.scrollTop + panelRect.top - containerRect.top,
+    behavior,
+  })
+}
+
+async function changeServiceHistoryMonth(offset: number) {
+  const firstAvailableMonth = serviceCalendarMonths.value[0]?.date
+  let target = clampServiceHistoryMonth(new Date(
     serviceHistoryMonth.value.getFullYear(),
     serviceHistoryMonth.value.getMonth() + offset,
     1,
-  )
+  ))
+
+  if (firstAvailableMonth && target.getTime() < firstAvailableMonth.getTime()) {
+    target = new Date(firstAvailableMonth)
+  }
+
+  serviceHistoryMonth.value = target
+  openServiceCalendarPopoverKey.value = null
+  await scrollToServiceCalendarMonth(target)
 }
 
-function openServiceHistory() {
+function syncServiceHistoryMonthFromScroll() {
+  const container = serviceCalendarScrollElement.value
+  if (!container) return
+
+  const containerTop = container.getBoundingClientRect().top
+  const panels = Array.from(container.querySelectorAll<HTMLElement>('[data-month-date]'))
+  const nearestPanel = panels.reduce<HTMLElement | null>((nearest, panel) => {
+    if (!nearest) return panel
+    const panelDistance = Math.abs(panel.getBoundingClientRect().top - containerTop)
+    const nearestDistance = Math.abs(nearest.getBoundingClientRect().top - containerTop)
+    return panelDistance < nearestDistance ? panel : nearest
+  }, null)
+
+  const monthKey = nearestPanel?.dataset.monthDate
+  if (!monthKey) return
+  const [year, month] = monthKey.split('-').map(Number)
+  if (!year || !month) return
+
+  const visibleMonth = new Date(year, month - 1, 1)
+  if (visibleMonth.getTime() !== serviceHistoryMonth.value.getTime()) {
+    serviceHistoryMonth.value = visibleMonth
+    openServiceCalendarPopoverKey.value = null
+  }
+}
+
+async function openServiceHistory() {
   const newestRepairDate = repairHistory.value.map(serviceRepairStart).find(Boolean)
 
   if (newestRepairDate) {
-    serviceHistoryMonth.value = new Date(newestRepairDate.getFullYear(), newestRepairDate.getMonth(), 1)
+    serviceHistoryMonth.value = clampServiceHistoryMonth(new Date(newestRepairDate.getFullYear(), newestRepairDate.getMonth(), 1))
+  } else {
+    serviceHistoryMonth.value = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
   }
 
   isServiceHistoryOpen.value = true
+  await scrollToServiceCalendarMonth(serviceHistoryMonth.value, 'auto')
 }
 
 function openEditModal() {
@@ -1178,7 +1298,7 @@ async function handleRepairHistoryClick(repair: RepairHistoryLike) {
   const start = serviceRepairStart(repair)
   if (!start) return
 
-  serviceHistoryMonth.value = new Date(start.getFullYear(), start.getMonth(), 1)
+  serviceHistoryMonth.value = clampServiceHistoryMonth(new Date(start.getFullYear(), start.getMonth(), 1))
   focusedServiceRepairKey.value = repairKey(repair)
   openServiceCalendarPopoverKey.value = null
   await nextTick()

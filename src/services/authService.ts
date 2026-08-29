@@ -21,7 +21,21 @@ function tokenFromAuthResponse(response: AuthSessionState) {
 
 function userFromAuthResponse(response: AuthSessionState) {
   const nestedData = 'data' in response ? response.data : null
-  return ('user' in response ? response.user : undefined) ?? nestedData?.user ?? null
+  const nestedUser = ('user' in response ? response.user : undefined) ?? nestedData?.user
+
+  if (nestedUser) {
+    return nestedUser
+  }
+
+  const directUser = response as AuthSessionState & AuthSession['user']
+  const nestedDirectUser = nestedData as (AuthSessionState & AuthSession['user']) | null
+  const candidate = directUser.firstName || directUser.lastName || directUser.username || directUser.login
+    ? directUser
+    : nestedDirectUser?.firstName || nestedDirectUser?.lastName || nestedDirectUser?.username || nestedDirectUser?.login
+      ? nestedDirectUser
+      : null
+
+  return candidate
 }
 
 function expiresAtFromAuthResponse(response: AuthSessionState) {

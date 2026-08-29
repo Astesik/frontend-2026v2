@@ -94,7 +94,19 @@ function tokenFromRefreshResponse(response: RefreshResponse) {
 }
 
 function userFromRefreshResponse(response: RefreshResponse) {
-  return response.user ?? response.data?.user ?? null
+  const nestedUser = response.user ?? response.data?.user
+
+  if (nestedUser) {
+    return nestedUser
+  }
+
+  const directUser = response as RefreshResponse & Partial<AuthUser>
+  const nestedDirectUser = response.data as (RefreshResponse & Partial<AuthUser>) | undefined
+  return directUser.firstName || directUser.lastName || directUser.username || directUser.login
+    ? directUser
+    : nestedDirectUser?.firstName || nestedDirectUser?.lastName || nestedDirectUser?.username || nestedDirectUser?.login
+      ? nestedDirectUser
+      : null
 }
 
 function expiresAtFromRefreshResponse(response: RefreshResponse) {

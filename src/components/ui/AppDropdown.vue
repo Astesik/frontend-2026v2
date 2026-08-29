@@ -31,6 +31,7 @@ const props = withDefaults(defineProps<{
   minHeight?: number
   gap?: number
   matchWidth?: boolean
+  useAnchorMinWidth?: boolean
   contentClass?: string
 }>(), {
   role: 'listbox',
@@ -38,6 +39,7 @@ const props = withDefaults(defineProps<{
   minHeight: 80,
   gap: 2,
   matchWidth: true,
+  useAnchorMinWidth: true,
   contentClass: undefined,
 })
 
@@ -68,9 +70,10 @@ function updatePosition() {
   const openAbove = spaceBelow < desiredHeight && spaceAbove > spaceBelow
   const availableHeight = Math.max(48, openAbove ? spaceAbove : spaceBelow)
   const maxHeight = Math.min(props.maxHeight, availableHeight)
+  const contentWidth = dropdownElement.value?.scrollWidth || rect.width
   const width = props.matchWidth
     ? Math.min(rect.width, window.innerWidth - viewportPadding * 2)
-    : Math.min(Math.max(rect.width, dropdownElement.value?.scrollWidth || rect.width), window.innerWidth - viewportPadding * 2)
+    : Math.min(props.useAnchorMinWidth ? Math.max(rect.width, contentWidth) : contentWidth, window.innerWidth - viewportPadding * 2)
   const left = Math.min(Math.max(rect.left, viewportPadding), window.innerWidth - width - viewportPadding)
 
   placement.value = openAbove ? 'top' : 'bottom'
