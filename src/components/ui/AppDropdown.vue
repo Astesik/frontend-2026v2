@@ -4,7 +4,7 @@
       <div
         v-if="open"
         ref="dropdownElement"
-        class="ui-popover fixed z-[300] overflow-y-auto overscroll-contain"
+        class="ui-popover fixed z-[340] overflow-y-auto overscroll-contain"
         :class="contentClass"
         :style="dropdownStyle"
         :data-placement="placement"

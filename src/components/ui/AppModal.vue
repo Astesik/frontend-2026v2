@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <Transition name="modal-fade">
-      <div v-if="open" class="fixed inset-0 z-[250] flex items-center justify-center p-3 sm:p-5" @mousedown.self="requestBackdropClose">
+      <div v-if="open" class="fixed inset-0 z-[320] flex items-center justify-center p-3 sm:p-5" @mousedown.self="requestBackdropClose">
         <div class="ui-modal-overlay" aria-hidden="true" @mousedown="requestBackdropClose"></div>
         <section
           ref="panelElement"

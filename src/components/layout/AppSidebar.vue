@@ -88,21 +88,6 @@
     <div class="mt-4 shrink-0 space-y-1 border-t border-ui-border pt-3">
       <button
         type="button"
-        class="sidebar-bottom-action"
-        :class="displaySidebarCollapsed ? 'justify-center px-0' : 'px-3'"
-        :title="displaySidebarCollapsed ? 'Pomoc' : undefined"
-        @click="isHelpVisible = !isHelpVisible"
-      >
-        <CircleHelp class="h-4 w-4 shrink-0" />
-        <span v-if="!displaySidebarCollapsed">Pomoc</span>
-      </button>
-
-      <div v-if="isHelpVisible && !displaySidebarCollapsed" class="mx-1 rounded-[6px] border border-ui-border bg-ui-surface p-2.5 text-xs leading-5 text-ui-text-secondary shadow-soft">
-        Skontaktuj się z administratorem firmy, jeśli potrzebujesz pomocy z dostępem lub konfiguracją.
-      </div>
-
-      <button
-        type="button"
         class="sidebar-bottom-action text-danger-600 hover:bg-danger-50 hover:text-danger-600 dark:text-danger-400 dark:hover:bg-danger-500/10 dark:hover:text-danger-300"
         :class="displaySidebarCollapsed ? 'justify-center px-0' : 'px-3'"
         :title="displaySidebarCollapsed ? 'Wyloguj się' : undefined"
@@ -116,10 +101,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, type Component } from 'vue'
+import { computed, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  CircleHelp,
   ChevronLeft,
   ChevronRight,
   Cpu,
@@ -138,7 +122,6 @@ import { useUiStore } from '@/stores/uiStore'
 const uiStore = useUiStore()
 const authStore = useAuthStore()
 const router = useRouter()
-const isHelpVisible = ref(false)
 
 const baseNavigation: Array<{ to: string; label: string; icon: Component; group: 'main' | 'settings' }> = [
   { to: '/map', label: 'Mapa', icon: MapPinned, group: 'main' },
@@ -198,8 +181,6 @@ const companyRoleLabel = computed(() => {
   return role ? humanizeRole(role) : 'Użytkownik firmy'
 })
 function handleSidebarToggle() {
-  isHelpVisible.value = false
-
   if (uiStore.mobileSidebarOpen && window.innerWidth < 768) {
     uiStore.setMobileSidebarOpen(false)
     return
@@ -209,7 +190,6 @@ function handleSidebarToggle() {
 }
 
 async function handleLogout() {
-  isHelpVisible.value = false
   uiStore.setMobileSidebarOpen(false)
 
   try {
