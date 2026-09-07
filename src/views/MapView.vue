@@ -358,6 +358,7 @@
           <h2 class="text-xs font-semibold text-slate-950 dark:text-slate-50">Mapa i trasa</h2>
           <MapSwitch v-model="mapSettings.map.zoomOnSelect" label="Przenieś do pojazdu" />
           <MapSwitch v-model="mapSettings.map.showMarkerAlerts" label="Alerty na markerach" />
+          <MapSwitch v-model="mapSettings.map.showRepairMarkers" label="Naprawy na markerach" />
           <MapSwitch v-model="mapSettings.map.showMarkerLabels" label="Dymki markerów" />
           <MapSwitch v-model="mapSettings.map.showMarkerDriver" label="Kierowca w dymku" />
           <MapSwitch v-model="mapSettings.map.followVehicle" label="Sledz pojazd" />
@@ -1154,7 +1155,8 @@ const defaultMapSettings = {
     todayRoute: true,
     refuelings: false,
     fuel: true,
-    showMarkerAlerts: false,
+    showMarkerAlerts: true,
+    showRepairMarkers: true,
     showMarkerLabels: true,
     showMarkerDriver: false,
     showVehicleDescriptions: false,
@@ -2824,7 +2826,7 @@ function markerState(vehicle: Vehicle) {
     return 'ignition-on'
   }
 
-  if (mapSettings.map.showMarkerAlerts && vehicleHasActiveRepair(vehicle)) {
+  if (mapSettings.map.showRepairMarkers && vehicleHasActiveRepair(vehicle)) {
     return 'repair'
   }
 
