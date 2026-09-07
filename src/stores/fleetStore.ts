@@ -27,6 +27,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000
 const UPCOMING_ALERT_DAYS = 30
 const TRUCKS_GROUP_ID = 'type:truck'
 const TRAILERS_GROUP_ID = 'type:trailer'
+const INSPECTION_DUE_GROUP_ID = 'status:inspection-due'
 
 function normalizeVehicleType(type: string | null): VehicleType {
   return type === 'TRAILER' ? 'trailer' : 'truck'
@@ -202,6 +203,15 @@ function createLifecycleAlert(kind: VehicleAlertKind, date: string | null): Vehi
   }
 }
 
+function requiresInspection(vehicle: Vehicle) {
+  const inspectionDays = daysUntil(vehicle.technicalInspection)
+  const tachographDays = daysUntil(vehicle.tachographInspection)
+
+  return [inspectionDays, tachographDays].some((daysLeft) => (
+    daysLeft !== null && daysLeft < UPCOMING_ALERT_DAYS
+  ))
+}
+
 function normalizeVehicle(vehicle: ApiVehicle, position?: ApiLastPosition): Vehicle {
   const driver = position?.driver0 || position?.driver1 || null
   const driverName = normalizeDriverName(driver)
@@ -324,6 +334,11 @@ export const useFleetStore = defineStore('fleet', () => {
       name: 'Naczepy',
       vehiclesCount: vehicles.value.filter((vehicle) => vehicle.vehicleType === 'trailer').length,
     },
+    {
+      id: INSPECTION_DUE_GROUP_ID,
+      name: 'Do przeglądu',
+      vehiclesCount: vehicles.value.filter(requiresInspection).length,
+    },
   ])
 
   const drivers = computed<Driver[]>(() => {
@@ -420,7 +435,13 @@ export const useFleetStore = defineStore('fleet', () => {
   }
 
   async function fetchVehicleGroup(groupId: string, options?: { silent?: boolean }) {
-    if (groupId === 'all' || groupId === TRUCKS_GROUP_ID || groupId === TRAILERS_GROUP_ID || vehicleGroupDetails.value[groupId]) {
+    if (
+      groupId === 'all' ||
+      groupId === TRUCKS_GROUP_ID ||
+      groupId === TRAILERS_GROUP_ID ||
+      groupId === INSPECTION_DUE_GROUP_ID ||
+      vehicleGroupDetails.value[groupId]
+    ) {
       return vehicleGroupDetails.value[groupId] || null
     }
 
@@ -696,6 +717,11 @@ export const useFleetStore = defineStore('fleet', () => {
       return vehicles.value.some((vehicle) => vehicle.id === vehicleId && vehicle.vehicleType === expectedType)
     }
 
+    if (groupId === INSPECTION_DUE_GROUP_ID) {
+      const vehicle = vehicles.value.find((item) => item.id === vehicleId)
+      return vehicle ? requiresInspection(vehicle) : false
+    }
+
     return vehicleGroupDetails.value[groupId]?.vehicleIds.includes(vehicleId) || false
   }
 
@@ -703,6 +729,10 @@ export const useFleetStore = defineStore('fleet', () => {
     if (groupId === TRUCKS_GROUP_ID || groupId === TRAILERS_GROUP_ID) {
       const expectedType = groupId === TRUCKS_GROUP_ID ? 'truck' : 'trailer'
       return vehicles.value.filter((vehicle) => vehicle.vehicleType === expectedType).map((vehicle) => vehicle.id)
+    }
+
+    if (groupId === INSPECTION_DUE_GROUP_ID) {
+      return vehicles.value.filter(requiresInspection).map((vehicle) => vehicle.id)
     }
 
     return vehicleGroupDetails.value[groupId]?.vehicleIds || []

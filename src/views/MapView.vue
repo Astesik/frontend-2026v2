@@ -145,7 +145,7 @@
                       >
                         {{ vehicleAlertItems(vehicle).length }}
                       </span>
-                      <GlobeOff v-else-if="vehicleAlertItems(vehicle)[0]?.id === 'gps-offline'" class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
+                      <GlobeX v-else-if="vehicleAlertItems(vehicle)[0]?.id === 'gps-offline'" class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
                       <Wrench v-else-if="vehicleAlertItems(vehicle)[0]?.repairId" class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
                       <TriangleAlert v-else class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
                     </button>
@@ -607,9 +607,10 @@
       >
         <aside
           v-if="activeMode !== 'history' && selectedVehicle && vehicleDetailsDrawerOpen"
-          class="absolute right-0 top-0 z-20 flex max-h-[calc(100%-0.5rem)] w-[15.25rem] max-w-[calc(100%-0.5rem)] flex-col overflow-y-auto rounded-bl-xl border-b border-l border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel md:max-h-none md:w-[20.5rem] md:max-w-[calc(100%-1rem)] md:overflow-visible md:rounded-bl-2xl"
+          class="absolute right-0 top-0 z-20 flex max-h-full w-[17.5rem] max-w-[calc(100%-0.5rem)] flex-col overflow-hidden rounded-bl-xl border-b border-l border-ui-border bg-ui-surface shadow-popover md:w-[22rem] md:max-w-[calc(100%-1rem)] md:rounded-bl-2xl"
+          :style="vehicleDrawerStyle"
         >
-          <header class="flex items-center justify-between gap-2 border-b border-slate-200 px-2 py-1.5 dark:border-app-border md:gap-3 md:px-3 md:py-2.5">
+          <header ref="vehicleDrawerHeaderElement" class="flex shrink-0 items-center justify-between gap-2 border-b border-ui-border px-2 py-1.5 md:gap-3 md:px-3 md:py-2.5">
             <div class="flex min-w-0 items-center gap-2">
               <img
                 class="h-4 w-4 shrink-0 rounded-full md:h-5 md:w-5"
@@ -624,24 +625,6 @@
             </div>
             <div class="flex shrink-0 items-center gap-1">
               <button
-                v-if="canReadVehiclePhotos"
-                type="button"
-                class="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-slate-50 md:h-7 md:w-7 md:rounded-xl"
-                aria-label="Zdjęcia pojazdu"
-                title="Zdjęcia pojazdu"
-                @click="isVehiclePhotosModalOpen = true"
-              >
-                <Images class="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                class="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-slate-50 md:hidden"
-                aria-label="Schowaj szczegóły pojazdu"
-                @click="hideVehicleDetailsDrawer"
-              >
-                <PanelRightClose class="h-3.5 w-3.5" />
-              </button>
-              <button
                 type="button"
                 class="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-red-600 dark:border-app-border dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-red-300 md:h-7 md:w-7 md:rounded-xl"
                 aria-label="Zamknij szczegóły i wyczyść wybór pojazdu"
@@ -652,86 +635,151 @@
             </div>
           </header>
 
-          <div class="flex flex-col gap-1.5 p-1.5 md:gap-2 md:p-2.5">
-            <section class="rounded-lg border border-slate-200 p-2 dark:border-app-border md:rounded-2xl md:p-2.5">
-              <div class="flex items-center justify-between">
-                <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-app-muted">Status</p>
+          <nav ref="vehicleDrawerTabsElement" class="grid shrink-0 gap-2 border-b border-ui-border bg-ui-surface p-1.5" :class="canReadVehiclePhotos ? 'grid-cols-3' : 'grid-cols-2'" role="tablist" aria-label="Szczegóły pojazdu">
+            <button
+              v-for="tab in vehicleDrawerTabs"
+              :key="tab.value"
+              type="button"
+              role="tab"
+              class="inline-flex h-8 min-w-0 items-center justify-center truncate rounded-[6px] border px-2 text-[11px] font-medium transition"
+              :class="vehicleDrawerTab === tab.value ? activeModeClasses : inactiveModeClasses"
+              :aria-selected="vehicleDrawerTab === tab.value"
+              @click="vehicleDrawerTab = tab.value"
+            >
+              <span class="truncate">{{ tab.label }}</span><span v-if="tab.count !== null" class="shrink-0">({{ tab.count }})</span>
+            </button>
+          </nav>
+
+          <div
+            ref="vehicleDrawerBodyElement"
+            class="min-h-0 flex-1 p-2 md:p-2.5"
+            :class="vehicleDrawerTab === 'info' ? 'overflow-y-hidden' : 'overflow-y-auto'"
+          >
+            <div v-show="vehicleDrawerTab === 'info'" ref="vehicleDrawerInfoElement" class="overflow-hidden rounded-[6px] border border-ui-border">
+              <div class="flex items-center justify-between gap-3 bg-ui-muted px-3 py-2">
+                <div class="flex min-w-0 items-baseline gap-1.5">
+                  <span class="text-lg font-semibold leading-none text-ui-text">{{ selectedVehicle.speed }}</span>
+                  <span class="text-[10px] text-ui-mutedText">km/h</span>
+                  <span class="truncate text-[11px] font-medium text-ui-text-secondary">{{ vehicleStatusLabel(selectedVehicle) }}</span>
+                </div>
                 <AppBadge v-if="selectedVehicle.vehicleType !== 'trailer'" :variant="selectedVehicle.ignitionState === 'ON' ? 'success' : 'neutral'">
                   {{ selectedVehicle.ignitionState === 'ON' ? 'ON' : 'OFF' }}
                 </AppBadge>
               </div>
-              <div class="mt-2 grid grid-cols-[auto_1fr] items-end gap-x-3">
-                <div class="flex items-end gap-1">
-                  <span class="text-lg font-semibold leading-none text-slate-950 dark:text-slate-50 md:text-xl">{{ selectedVehicle.speed }}</span>
-                  <span class="pb-0.5 text-[11px] text-slate-500 dark:text-app-muted">km/h</span>
-                </div>
-                <p class="pb-0.5 text-xs font-medium text-slate-600 dark:text-slate-300">{{ vehicleStatusLabel(selectedVehicle) }}</p>
-              </div>
-            </section>
 
-            <section v-if="selectedVehicle.vehicleType !== 'trailer'" class="rounded-lg border border-slate-200 p-2 dark:border-app-border md:rounded-2xl md:p-2.5">
-              <div class="flex items-center justify-between gap-2">
-                <div class="min-w-0">
-                  <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-app-muted">Kierowca</p>
-                  <p class="mt-0.5 truncate text-xs font-semibold text-slate-950 dark:text-slate-50 md:mt-1 md:text-sm">
-                    {{ vehicleDriverLabel(selectedVehicle) || '[]' }}
-                  </p>
+              <dl class="divide-y divide-ui-divider text-xs">
+                <div v-if="selectedVehicle.vehicleType !== 'trailer'" class="flex items-center justify-between gap-3 px-3 py-2">
+                  <dt class="text-ui-mutedText">Kierowca</dt>
+                  <dd class="flex min-w-0 items-center justify-end gap-1.5">
+                    <span class="truncate font-semibold text-ui-text">{{ vehicleDriverLabel(selectedVehicle) || '[]' }}</span>
+                    <AppButton class="!h-6 shrink-0 !px-1.5 !text-[10px]" variant="secondary" size="sm"><Gauge class="h-3 w-3" />Tacho</AppButton>
+                  </dd>
                 </div>
-                <AppButton class="h-7 shrink-0 px-2 text-[11px]" variant="secondary" size="sm">
-                  <Gauge class="h-3 w-3" />
-                  Tacho
-                </AppButton>
-              </div>
-            </section>
+                <div v-if="selectedVehicle.vehicleType !== 'trailer'" class="flex items-center justify-between gap-3 px-3 py-2">
+                  <dt class="text-ui-mutedText">Paliwo</dt><dd class="font-semibold text-ui-text">{{ formatFuel(selectedVehicle) }}</dd>
+                </div>
+                <div class="flex items-center justify-between gap-3 px-3 py-2">
+                  <dt class="text-ui-mutedText">GPS</dt>
+                  <dd class="flex min-w-0 items-center gap-1">
+                    <span class="truncate font-semibold text-ui-text">{{ vehicleCoordinates(selectedVehicle) }}</span>
+                    <button type="button" class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] text-ui-icon transition hover:bg-ui-hover hover:text-ui-text" title="Kopiuj koordynaty" @click="copyVehiclePosition(selectedVehicle)"><Copy class="h-3.5 w-3.5" /></button>
+                  </dd>
+                </div>
+                <div class="flex items-center justify-between gap-3 px-3 py-2">
+                  <dt class="text-ui-mutedText">Aktualizacja</dt><dd class="text-right font-semibold text-ui-text">{{ vehicleSignalLabel(selectedVehicle) }}</dd>
+                </div>
+              </dl>
 
-            <section class="rounded-lg border border-slate-200 p-2 dark:border-app-border md:rounded-2xl md:p-2.5">
-              <div class="grid gap-2 text-xs">
-                <div v-if="selectedVehicle.vehicleType !== 'trailer'" class="flex items-center justify-between gap-3">
-                  <span class="font-semibold text-slate-500 dark:text-app-muted">Paliwo</span>
-                  <span class="font-semibold text-slate-950 dark:text-slate-50">{{ formatFuel(selectedVehicle) }}</span>
-                </div>
-                <div class="flex items-center justify-between gap-3">
-                  <span class="font-semibold text-slate-500 dark:text-app-muted">GPS</span>
-                  <div class="flex min-w-0 items-center gap-1">
-                    <span class="truncate font-semibold text-slate-950 dark:text-slate-50">{{ vehicleCoordinates(selectedVehicle) }}</span>
-                    <button
-                      type="button"
-                      class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-950 dark:hover:bg-app-elevated dark:hover:text-slate-50"
-                      title="Kopiuj koordynaty"
-                      @click="copyVehiclePosition(selectedVehicle)"
-                    >
-                      <Copy class="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <div class="flex items-center justify-between gap-3">
-                  <span class="font-semibold text-slate-500 dark:text-app-muted">Aktualizacja</span>
-                  <span class="text-right font-semibold text-slate-950 dark:text-slate-50">
-                    {{ vehicleSignalLabel(selectedVehicle) }}
-                  </span>
-                </div>
-              </div>
-            </section>
-
-            <section class="rounded-lg border border-slate-200 p-2 dark:border-app-border md:rounded-2xl md:p-2.5">
-              <p class="text-[11px] font-semibold uppercase text-slate-500 dark:text-app-muted">Przeglądy i winiety</p>
-              <div class="mt-2 space-y-1.5">
-                <div
-                  v-for="item in selectedVehicleLifecycleItems"
-                  :key="item.label"
-                  class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2 py-1 dark:bg-app-elevated md:gap-3 md:rounded-xl md:px-2.5 md:py-1.5"
-                >
-                  <div>
-                    <p class="text-xs font-semibold text-slate-950 dark:text-slate-50">{{ item.label }}</p>
-                    <p class="mt-0.5 text-[11px] text-slate-500 dark:text-app-muted">{{ item.dateLabel }}</p>
-                  </div>
+              <div class="border-t border-ui-divider bg-ui-muted px-3 py-1.5 text-[10px] font-semibold uppercase text-ui-mutedText">Przeglądy i winiety</div>
+              <div class="divide-y divide-ui-divider">
+                <div v-for="item in selectedVehicleLifecycleItems" :key="item.label" class="flex items-center justify-between gap-2 px-3 py-2">
+                  <div class="min-w-0"><p class="truncate text-xs font-medium text-ui-text">{{ item.label }}</p><p class="text-[10px] text-ui-mutedText">{{ item.dateLabel }}</p></div>
                   <AppBadge :variant="item.variant">{{ item.daysLabel }}</AppBadge>
                 </div>
               </div>
-            </section>
+            </div>
+
+            <div v-if="vehicleDrawerTab === 'repairs'" class="space-y-2">
+              <div class="flex items-center justify-between gap-2 pb-0.5">
+                <p class="text-[11px] font-semibold text-ui-mutedText">Aktywne naprawy</p>
+                <AppButton
+                  v-if="canCreateRepairs"
+                  class="!h-7 !px-2 !text-[11px]"
+                  size="sm"
+                  @click="openCreateRepairFromDrawer"
+                >
+                  <Plus class="h-3.5 w-3.5" />
+                  Dodaj naprawę
+                </AppButton>
+              </div>
+
+              <article
+                v-for="repair in selectedVehicleActiveRepairs"
+                :key="repair.id"
+                class="overflow-hidden rounded-[6px] border border-ui-border bg-ui-surface transition hover:border-ui-border-strong"
+              >
+                <button
+                  type="button"
+                  class="flex w-full items-center justify-between gap-2 bg-ui-elevated px-2.5 py-2 text-left transition hover:bg-ui-hover"
+                  :aria-expanded="isVehicleRepairExpanded(repair.id)"
+                  @click="toggleVehicleRepair(repair.id)"
+                >
+                  <span class="min-w-0">
+                    <span class="block truncate text-xs font-semibold text-ui-text">Naprawa #{{ repair.id }}</span>
+                    <span class="mt-0.5 block truncate text-[10px] text-ui-mutedText">{{ repair.placeName || repair.place?.name || 'Brak miejsca' }}</span>
+                  </span>
+                  <span class="flex shrink-0 items-center gap-1.5">
+                    <AppBadge variant="info">{{ repairStatusLabel(repair.status) }}</AppBadge>
+                    <ChevronDown class="h-3.5 w-3.5 text-ui-icon transition-transform" :class="isVehicleRepairExpanded(repair.id) ? 'rotate-180' : ''" />
+                  </span>
+                </button>
+
+                <div v-if="isVehicleRepairExpanded(repair.id)" class="space-y-2 border-t border-ui-divider p-2.5">
+                  <dl class="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-[11px]">
+                    <dt class="text-ui-mutedText">Przyjazd</dt><dd class="text-right font-medium text-ui-text">{{ formatRepairDateTime(repair.plannedArrivalAt) }}</dd>
+                    <dt class="text-ui-mutedText">Odjazd</dt><dd class="text-right font-medium text-ui-text">{{ formatRepairDateTime(repair.plannedDepartureAt) }}</dd>
+                    <template v-if="repair.description">
+                      <dt class="text-ui-mutedText">Uwagi</dt><dd class="text-right text-ui-text-secondary">{{ repair.description }}</dd>
+                    </template>
+                  </dl>
+
+                  <div class="rounded-[6px] border border-ui-divider bg-ui-muted p-2">
+                    <p class="mb-1.5 text-[10px] font-semibold uppercase text-ui-mutedText">Usterki do naprawy</p>
+                    <ul v-if="openRepairFaults(repair).length" class="space-y-1.5">
+                      <li v-for="fault in openRepairFaults(repair)" :key="fault.id" class="flex items-start gap-2 text-[11px] text-ui-text-secondary">
+                        <span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-danger-500"></span><span class="min-w-0 break-words">{{ fault.description }}</span>
+                      </li>
+                    </ul>
+                    <p v-else class="text-[11px] text-ui-mutedText">Brak otwartych usterek.</p>
+                  </div>
+
+                  <AppButton class="w-full" size="sm" variant="secondary" @click="openRepairDetails(repair)">
+                    Przejdź do naprawy
+                  </AppButton>
+                </div>
+              </article>
+              <div v-if="!selectedVehicleActiveRepairs.length" class="rounded-[6px] border border-dashed border-ui-border px-3 py-8 text-center text-xs text-ui-mutedText">Brak aktywnych napraw.</div>
+            </div>
+
+            <VehiclePhotoGallery
+              v-if="vehicleDrawerTab === 'photos' && canReadVehiclePhotos"
+              :vehicle-id="selectedVehicle.backendId"
+              embedded
+              :load-on-mount="false"
+            />
           </div>
         </aside>
       </Transition>
+
+      <RepairCreateModal
+        :open="isRepairCreateModalOpen"
+        :initial-vehicle-id="selectedVehicle?.backendId ?? null"
+        lock-vehicle
+        :existing-repairs="repairs"
+        @close="isRepairCreateModalOpen = false"
+        @created="handleRepairCreated"
+        @open-repair="openRepairDetails"
+      />
 
       <div
         v-if="mapState !== 'ready'"
@@ -787,7 +835,7 @@
             </div>
           </div>
           <div v-else class="mt-1 flex items-center gap-1.5 text-[11px] text-white/75">
-            <GlobeOff v-if="alert.id === 'gps-offline'" class="h-2.5 w-2.5" />
+            <GlobeX v-if="alert.id === 'gps-offline'" class="h-2.5 w-2.5" />
             <CircleAlert v-else class="h-2.5 w-2.5" />
             <span v-if="alert.dateLabel">
               Do:
@@ -896,44 +944,13 @@
       </div>
     </Teleport>
 
-    <Teleport to="body">
-      <div
-        v-if="isVehiclePhotosModalOpen && selectedVehicle"
-        class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/50 p-3 sm:p-6"
-        @click.self="closeVehiclePhotosModal"
-      >
-        <section class="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-          <header class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-app-border sm:px-5 sm:py-4">
-            <div class="flex min-w-0 items-center gap-2">
-              <Images class="h-4 w-4 shrink-0 text-slate-400" />
-              <div class="min-w-0">
-                <h2 class="truncate text-base font-semibold text-slate-950 dark:text-slate-50">Zdjęcia pojazdu</h2>
-                <p class="mt-0.5 truncate text-xs text-slate-500 dark:text-slate-400">{{ selectedVehicle.plateNumber }}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
-              aria-label="Zamknij zdjęcia pojazdu"
-              @click="closeVehiclePhotosModal"
-            >
-              <X class="h-4 w-4" />
-            </button>
-          </header>
-          <div class="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-            <VehiclePhotoGallery :vehicle-id="selectedVehicle.backendId" />
-          </div>
-        </section>
-      </div>
-    </Teleport>
-
   </div>
 </template>
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed, defineComponent, h, markRaw, onBeforeUnmount, onMounted, reactive, ref, render, shallowRef, watch, type Component } from 'vue'
+import { computed, defineComponent, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref, render, shallowRef, watch, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowDown, ArrowUp, ArrowUpDown, CircleAlert, Container, Copy, Flag, Gauge, GlobeOff, History, Images, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, Wrench, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, CircleAlert, Container, Copy, Flag, Gauge, GlobeX, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightOpen, Plus, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
@@ -941,6 +958,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import AppTextarea from '@/components/ui/AppTextarea.vue'
 import VehicleSearchSelect from '@/components/selects/VehicleSearchSelect.vue'
+import RepairCreateModal from '@/components/repairs/RepairCreateModal.vue'
 import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
 import PlaceEventsPanel from '@/components/places/PlaceEventsPanel.vue'
 import { usePositionHistory, type RouteLatLng } from '@/composables/usePositionHistory'
@@ -965,6 +983,7 @@ type HistoryPreset = 'today' | 'yesterday' | 'current-week' | 'previous-week' | 
 type RoutePointMarkerKind = 'point' | 'start' | 'end'
 type VehicleSortKey = 'order' | 'plate' | 'fuel'
 type SortDirection = 'asc' | 'desc'
+type VehicleDrawerTab = 'info' | 'repairs' | 'photos'
 type VehicleAlertItem = {
   id: string
   title: string
@@ -1351,7 +1370,14 @@ const selectedVehicleId = ref<string | null>(null)
 const vehicleSearch = ref('')
 const vehiclePanelCollapsed = ref(isMobileMapViewport())
 const vehicleDetailsDrawerOpen = ref(false)
-const isVehiclePhotosModalOpen = ref(false)
+const vehicleDrawerTab = ref<VehicleDrawerTab>('info')
+const expandedVehicleRepairIds = ref<Set<number>>(new Set())
+const isRepairCreateModalOpen = ref(false)
+const vehicleDrawerHeaderElement = ref<HTMLElement | null>(null)
+const vehicleDrawerTabsElement = ref<HTMLElement | null>(null)
+const vehicleDrawerBodyElement = ref<HTMLElement | null>(null)
+const vehicleDrawerInfoElement = ref<HTMLElement | null>(null)
+const vehicleDrawerMeasuredHeight = ref<number | null>(null)
 const mapElement = ref<HTMLDivElement | null>(null)
 const mapState = ref<MapState>(googleMapsApiKey ? 'loading' : 'missing-key')
 const googleMap = shallowRef<any>(null)
@@ -1403,6 +1429,7 @@ let routeZoomRefreshFrameId: number | null = null
 let renderedRoutePositionCount = 0
 let isRouteRenderComplete = false
 let placeMapClickListener: any | null = null
+let vehicleDrawerResizeObserver: ResizeObserver | null = null
 const placeCircles = new Map<number, any>()
 const placeMarkers = new Map<number, any>()
 
@@ -1454,6 +1481,10 @@ const selectedVehicle = computed(() => (
     : null
 ))
 const canReadVehiclePhotos = computed(() => authStore.hasActiveCompanyPermission('vehicle_photos.read'))
+const canCreateRepairs = computed(() => authStore.canManageCompany || authStore.hasActiveCompanyPermission('repairs.create'))
+const vehicleDrawerStyle = computed(() => vehicleDrawerMeasuredHeight.value
+  ? { height: `min(${vehicleDrawerMeasuredHeight.value}px, 100%)` }
+  : undefined)
 
 const refreshCircleCircumference = REFRESH_CIRCLE_CIRCUMFERENCE
 const positionRefreshRemainingMs = computed(() => Math.max(
@@ -1550,6 +1581,24 @@ const activeRepairsByVehicleId = computed(() => {
 
   return grouped
 })
+
+const selectedVehicleActiveRepairs = computed(() => {
+  if (!selectedVehicle.value) return []
+  return activeRepairsByVehicleId.value.get(String(selectedVehicle.value.backendId)) || []
+})
+
+const selectedVehiclePhotoCount = computed(() => {
+  if (!selectedVehicle.value || !canReadVehiclePhotos.value) return 0
+  return fleetStore.vehiclePhotosByVehicleId[String(selectedVehicle.value.backendId)]?.length || 0
+})
+
+const vehicleDrawerTabs = computed<Array<{ value: VehicleDrawerTab; label: string; count: number | null }>>(() => [
+  { value: 'info', label: 'Informacje', count: null },
+  { value: 'repairs', label: 'Naprawy', count: selectedVehicleActiveRepairs.value.length },
+  ...(canReadVehiclePhotos.value
+    ? [{ value: 'photos' as const, label: 'Zdjęcia', count: selectedVehiclePhotoCount.value }]
+    : []),
+])
 
 const canSearchHistory = computed(() => (
   historyFilters.vehicleId !== 'all' &&
@@ -1683,14 +1732,6 @@ function collapseVehiclePanelOnMobile() {
 
 function showVehicleDetailsDrawer() {
   vehicleDetailsDrawerOpen.value = true
-}
-
-function hideVehicleDetailsDrawer() {
-  vehicleDetailsDrawerOpen.value = false
-}
-
-function closeVehiclePhotosModal() {
-  isVehiclePhotosModalOpen.value = false
 }
 
 function clearPositionHistoryData() {
@@ -2108,6 +2149,22 @@ function repairStatusLabel(status: Repair['status']) {
   return labels[normalized] || 'Aktywna'
 }
 
+function formatRepairDateTime(value: string | null) {
+  if (!value) return '—'
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) return '—'
+
+  return new Intl.DateTimeFormat('pl-PL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
+}
+
 function repairCreatedByName(repair: Repair) {
   if (repair.createdByUsername) {
     return repair.createdByUsername
@@ -2118,6 +2175,74 @@ function repairCreatedByName(repair: Repair) {
   }
 
   return 'Brak danych'
+}
+
+function openRepairFaults(repair: Repair) {
+  return repair.faults.filter((fault) => String(fault.status || '').trim().toLowerCase() !== 'done')
+}
+
+function isVehicleRepairExpanded(repairId: number) {
+  return expandedVehicleRepairIds.value.has(repairId)
+}
+
+function toggleVehicleRepair(repairId: number) {
+  const next = new Set(expandedVehicleRepairIds.value)
+
+  if (next.has(repairId)) {
+    next.delete(repairId)
+  } else {
+    next.add(repairId)
+  }
+
+  expandedVehicleRepairIds.value = next
+}
+
+function openCreateRepairFromDrawer() {
+  if (!selectedVehicle.value || !canCreateRepairs.value) return
+  isRepairCreateModalOpen.value = true
+}
+
+function handleRepairCreated(repair: Repair) {
+  expandedVehicleRepairIds.value = new Set([...expandedVehicleRepairIds.value, repair.id])
+}
+
+function openRepairDetails(repair: Repair) {
+  isRepairCreateModalOpen.value = false
+  void router.push({ name: 'repair-detail', params: { id: repair.id } })
+}
+
+function measureVehicleDrawer() {
+  const header = vehicleDrawerHeaderElement.value
+  const tabs = vehicleDrawerTabsElement.value
+  const body = vehicleDrawerBodyElement.value
+  const info = vehicleDrawerInfoElement.value
+
+  if (!header || !tabs || !body || !info || info.scrollHeight <= 0) return
+
+  const bodyStyles = window.getComputedStyle(body)
+  const verticalPadding = Number.parseFloat(bodyStyles.paddingTop) + Number.parseFloat(bodyStyles.paddingBottom)
+  const nextHeight = Math.ceil(header.offsetHeight + tabs.offsetHeight + info.scrollHeight + verticalPadding + 8)
+
+  if (vehicleDrawerMeasuredHeight.value !== nextHeight) {
+    vehicleDrawerMeasuredHeight.value = nextHeight
+  }
+}
+
+async function setupVehicleDrawerMeasurement() {
+  vehicleDrawerResizeObserver?.disconnect()
+  vehicleDrawerResizeObserver = null
+  await nextTick()
+
+  if (!selectedVehicle.value || !vehicleDetailsDrawerOpen.value) return
+
+  measureVehicleDrawer()
+
+  if (typeof ResizeObserver === 'undefined') return
+
+  vehicleDrawerResizeObserver = new ResizeObserver(measureVehicleDrawer)
+  ;[vehicleDrawerHeaderElement.value, vehicleDrawerTabsElement.value, vehicleDrawerInfoElement.value]
+    .filter((element): element is HTMLElement => Boolean(element))
+    .forEach((element) => vehicleDrawerResizeObserver?.observe(element))
 }
 
 function alertDeadlineClasses(alert: VehicleAlertItem) {
@@ -2695,6 +2820,14 @@ function markerState(vehicle: Vehicle) {
     return 'moving-high'
   }
 
+  if (vehicle.ignitionState === 'ON' && vehicle.vehicleType !== 'trailer') {
+    return 'ignition-on'
+  }
+
+  if (mapSettings.map.showMarkerAlerts && vehicleHasActiveRepair(vehicle)) {
+    return 'repair'
+  }
+
   if (mapSettings.map.showMarkerAlerts && vehicle.alerts.length) {
     return 'alert'
   }
@@ -2705,6 +2838,10 @@ function markerState(vehicle: Vehicle) {
 function markerIconSvg(vehicle: Vehicle) {
   const state = markerState(vehicle)
 
+  if (state === 'repair') {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.121 2.121 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"></path></svg>'
+  }
+
   if (state === 'alert') {
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg>'
   }
@@ -2713,7 +2850,7 @@ function markerIconSvg(vehicle: Vehicle) {
     return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 7v5"></path><path d="M8.5 9.5a5 5 0 1 0 7 0"></path></svg>'
   }
 
-  if (state === 'idle') {
+  if (state === 'idle' || state === 'ignition-on') {
     if (vehicle.vehicleType === 'trailer') {
       return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle></svg>'
     }
@@ -2722,6 +2859,10 @@ function markerIconSvg(vehicle: Vehicle) {
   }
 
   return '<svg class="rw-fleet-marker-heading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m16 12-4-4-4 4"></path><path d="M12 16V8"></path></svg>'
+}
+
+function vehicleHasActiveRepair(vehicle: Vehicle) {
+  return (activeRepairsByVehicleId.value.get(String(vehicle.backendId)) || []).length > 0
 }
 
 function markerLabelHtml(vehicle: Vehicle) {
@@ -3481,7 +3622,9 @@ function focusPositionHistory() {
 
 function selectVehicle(vehicleId: string) {
   if (selectedVehicleId.value !== vehicleId) {
-    closeVehiclePhotosModal()
+    vehicleDrawerTab.value = 'info'
+    expandedVehicleRepairIds.value = new Set()
+    isRepairCreateModalOpen.value = false
     clearTodayRoute()
     clearPositionHistoryData()
   }
@@ -3499,7 +3642,9 @@ function selectVehicle(vehicleId: string) {
 }
 
 function closeVehicleDrawer() {
-  closeVehiclePhotosModal()
+  vehicleDrawerTab.value = 'info'
+  expandedVehicleRepairIds.value = new Set()
+  isRepairCreateModalOpen.value = false
   selectedVehicleId.value = null
   vehicleDetailsDrawerOpen.value = false
   clearTodayRoute()
@@ -3593,6 +3738,10 @@ watch(filteredVehicles, (vehicles) => {
   }
 })
 
+watch(repairs, () => {
+  renderMarkers()
+}, { deep: true })
+
 watch(activeMode, (mode, previousMode) => {
   clearTodayRoute()
   positionHistory.clear()
@@ -3632,7 +3781,7 @@ watch(selectedVehicleId, (vehicleId) => {
   renderMarkers()
 
   if (!vehicleId) {
-    closeVehiclePhotosModal()
+    vehicleDrawerTab.value = 'info'
     vehicleDetailsDrawerOpen.value = false
   }
 
@@ -3646,6 +3795,35 @@ watch(selectedVehicleId, (vehicleId) => {
     clearPositionHistoryData()
   }
 })
+
+watch(
+  [() => selectedVehicle.value?.backendId, canReadVehiclePhotos],
+  ([vehicleId, canRead]) => {
+    if (!canRead && vehicleDrawerTab.value === 'photos') {
+      vehicleDrawerTab.value = 'info'
+    }
+
+    if (vehicleId && canRead && !(String(vehicleId) in fleetStore.vehiclePhotosByVehicleId)) {
+      void fleetStore.fetchVehiclePhotos(vehicleId, { silent: true }).catch(() => undefined)
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  [selectedVehicleId, vehicleDetailsDrawerOpen],
+  ([vehicleId, isOpen]) => {
+    if (!vehicleId || !isOpen) {
+      vehicleDrawerResizeObserver?.disconnect()
+      vehicleDrawerResizeObserver = null
+      vehicleDrawerMeasuredHeight.value = null
+      return
+    }
+
+    void setupVehicleDrawerMeasurement()
+  },
+  { immediate: true },
+)
 
 watch(mapSettings, (value) => {
   localStorage.setItem(MAP_SETTINGS_KEY, JSON.stringify(value))
@@ -3712,6 +3890,8 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cancelAlertTooltipHide()
   cancelVehicleFocusAnimation()
+  vehicleDrawerResizeObserver?.disconnect()
+  vehicleDrawerResizeObserver = null
 
   if (positionRefreshTimer.value !== null) {
     window.clearInterval(positionRefreshTimer.value)
@@ -3989,6 +4169,26 @@ onBeforeUnmount(() => {
   color: #6b7280;
 }
 
+.rw-fleet-marker-ignition-on {
+  color: rgb(var(--rw-success-500));
+}
+
+.rw-fleet-marker-repair {
+  border: 2px solid currentColor;
+  background: rgb(var(--rw-info-50));
+  color: rgb(var(--rw-info-600));
+}
+
+.rw-fleet-marker-repair svg {
+  height: 13px;
+  width: 13px;
+}
+
+.dark .rw-fleet-marker-repair {
+  background: rgb(var(--rw-app-panel));
+  color: rgb(var(--rw-info-400));
+}
+
 .rw-fleet-marker-moving-low {
   color: #16a34a;
 }
@@ -4052,4 +4252,5 @@ onBeforeUnmount(() => {
 .dark .rw-fleet-marker-icon {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
 }
+
 </style>

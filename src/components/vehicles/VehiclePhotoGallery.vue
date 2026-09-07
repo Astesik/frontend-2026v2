@@ -1,17 +1,22 @@
 <template>
-  <div class="min-w-0">
-    <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <p class="text-xs text-slate-500 dark:text-slate-400">
+  <div class="min-w-0" :class="embedded ? 'space-y-2' : ''">
+    <div
+      class="flex flex-wrap items-center gap-2"
+      :class="embedded ? 'justify-between pb-0.5' : 'mb-3 justify-between'"
+    >
+      <p v-if="embedded" class="text-[11px] font-semibold text-ui-mutedText">Zdjęcia pojazdu</p>
+      <p v-if="!embedded" class="text-xs text-slate-500 dark:text-slate-400">
         {{ photos.length }} {{ photos.length === 1 ? 'zdjęcie' : 'zdjęć' }}
       </p>
       <AppButton
         v-if="canAddPhotos"
         size="sm"
-        variant="secondary"
+        :variant="embedded ? 'primary' : 'secondary'"
+        :class="embedded ? '!h-7 !px-2 !text-[11px]' : ''"
         :loading="isMutating"
         @click="photoInput?.click()"
       >
-        <ImagePlus class="h-4 w-4" />
+        <ImagePlus :class="embedded ? 'h-3.5 w-3.5' : 'h-4 w-4'" />
         Dodaj zdjęcie
       </AppButton>
       <input
@@ -23,7 +28,7 @@
       />
     </div>
 
-    <p v-if="fileError" class="mb-3 rounded-xl border border-danger-100 bg-danger-50 px-3 py-2 text-xs text-danger-600 dark:border-danger-400 dark:bg-app-elevated dark:text-danger-400">
+    <p v-if="fileError" class="border border-danger-100 bg-danger-50 px-3 py-2 text-xs text-danger-600 dark:border-danger-400 dark:bg-app-elevated dark:text-danger-400" :class="embedded ? 'rounded-[6px]' : 'mb-3 rounded-xl'">
       {{ fileError }}
     </p>
 
@@ -31,20 +36,26 @@
       Pobieranie zdjęć...
     </div>
 
-    <div v-else-if="!photos.length" class="rounded-2xl border border-dashed border-slate-200 px-4 py-8 text-center dark:border-app-border">
-      <Images class="mx-auto h-6 w-6 text-slate-300 dark:text-app-muted" />
-      <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Brak zdjęć pojazdu.</p>
+    <div
+      v-else-if="!photos.length"
+      class="border border-dashed px-3 py-8 text-center"
+      :class="embedded ? 'rounded-[6px] border-ui-border' : 'rounded-2xl border-slate-200 dark:border-app-border'"
+    >
+      <Images v-if="!embedded" class="mx-auto h-6 w-6 text-slate-300 dark:text-app-muted" />
+      <p class="text-slate-500 dark:text-slate-400" :class="embedded ? 'text-xs' : 'mt-2 text-sm'">Brak zdjęć pojazdu.</p>
     </div>
 
-    <div v-else class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+    <div v-else class="grid grid-cols-2 gap-2" :class="embedded ? '' : 'sm:grid-cols-3 lg:grid-cols-4'">
       <article
         v-for="photo in photos"
         :key="photo.id"
-        class="group relative min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-app-border dark:bg-app-dark"
+        class="group relative min-w-0 overflow-hidden border bg-ui-surface"
+        :class="embedded ? 'rounded-[6px] border-ui-border' : 'rounded-2xl border-slate-200 bg-slate-50 dark:border-app-border dark:bg-app-dark'"
       >
         <button
           type="button"
-          class="block aspect-[4/3] w-full overflow-hidden bg-slate-100 dark:bg-app-elevated"
+          class="block aspect-[4/3] w-full overflow-hidden"
+          :class="embedded ? 'bg-ui-elevated' : 'bg-slate-100 dark:bg-app-elevated'"
           :disabled="!photoUrls[String(photo.id)]"
           :aria-label="`Powiększ ${photo.originalFilename}`"
           @click="openPreview(photo)"
@@ -60,7 +71,7 @@
           </div>
         </button>
 
-        <div class="flex min-w-0 items-center gap-1 border-t border-slate-200 px-2 py-1.5 dark:border-app-border">
+        <div class="flex min-w-0 items-center gap-1 border-t px-2 py-1.5" :class="embedded ? 'border-ui-divider' : 'border-slate-200 dark:border-app-border'">
           <span class="min-w-0 flex-1 truncate text-[11px] font-medium text-slate-700 dark:text-slate-200" :title="photo.originalFilename">
             {{ photo.originalFilename }}
           </span>
@@ -150,9 +161,14 @@ import { useFleetStore } from '@/stores/fleetStore'
 import { useUiStore } from '@/stores/uiStore'
 import type { VehiclePhoto } from '@/types/fleet'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   vehicleId: number | string
-}>()
+  embedded?: boolean
+  loadOnMount?: boolean
+}>(), {
+  embedded: false,
+  loadOnMount: true,
+})
 
 const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 const MAX_PHOTO_SIZE = 20 * 1024 * 1024
@@ -307,7 +323,10 @@ watch(
     previewErrors.value = new Set()
     previewLoadGeneration += 1
     revokeAllPhotoUrls()
-    if (key && canRead) await fleetStore.fetchVehiclePhotos(key)
+    if (key && canRead) {
+      if (props.loadOnMount) await fleetStore.fetchVehiclePhotos(key)
+      await syncPhotoUrls(photos.value)
+    }
   },
   { immediate: true },
 )
