@@ -54,3 +54,23 @@ export interface PlaceVehicleEvent {
   createdAt?: string | null
   occurredAt?: string | null
 }
+
+export interface PlaceVehicleInside {
+  vehicleId: number
+  licensePlate: string
+  vehicleType: string | null
+  make: string | null
+  deviceId: number | null
+  enteredAt: string | null
+  timeInZoneSeconds: number
+  lastPositionAt: string | null
+  positionAgeSeconds: number
+}
+
+export interface PlaceVehiclesInsideResponse {
+  placeId: number
+  placeName: string
+  generatedAt: string
+  vehicleCount: number
+  vehicles: PlaceVehicleInside[]
+}

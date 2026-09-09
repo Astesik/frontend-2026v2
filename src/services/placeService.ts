@@ -1,6 +1,6 @@
 import { api } from './api'
 import type { PlaceSelectItem } from '@/types/repair'
-import type { Place, PlaceEventRule, PlaceEventRuleType, PlacePayload, PlaceUpdatePayload, PlaceVehicleEvent, PlaceVehicleScope } from '@/types/place'
+import type { Place, PlaceEventRule, PlaceEventRuleType, PlacePayload, PlaceUpdatePayload, PlaceVehicleEvent, PlaceVehicleScope, PlaceVehiclesInsideResponse } from '@/types/place'
 import type { PageResult } from '@/types/notifications'
 
 type RawPlaceSelectItem = {
@@ -147,6 +147,30 @@ export const placeService = {
     })
     const content = Array.isArray(data) ? data : Array.isArray(data?.content) ? data.content : []
     return content.map((event) => ({ ...event, notificationRecipients: Array.isArray(event.notificationRecipients) ? event.notificationRecipients : [] }))
+  },
+
+  async getVehiclesInside(placeId: number | string, options?: { silent?: boolean }) {
+    const { data } = await api.get<PlaceVehiclesInsideResponse>(`/api/places/${placeId}/vehicles-inside`, {
+      skipErrorToast: options?.silent,
+    })
+
+    return {
+      placeId: Number(data.placeId),
+      placeName: data.placeName || '',
+      generatedAt: data.generatedAt || new Date().toISOString(),
+      vehicleCount: Number(data.vehicleCount || 0),
+      vehicles: (Array.isArray(data.vehicles) ? data.vehicles : []).map((vehicle) => ({
+        vehicleId: Number(vehicle.vehicleId),
+        licensePlate: vehicle.licensePlate || '',
+        vehicleType: vehicle.vehicleType || null,
+        make: vehicle.make || null,
+        deviceId: vehicle.deviceId === null || vehicle.deviceId === undefined ? null : Number(vehicle.deviceId),
+        enteredAt: vehicle.enteredAt || null,
+        timeInZoneSeconds: Math.max(0, Number(vehicle.timeInZoneSeconds || 0)),
+        lastPositionAt: vehicle.lastPositionAt || null,
+        positionAgeSeconds: Math.max(0, Number(vehicle.positionAgeSeconds || 0)),
+      })),
+    } satisfies PlaceVehiclesInsideResponse
   },
 
   async getPlacesSelect(options?: { silent?: boolean }) {

@@ -4,13 +4,11 @@
       <h3 class="text-sm font-semibold text-slate-950 dark:text-slate-50">Reguły zdarzeń</h3>
       <div class="mt-3 space-y-3">
         <article v-for="definition in definitions" :key="definition.type" class="rounded-2xl border border-slate-100 p-3 dark:border-app-border">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div class="min-w-0">
-              <p class="text-sm font-semibold text-slate-950 dark:text-slate-50">{{ definition.label }}</p>
-              <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{{ definition.description }}</p>
-            </div>
+          <div class="flex items-center justify-between gap-3">
+            <p class="min-w-0 text-sm font-semibold text-slate-950 dark:text-slate-50">{{ definition.label }}</p>
             <AppSwitch v-model="forms[definition.type].enabled" class="shrink-0" label="Aktywna" />
           </div>
+          <p class="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{{ definition.description }}</p>
           <AppSelect v-model="forms[definition.type].vehicleScope" class="mt-3" label="Zakres pojazdów" :options="scopeOptions" size="sm" />
           <EmailChipInput v-model="forms[definition.type].recipients" class="mt-3" label="Odbiorcy" />
           <div class="mt-3 flex flex-wrap justify-end gap-2">
@@ -21,7 +19,7 @@
       </div>
     </section>
 
-    <section class="border-t border-slate-100 pt-4 dark:border-app-border">
+    <section v-if="showHistory" class="border-t border-slate-100 pt-4 dark:border-app-border">
       <div class="flex items-center justify-between gap-3">
         <h3 class="text-sm font-semibold text-slate-950 dark:text-slate-50">Historia strefy</h3>
         <AppBadge>{{ events.length }}</AppBadge>
@@ -53,7 +51,9 @@ import { usePlaceStore } from '@/stores/placeStore'
 import { useUiStore } from '@/stores/uiStore'
 import type { PlaceEventRuleType, PlaceVehicleScope } from '@/types/place'
 
-const props = defineProps<{ placeId: number }>()
+const props = withDefaults(defineProps<{ placeId: number; showHistory?: boolean }>(), {
+  showHistory: true,
+})
 const placeStore = usePlaceStore()
 const uiStore = useUiStore()
 const { eventRulesByPlace, vehicleEventsByPlace, isMutating } = storeToRefs(placeStore)

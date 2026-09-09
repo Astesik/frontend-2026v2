@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { placeService } from '@/services/placeService'
-import type { Place, PlaceEventRule, PlaceEventRuleType, PlacePayload, PlaceUpdatePayload, PlaceVehicleEvent, PlaceVehicleScope } from '@/types/place'
+import type { Place, PlaceEventRule, PlaceEventRuleType, PlacePayload, PlaceUpdatePayload, PlaceVehicleEvent, PlaceVehicleScope, PlaceVehiclesInsideResponse } from '@/types/place'
 
 export const usePlaceStore = defineStore('places', () => {
   const places = ref<Place[]>([])
@@ -9,6 +9,8 @@ export const usePlaceStore = defineStore('places', () => {
   const isMutating = ref(false)
   const eventRulesByPlace = ref<Record<string, PlaceEventRule[]>>({})
   const vehicleEventsByPlace = ref<Record<string, PlaceVehicleEvent[]>>({})
+  const vehiclesInsideByPlace = ref<Record<string, PlaceVehiclesInsideResponse>>({})
+  const vehiclesInsideLoadingByPlace = ref<Record<string, boolean>>({})
 
   function setRules(placeId: number, rules: PlaceEventRule[]) {
     eventRulesByPlace.value = { ...eventRulesByPlace.value, [String(placeId)]: rules }
@@ -68,6 +70,15 @@ export const usePlaceStore = defineStore('places', () => {
       const nextRules = { ...eventRulesByPlace.value }
       delete nextRules[String(id)]
       eventRulesByPlace.value = nextRules
+      const nextVehiclesInside = { ...vehiclesInsideByPlace.value }
+      delete nextVehiclesInside[String(id)]
+      vehiclesInsideByPlace.value = nextVehiclesInside
+      const nextEvents = { ...vehicleEventsByPlace.value }
+      delete nextEvents[String(id)]
+      vehicleEventsByPlace.value = nextEvents
+      const nextLoading = { ...vehiclesInsideLoadingByPlace.value }
+      delete nextLoading[String(id)]
+      vehiclesInsideLoadingByPlace.value = nextLoading
     } finally {
       isMutating.value = false
     }
@@ -107,10 +118,25 @@ export const usePlaceStore = defineStore('places', () => {
     return events
   }
 
+  async function loadVehiclesInside(placeId: number, options?: { silent?: boolean }) {
+    const key = String(placeId)
+    vehiclesInsideLoadingByPlace.value = { ...vehiclesInsideLoadingByPlace.value, [key]: true }
+
+    try {
+      const response = await placeService.getVehiclesInside(placeId, options)
+      vehiclesInsideByPlace.value = { ...vehiclesInsideByPlace.value, [key]: response }
+      return response
+    } finally {
+      vehiclesInsideLoadingByPlace.value = { ...vehiclesInsideLoadingByPlace.value, [key]: false }
+    }
+  }
+
   function resetApiState() {
     places.value = []
     eventRulesByPlace.value = {}
     vehicleEventsByPlace.value = {}
+    vehiclesInsideByPlace.value = {}
+    vehiclesInsideLoadingByPlace.value = {}
     isLoading.value = false
     isMutating.value = false
   }
@@ -121,6 +147,8 @@ export const usePlaceStore = defineStore('places', () => {
     isMutating,
     eventRulesByPlace,
     vehicleEventsByPlace,
+    vehiclesInsideByPlace,
+    vehiclesInsideLoadingByPlace,
     loadPlaces,
     createPlace,
     updatePlace,
@@ -129,6 +157,7 @@ export const usePlaceStore = defineStore('places', () => {
     saveEventRule,
     deleteEventRule,
     loadVehicleEvents,
+    loadVehiclesInside,
     resetApiState,
   }
 })
