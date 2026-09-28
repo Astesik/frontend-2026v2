@@ -86,7 +86,7 @@
           class="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden p-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]"
         >
           <article
-            v-for="repair in column.repairs"
+            v-for="repair in visibleColumnRepairs(column)"
             :key="repair.id"
             :draggable="canUpdateRepairs"
             class="max-w-full min-w-0 cursor-grab overflow-hidden rounded-2xl border border-slate-100 bg-white p-3 transition hover:bg-slate-50 active:cursor-grabbing dark:border-app-border dark:bg-app-dark dark:hover:bg-app-elevated"
@@ -106,6 +106,16 @@
           <div v-if="!column.repairs.length" class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
             Przeciągnij tutaj naprawę, aby zmienić status.
           </div>
+          <AppButton
+            v-if="hasMoreColumnRepairs(column)"
+            class="w-full"
+            size="sm"
+            variant="secondary"
+            @click.stop="loadMoreColumnRepairs(column.key)"
+          >
+            Załaduj więcej
+            <span class="text-ui-mutedText">({{ remainingColumnRepairs(column) }})</span>
+          </AppButton>
         </div>
       </div>
     </section>
@@ -147,7 +157,7 @@
               </tr>
             </thead>
             <tbody>
-              <template v-for="repair in column.repairs" :key="repair.id">
+              <template v-for="repair in visibleColumnRepairs(column)" :key="repair.id">
                 <tr
                   class="ui-table-row cursor-pointer"
                   :aria-expanded="isListRepairExpanded(repair.id)"
@@ -227,6 +237,18 @@
                   </td>
                 </tr>
               </template>
+              <tr v-if="hasMoreColumnRepairs(column)">
+                <td colspan="7" class="p-3 text-center">
+                  <AppButton
+                    size="sm"
+                    variant="secondary"
+                    @click="loadMoreColumnRepairs(column.key)"
+                  >
+                    Załaduj więcej
+                    <span class="text-ui-mutedText">({{ remainingColumnRepairs(column) }})</span>
+                  </AppButton>
+                </td>
+              </tr>
               <tr v-if="!column.repairs.length">
                 <td colspan="7" class="px-4 py-6 text-center ui-body-sm text-ui-mutedText">
                   Brak napraw w tej sekcji.
@@ -865,8 +887,13 @@ const draggedRepairId = ref<number | null>(null)
 const draggedRepair = ref<Repair | null>(null)
 const dragPreview = reactive({ x: 0, y: 0 })
 const dragOverColumn = ref<RepairColumnKey | null>(null)
-const collapsedRepairColumnKeys = ref<Set<RepairColumnKey>>(new Set())
+const collapsedRepairColumnKeys = ref<Set<RepairColumnKey>>(new Set(['done']))
 const collapsedRepairIds = ref<Set<number>>(new Set())
+const visibleRepairLimits = reactive<Record<RepairColumnKey, number>>({
+  new: 15,
+  progress: 15,
+  done: 15,
+})
 const expandedListRepairIds = ref<Set<number>>(new Set())
 const listFaultStatusTarget = ref<{ repair: Repair; fault: RepairFault } | null>(null)
 const expandedFieldRepairIds = ref<Set<number>>(new Set())
@@ -911,6 +938,7 @@ let repairMarkers: any[] = []
 
 const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 const MAX_PHOTO_SIZE = 20 * 1024 * 1024
+const REPAIRS_PAGE_SIZE = 15
 
 const repairViewTabs: Array<{ value: RepairViewMode; label: string; icon: Component }> = [
   { value: 'kanban', label: 'Kanban', icon: Columns3 },
@@ -1948,6 +1976,28 @@ function toggleRepairColumn(columnKey: RepairColumnKey) {
   collapsedRepairColumnKeys.value = nextCollapsedKeys
 }
 
+function visibleColumnRepairs(column: { key: RepairColumnKey; repairs: Repair[] }) {
+  return column.repairs.slice(0, visibleRepairLimits[column.key])
+}
+
+function hasMoreColumnRepairs(column: { key: RepairColumnKey; repairs: Repair[] }) {
+  return column.repairs.length > visibleRepairLimits[column.key]
+}
+
+function remainingColumnRepairs(column: { key: RepairColumnKey; repairs: Repair[] }) {
+  return Math.max(0, column.repairs.length - visibleRepairLimits[column.key])
+}
+
+function loadMoreColumnRepairs(columnKey: RepairColumnKey) {
+  visibleRepairLimits[columnKey] += REPAIRS_PAGE_SIZE
+}
+
+function resetVisibleRepairLimits() {
+  visibleRepairLimits.new = REPAIRS_PAGE_SIZE
+  visibleRepairLimits.progress = REPAIRS_PAGE_SIZE
+  visibleRepairLimits.done = REPAIRS_PAGE_SIZE
+}
+
 function isListRepairExpanded(repairId: number) {
   return expandedListRepairIds.value.has(repairId)
 }
@@ -2358,6 +2408,7 @@ watch(activeTab, (tab) => {
 })
 
 watch(repairViewMode, persistRepairViewMode)
+watch(normalizedRepairSearch, resetVisibleRepairLimits)
 
 watch(fieldRepairs, (visibleRepairs) => {
   const visibleIds = new Set(visibleRepairs.map((repair) => repair.id))
