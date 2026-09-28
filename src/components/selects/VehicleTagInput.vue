@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { Plus, X } from 'lucide-vue-next'
 import AppDropdown from '@/components/ui/AppDropdown.vue'
 import AppDropdownItem from '@/components/ui/AppDropdownItem.vue'
@@ -107,6 +107,7 @@ const inputElement = ref<HTMLInputElement | null>(null)
 const query = ref('')
 const isOpen = ref(false)
 const activeIndex = ref(-1)
+const shouldResumeAdding = ref(false)
 const inputId = `vehicle-tags-${Math.random().toString(16).slice(2)}`
 const listboxId = `${inputId}-listbox`
 
@@ -178,11 +179,19 @@ function handleKeydown(event: KeyboardEvent) {
 
 function selectVehicle(vehicleId: number) {
   if (props.disabled) return
+  shouldResumeAdding.value = true
   emit('add', String(vehicleId))
   query.value = ''
   activeIndex.value = 0
-  if (!props.floating) isOpen.value = false
-  else requestAnimationFrame(() => inputElement.value?.focus())
+  isOpen.value = true
+
+  void nextTick(() => {
+    if (!props.disabled) {
+      shouldResumeAdding.value = false
+      inputElement.value?.focus()
+      openMenu()
+    }
+  })
 }
 
 function removeVehicle(vehicleId: number) {
@@ -192,4 +201,14 @@ function removeVehicle(vehicleId: number) {
 function focusInput() {
   if (!props.disabled) inputElement.value?.focus()
 }
+
+watch(() => props.disabled, (disabled) => {
+  if (disabled || !shouldResumeAdding.value) return
+
+  shouldResumeAdding.value = false
+  void nextTick(() => {
+    inputElement.value?.focus()
+    openMenu()
+  })
+})
 </script>

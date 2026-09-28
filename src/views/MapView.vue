@@ -712,42 +712,16 @@
               <article
                 v-for="repair in selectedVehicleActiveRepairs"
                 :key="repair.id"
-                class="overflow-hidden rounded-[6px] border border-ui-border bg-ui-surface transition hover:border-ui-border-strong"
+                class="overflow-hidden rounded-[6px] border border-ui-border bg-ui-surface"
               >
-                <button
-                  type="button"
-                  class="flex w-full items-center justify-between gap-2 bg-ui-elevated px-2.5 py-2 text-left transition hover:bg-ui-hover"
-                  :aria-expanded="isVehicleRepairExpanded(repair.id)"
-                  @click="toggleVehicleRepair(repair.id)"
-                >
-                  <span class="min-w-0">
-                    <span class="block truncate text-xs font-semibold text-ui-text">Naprawa #{{ repair.id }}</span>
-                    <span class="mt-0.5 block truncate text-[10px] text-ui-mutedText">{{ repair.placeName || repair.place?.name || 'Brak miejsca' }}</span>
-                  </span>
-                  <span class="flex shrink-0 items-center gap-1.5">
-                    <AppBadge variant="info">{{ repairStatusLabel(repair.status) }}</AppBadge>
-                    <ChevronDown class="h-3.5 w-3.5 text-ui-icon transition-transform" :class="isVehicleRepairExpanded(repair.id) ? 'rotate-180' : ''" />
-                  </span>
-                </button>
-
-                <div v-if="isVehicleRepairExpanded(repair.id)" class="space-y-2 border-t border-ui-divider p-2.5">
-                  <dl class="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-3 gap-y-1 text-[11px]">
-                    <dt class="text-ui-mutedText">Przyjazd</dt><dd class="text-right font-medium text-ui-text">{{ formatRepairDateTime(repair.plannedArrivalAt) }}</dd>
-                    <dt class="text-ui-mutedText">Odjazd</dt><dd class="text-right font-medium text-ui-text">{{ formatRepairDateTime(repair.plannedDepartureAt) }}</dd>
-                    <template v-if="repair.description">
-                      <dt class="text-ui-mutedText">Uwagi</dt><dd class="text-right text-ui-text-secondary">{{ repair.description }}</dd>
-                    </template>
-                  </dl>
-
-                  <div class="rounded-[6px] border border-ui-divider bg-ui-muted p-2">
-                    <p class="mb-1.5 text-[10px] font-semibold uppercase text-ui-mutedText">Usterki do naprawy</p>
-                    <ul v-if="openRepairFaults(repair).length" class="space-y-1.5">
-                      <li v-for="fault in openRepairFaults(repair)" :key="fault.id" class="flex items-start gap-2 text-[11px] text-ui-text-secondary">
-                        <span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-danger-500"></span><span class="min-w-0 break-words">{{ fault.description }}</span>
-                      </li>
-                    </ul>
-                    <p v-else class="text-[11px] text-ui-mutedText">Brak otwartych usterek.</p>
-                  </div>
+                <div class="space-y-2 p-2.5">
+                  <ul v-if="openRepairFaults(repair).length" class="divide-y divide-ui-divider">
+                    <li v-for="fault in openRepairFaults(repair)" :key="fault.id" class="flex items-start gap-2 py-2 first:pt-0 last:pb-0 text-[11px] text-ui-text-secondary">
+                      <span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-danger-500"></span>
+                      <span class="min-w-0 break-words">{{ fault.description }}</span>
+                    </li>
+                  </ul>
+                  <p v-else class="py-1 text-[11px] text-ui-mutedText">Brak otwartych usterek.</p>
 
                   <AppButton class="w-full" size="sm" variant="secondary" @click="openRepairDetails(repair)">
                     Przejdź do naprawy
@@ -879,7 +853,7 @@
 import { storeToRefs } from 'pinia'
 import { computed, defineComponent, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref, render, shallowRef, watch, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, ChevronDown, CircleAlert, Container, Copy, Flag, Gauge, GlobeX, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightOpen, Plus, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, Wrench, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowUp, ArrowUpDown, Check, CircleAlert, Container, Copy, Flag, Gauge, GlobeX, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightOpen, Plus, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
@@ -1271,7 +1245,6 @@ const vehicleSearch = ref('')
 const vehiclePanelCollapsed = ref(isMobileMapViewport())
 const vehicleDetailsDrawerOpen = ref(false)
 const vehicleDrawerTab = ref<VehicleDrawerTab>('info')
-const expandedVehicleRepairIds = ref<Set<number>>(new Set())
 const isRepairCreateModalOpen = ref(false)
 const vehicleDrawerHeaderElement = ref<HTMLElement | null>(null)
 const vehicleDrawerTabsElement = ref<HTMLElement | null>(null)
@@ -2044,22 +2017,6 @@ function repairStatusLabel(status: Repair['status']) {
   return labels[normalized] || 'Aktywna'
 }
 
-function formatRepairDateTime(value: string | null) {
-  if (!value) return '—'
-
-  const date = new Date(value)
-
-  if (Number.isNaN(date.getTime())) return '—'
-
-  return new Intl.DateTimeFormat('pl-PL', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
-}
-
 function repairCreatedByName(repair: Repair) {
   if (repair.createdByUsername) {
     return repair.createdByUsername
@@ -2076,29 +2033,13 @@ function openRepairFaults(repair: Repair) {
   return repair.faults.filter((fault) => String(fault.status || '').trim().toLowerCase() !== 'done')
 }
 
-function isVehicleRepairExpanded(repairId: number) {
-  return expandedVehicleRepairIds.value.has(repairId)
-}
-
-function toggleVehicleRepair(repairId: number) {
-  const next = new Set(expandedVehicleRepairIds.value)
-
-  if (next.has(repairId)) {
-    next.delete(repairId)
-  } else {
-    next.add(repairId)
-  }
-
-  expandedVehicleRepairIds.value = next
-}
-
 function openCreateRepairFromDrawer() {
   if (!selectedVehicle.value || !canCreateRepairs.value) return
   isRepairCreateModalOpen.value = true
 }
 
 function handleRepairCreated(repair: Repair) {
-  expandedVehicleRepairIds.value = new Set([...expandedVehicleRepairIds.value, repair.id])
+  vehicleDrawerTab.value = 'repairs'
 }
 
 function openRepairDetails(repair: Repair) {
@@ -3461,7 +3402,6 @@ function focusPositionHistory() {
 function selectVehicle(vehicleId: string) {
   if (selectedVehicleId.value !== vehicleId) {
     vehicleDrawerTab.value = 'info'
-    expandedVehicleRepairIds.value = new Set()
     isRepairCreateModalOpen.value = false
     clearTodayRoute()
     clearPositionHistoryData()
@@ -3481,7 +3421,6 @@ function selectVehicle(vehicleId: string) {
 
 function closeVehicleDrawer() {
   vehicleDrawerTab.value = 'info'
-  expandedVehicleRepairIds.value = new Set()
   isRepairCreateModalOpen.value = false
   selectedVehicleId.value = null
   vehicleDetailsDrawerOpen.value = false
