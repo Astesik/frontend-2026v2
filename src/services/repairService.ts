@@ -13,8 +13,6 @@ import type {
   RepairPhoto,
   RepairStatus,
   RepairUpdatePayload,
-  RepairWeek,
-  RepairWeeksResponse,
 } from '@/types/repair'
 
 export type VehicleRepairHistoryItem = Omit<Partial<Repair>, 'id' | 'place' | 'faults' | 'status'> & {
@@ -195,17 +193,15 @@ function normalizeRepair(repair: Repair): Repair {
   }
 }
 
-function normalizeWeek(week: RepairWeek): RepairWeek {
-  return {
-    ...week,
-    repairs: Array.isArray(week.repairs) ? week.repairs.map(normalizeRepair) : [],
-  }
-}
-
 export const repairService = {
   async getRepairs(params?: { vehicleId?: number | string; status?: string }, options?: { silent?: boolean }) {
     const { data } = await api.get<Repair[]>('/api/repairs', {
-      params,
+      params: params
+        ? {
+            ...params,
+            status: params.status ? params.status.toUpperCase() : undefined,
+          }
+        : undefined,
       skipErrorToast: options?.silent,
     })
     return Array.isArray(data) ? data.map(normalizeRepair) : []
@@ -216,16 +212,6 @@ export const repairService = {
       skipErrorToast: options?.silent,
     })
     return normalizeRepair(data)
-  },
-
-  async getRepairWeeks(options?: { silent?: boolean }) {
-    const { data } = await api.get<RepairWeeksResponse>('/api/repairs/weeks', {
-      skipErrorToast: options?.silent,
-    })
-    return {
-      fieldAndUnassigned: Array.isArray(data.fieldAndUnassigned) ? data.fieldAndUnassigned.map(normalizeRepair) : [],
-      weeks: Array.isArray(data.weeks) ? data.weeks.map(normalizeWeek) : [],
-    }
   },
 
   async createRepair(payload: RepairPayload, options?: { silent?: boolean }) {

@@ -105,7 +105,17 @@
         <div class="divide-y divide-ui-divider px-4 sm:grid sm:grid-cols-2 sm:divide-y-0">
           <InfoLine label="Numer seryjny" :value="device.serialNumber" mono />
           <InfoLine label="Dostawca" :value="providerLabel(device.provider)" />
-          <InfoLine label="Przypisanie" :value="device.assignedToVehicle ? 'Przypisane do pojazdu' : 'Nieprzypisane'" />
+          <div class="grid min-w-0 grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-center gap-3 py-3 sm:px-2">
+            <p class="ui-caption">Przypisanie</p>
+            <RouterLink
+              v-if="device.assignedVehicleId"
+              class="min-w-0 break-words text-right text-[13px] font-semibold text-ui-text transition hover:text-ui-text-secondary"
+              :to="{ name: 'vehicle-detail', params: { id: device.assignedVehicleId } }"
+            >
+              {{ device.assignedVehicleLicensePlate || `Pojazd #${device.assignedVehicleId}` }}
+            </RouterLink>
+            <p v-else class="text-right text-[13px] font-semibold text-ui-mutedText">Nieprzypisane</p>
+          </div>
           <InfoLine label="Ostatnia pozycja" :value="formatDateTime(device.lastPositionAt)" :danger="isPositionOffline(device.lastPositionAt)" />
           <InfoLine label="Utworzono" :value="formatDateTime(device.createdAt)" />
           <InfoLine label="Wewnętrzne ID" :value="String(device.id)" mono />

@@ -260,6 +260,7 @@ function normalizeVehicle(vehicle: ApiVehicle, position?: ApiLastPosition): Vehi
     vignetteLuxembourg: vehicle.vignetteLuxembourg,
     vignetteDenmark: vehicle.vignetteDenmark,
     assignedDeviceId: vehicle.assignedDeviceId ?? null,
+    assignedDeviceName: vehicle.assignedDeviceName || null,
     ignitionState: position?.ignitionState || null,
     heading: position?.heading ?? null,
     lastPositionAt: vehicle.lastPositionAt,

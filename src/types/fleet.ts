@@ -20,6 +20,7 @@ export interface ApiVehicle {
   vignetteLuxembourg: string | null
   vignetteDenmark: string | null
   assignedDeviceId: number | null
+  assignedDeviceName: string | null
   fuelTank: number | null
   intermodalSideCode?: string | null
   status: string | null
@@ -136,6 +137,7 @@ export interface Vehicle {
   vignetteLuxembourg: string | null
   vignetteDenmark: string | null
   assignedDeviceId: number | null
+  assignedDeviceName: string | null
   ignitionState: string | null
   heading: number | null
   lastPositionAt: string | null

@@ -13,6 +13,8 @@ export interface DeviceListItem {
   companyIntegrationId: number | null
   createdAt: string | null
   assignedToVehicle: boolean
+  assignedVehicleId: number | null
+  assignedVehicleLicensePlate: string | null
   lastPositionAt: string | null
 }
 

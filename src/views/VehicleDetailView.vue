@@ -141,7 +141,7 @@
               <div>
                 <p class="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Przypisane urządzenie</p>
                 <p class="mt-1 text-lg font-semibold text-slate-950 dark:text-slate-50">
-                  {{ vehicle.assignedDeviceId ? `#${vehicle.assignedDeviceId}` : 'Brak' }}
+                  {{ assignedDeviceLabel }}
                 </p>
               </div>
               <Cpu class="h-5 w-5 text-slate-400" />
@@ -423,6 +423,7 @@ import DeviceSelect from '@/components/selects/DeviceSelect.vue'
 import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
 import { vehicleService, type VehiclePayload } from '@/services/vehicleService'
 import { useAuthStore } from '@/stores/authStore'
+import { useDeviceStore } from '@/stores/deviceStore'
 import { useFleetStore } from '@/stores/fleetStore'
 import { useRepairStore, type VehicleRepairHistoryItem } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
@@ -465,6 +466,7 @@ type RepairHistoryFault = RepairFault | string | {
 
 const route = useRoute()
 const authStore = useAuthStore()
+const deviceStore = useDeviceStore()
 const fleetStore = useFleetStore()
 const repairStore = useRepairStore()
 const uiStore = useUiStore()
@@ -493,10 +495,15 @@ const serviceCalendarWeekdays = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd']
 
 const vehicleId = computed(() => String(route.params.id || ''))
 const vehicle = computed(() => fleetStore.apiVehicles.find((item) => String(item.id) === vehicleId.value) || null)
+const assignedDeviceLabel = computed(() => {
+  if (!vehicle.value?.assignedDeviceId) return 'Brak'
+  return vehicle.value.assignedDeviceName
+    ? `${vehicle.value.assignedDeviceName} · #${vehicle.value.assignedDeviceId}`
+    : `Urządzenie #${vehicle.value.assignedDeviceId}`
+})
 const unassignDeviceDescription = computed(() => {
   if (!vehicle.value) return ''
-  const deviceLabel = vehicle.value.assignedDeviceId ? `#${vehicle.value.assignedDeviceId}` : ''
-  return `Czy na pewno chcesz odpiąć urządzenie ${deviceLabel} od pojazdu ${vehicle.value.licensePlate}?`
+  return `Czy na pewno chcesz odpiąć ${assignedDeviceLabel.value} od pojazdu ${vehicle.value.licensePlate}?`
 })
 const repairHistory = computed(() => [...(vehicleRepairHistory.value[vehicleId.value] || [])].sort((first, second) => repairTimestamp(second) - repairTimestamp(first)))
 const serviceHistoryMonthLabel = computed(() => serviceHistoryMonth.value.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' }))
@@ -1140,7 +1147,10 @@ async function assignDevice() {
 
   try {
     await vehicleService.assignDevice(vehicle.value.id, devicePayloadValue(deviceIdInput.value))
-    await fleetStore.fetchVehicles({ silent: true })
+    await Promise.allSettled([
+      fleetStore.fetchVehicles({ silent: true }),
+      deviceStore.loadDevices(undefined, { silent: true }),
+    ])
     devicesReloadKey.value += 1
     uiStore.addToast({
       type: 'success',
@@ -1165,7 +1175,10 @@ async function unassignDevice() {
 
   try {
     await vehicleService.unassignDevice(vehicle.value.id)
-    await fleetStore.fetchVehicles({ silent: true })
+    await Promise.allSettled([
+      fleetStore.fetchVehicles({ silent: true }),
+      deviceStore.loadDevices(undefined, { silent: true }),
+    ])
     devicesReloadKey.value += 1
     isUnassignDeviceModalOpen.value = false
     uiStore.addToast({

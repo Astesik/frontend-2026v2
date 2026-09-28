@@ -2,7 +2,7 @@
   <div
     ref="repairsViewRoot"
     class="flex min-h-full w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden"
-    :class="isKanbanTab ? 'xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:overflow-hidden' : ''"
+    :class="repairViewMode === 'kanban' ? 'xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:overflow-hidden' : ''"
   >
     <header class="flex w-full min-w-0 shrink-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div class="flex min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
@@ -14,29 +14,6 @@
           size="sm"
           clearable
         />
-        <div class="flex min-w-0 max-w-full items-end gap-2">
-          <AppIconButton
-            label="Poprzedni tydzień"
-            :disabled="!canSelectPreviousWeek"
-            @click="selectAdjacentWeek(-1)"
-          >
-            <ChevronLeft class="h-4 w-4" />
-          </AppIconButton>
-          <AppSelect
-            v-model="selectedWeekKey"
-            class="min-w-0 flex-1 sm:w-72 sm:flex-none"
-            label="Zakres tygodnia"
-            :options="weekOptions"
-            size="sm"
-          />
-          <AppIconButton
-            label="Następny tydzień"
-            :disabled="!canSelectNextWeek"
-            @click="selectAdjacentWeek(1)"
-          >
-            <ChevronRight class="h-4 w-4" />
-          </AppIconButton>
-        </div>
         <AppButton
           size="sm"
           :disabled="!canCreateRepairs"
@@ -52,73 +29,23 @@
         </AppButton>
       </div>
 
-      <div class="w-full shrink-0 md:flex md:justify-end xl:w-auto">
-        <AppSelect
-          v-model="activeTab"
-          class="w-full md:hidden"
-          label="Widok napraw"
-          :options="tabOptions"
-          size="sm"
-        />
-
+      <div class="w-full shrink-0 sm:flex sm:justify-end xl:w-auto">
         <AppTabs
-          class="hidden w-fit shrink-0 md:inline-flex"
-          :model-value="activeTab"
-          :items="visibleTabs"
+          class="w-full sm:w-fit"
+          :model-value="repairViewMode"
+          :items="repairViewTabs"
           size="sm"
-          aria-label="Widok napraw"
-          @update:model-value="setActiveTab"
+          aria-label="Sposób wyświetlania napraw"
+          @update:model-value="setRepairViewMode"
         />
       </div>
     </header>
-
-    <section v-if="!isLoading && isKanbanTab" class="grid shrink-0 grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
-      <article class="repair-stat-tile">
-        <div class="repair-stat-icon">
-          <ListChecks class="h-4 w-4" />
-        </div>
-        <div class="min-w-0">
-          <p class="repair-stat-label">Wszystkie</p>
-          <p class="repair-stat-value">{{ weeklyStats.total }}</p>
-        </div>
-      </article>
-
-      <article class="repair-stat-tile">
-        <div class="repair-stat-icon">
-          <Building2 class="h-4 w-4" />
-        </div>
-        <div class="min-w-0">
-          <p class="repair-stat-label">Aktywne</p>
-          <p class="repair-stat-value">{{ weeklyStats.location }}</p>
-        </div>
-      </article>
-
-      <article class="repair-stat-tile">
-        <div class="repair-stat-icon text-success-600 dark:text-success-400">
-          <CircleCheck class="h-4 w-4" />
-        </div>
-        <div class="min-w-0">
-          <p class="repair-stat-label">Ukończone</p>
-          <p class="repair-stat-value">{{ weeklyStats.completed }}</p>
-        </div>
-      </article>
-
-      <article class="repair-stat-tile">
-        <div class="repair-stat-icon">
-          <Percent class="h-4 w-4" />
-        </div>
-        <div class="min-w-0">
-          <p class="repair-stat-label">Ukończenie</p>
-          <p class="repair-stat-value">{{ weeklyStats.completionPercent }}%</p>
-        </div>
-      </article>
-    </section>
 
     <div v-if="isLoading" class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-400">
       Pobieranie napraw...
     </div>
 
-    <section v-else-if="isKanbanTab" class="grid w-full min-w-0 max-w-full min-h-[calc(100vh-220px)] gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[repeat(3,minmax(0,1fr))]">
+    <section v-else-if="repairViewMode === 'kanban'" class="grid w-full min-w-0 max-w-full min-h-[calc(100vh-220px)] gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[repeat(3,minmax(0,1fr))]">
       <div
         v-for="column in repairColumns"
         :key="column.key"
@@ -172,7 +99,7 @@
               <RepairCardContent
                 :repair="repair"
                 show-place
-                :show-country-flag="activeTab === 'base'"
+                show-country-flag
               />
             </article>
 
@@ -183,7 +110,135 @@
       </div>
     </section>
 
-    <section v-else-if="activeTab === 'field'" class="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
+    <section v-else-if="repairViewMode === 'list'" class="min-w-0 space-y-3">
+      <article
+        v-for="column in repairColumns"
+        :key="`list-${column.key}`"
+        class="overflow-hidden rounded-[var(--rw-radius-card)] border border-ui-border bg-ui-surface shadow-soft"
+      >
+        <button
+          type="button"
+          class="flex w-full items-center justify-between gap-3 border-b border-ui-divider bg-ui-muted px-4 py-3 text-left transition hover:bg-ui-hover"
+          :aria-expanded="!isRepairColumnCollapsed(column.key)"
+          @click="toggleRepairColumn(column.key)"
+        >
+          <span class="flex min-w-0 items-center gap-2">
+            <component :is="column.icon" class="h-4 w-4 shrink-0 text-ui-icon" />
+            <span class="truncate text-sm font-semibold text-ui-text">{{ column.label }}</span>
+            <ChevronDown
+              class="h-3.5 w-3.5 shrink-0 text-ui-icon transition"
+              :class="isRepairColumnCollapsed(column.key) ? '-rotate-90' : ''"
+            />
+          </span>
+          <AppBadge>{{ column.repairs.length }}</AppBadge>
+        </button>
+
+        <div v-if="!isRepairColumnCollapsed(column.key)" class="overflow-x-auto">
+          <table class="ui-table min-w-[900px]">
+            <thead class="ui-table-head">
+              <tr>
+                <th class="w-10 py-2 pl-3 pr-1"><span class="sr-only">Rozwiń</span></th>
+                <th class="py-2 pr-3 font-medium">Pojazd</th>
+                <th class="py-2 pr-3 font-medium">Miejsce naprawy</th>
+                <th class="py-2 pr-3 font-medium">Planowany przyjazd</th>
+                <th class="py-2 pr-3 font-medium">Planowany odjazd</th>
+                <th class="w-36 py-2 pr-3 font-medium">Status</th>
+                <th class="w-24 py-2 pr-3 text-right font-medium">Usterki</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="repair in column.repairs" :key="repair.id">
+                <tr
+                  class="ui-table-row cursor-pointer"
+                  :aria-expanded="isListRepairExpanded(repair.id)"
+                  tabindex="0"
+                  @click="toggleListRepair(repair.id)"
+                  @keydown.enter.prevent="toggleListRepair(repair.id)"
+                  @keydown.space.prevent="toggleListRepair(repair.id)"
+                >
+                  <td class="py-2 pl-3 pr-1">
+                    <ChevronDown
+                      class="h-4 w-4 text-ui-icon transition"
+                      :class="isListRepairExpanded(repair.id) ? 'rotate-180' : ''"
+                    />
+                  </td>
+                  <td class="py-2 pr-3">
+                    <span class="flex min-w-0 items-center gap-2">
+                      <img
+                        v-if="repairCountryCode(repair)"
+                        class="h-4 w-4 shrink-0 rounded-full object-cover"
+                        :src="`https://flagsapi.com/${repairCountryCode(repair)}/flat/64.png`"
+                        :alt="repairCountryCode(repair) || ''"
+                        loading="lazy"
+                        referrerpolicy="no-referrer"
+                      />
+                      <span class="truncate text-sm font-semibold text-ui-text">{{ repairVehicleLabel(repair) }}</span>
+                    </span>
+                  </td>
+                  <td class="max-w-48 truncate py-2 pr-3 text-xs text-ui-text-secondary">{{ repairPlaceLabel(repair) }}</td>
+                  <td class="py-2 pr-3 text-xs tabular-nums text-ui-text-secondary">{{ formatDateTime(repair.plannedArrivalAt) }}</td>
+                  <td class="py-2 pr-3 text-xs tabular-nums text-ui-text-secondary">{{ formatDateTime(repair.plannedDepartureAt) }}</td>
+                  <td class="py-2 pr-3">
+                    <AppBadge fixed-width="lg" :variant="statusVariant(repair.status)">{{ statusLabel(repair.status) }}</AppBadge>
+                  </td>
+                  <td class="py-2 pr-3 text-right text-xs font-semibold text-ui-text-secondary">
+                    {{ repair.doneFaults || 0 }}/{{ repair.totalFaults || repair.faults?.length || 0 }}
+                  </td>
+                </tr>
+                <tr v-if="isListRepairExpanded(repair.id)" class="border-b border-ui-divider bg-ui-muted">
+                  <td colspan="7" class="p-3">
+                    <div class="space-y-2">
+                      <div
+                        v-for="fault in repair.faults || []"
+                        :key="fault.id"
+                        class="flex min-w-0 items-center gap-3 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface px-3 py-2"
+                      >
+                        <button
+                          type="button"
+                          class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-ui-icon transition hover:bg-ui-hover hover:text-ui-text disabled:cursor-not-allowed disabled:opacity-45"
+                          :aria-label="fault.status === 'DONE' ? 'Oznacz usterkę jako niezrobioną' : 'Oznacz usterkę jako zrobioną'"
+                          :disabled="isMutating || !canChangeFaultStatus"
+                          :title="!canChangeFaultStatus ? 'Brak uprawnienia: faults.change_status' : undefined"
+                          @click.stop="requestListFaultStatusChange(repair, fault)"
+                        >
+                          <CircleCheck v-if="fault.status === 'DONE'" class="h-5 w-5 text-success-600 dark:text-success-400" />
+                          <Circle v-else class="h-5 w-5" />
+                        </button>
+                        <span
+                          class="min-w-0 flex-1 break-words text-sm"
+                          :class="fault.status === 'DONE' ? 'text-ui-mutedText line-through' : 'font-medium text-ui-text'"
+                        >
+                          {{ fault.description }}
+                        </span>
+                        <AppBadge :variant="fault.status === 'DONE' ? 'success' : 'neutral'">
+                          {{ fault.status === 'DONE' ? 'Zrobiona' : 'Otwarta' }}
+                        </AppBadge>
+                      </div>
+                      <p v-if="!repair.faults?.length" class="rounded-[var(--rw-radius-control)] border border-dashed border-ui-border px-3 py-4 text-center ui-body-sm text-ui-mutedText">
+                        Brak usterek w tej naprawie.
+                      </p>
+                      <div class="flex justify-end">
+                        <AppButton size="sm" variant="secondary" @click="openRepairDetails(repair)">
+                          <SquarePen class="h-4 w-4" />
+                          Przejdź do naprawy
+                        </AppButton>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+              <tr v-if="!column.repairs.length">
+                <td colspan="7" class="px-4 py-6 text-center ui-body-sm text-ui-mutedText">
+                  Brak napraw w tej sekcji.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <section v-else-if="activeTab === 'field'" class="hidden">
       <header class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-app-border">
         <div>
           <h2 class="text-base font-semibold text-slate-950 dark:text-slate-50">Naprawy w terenie</h2>
@@ -360,6 +415,19 @@
         </div>
       </div>
     </section>
+
+    <AppConfirmModal
+      :open="Boolean(listFaultStatusTarget)"
+      :title="listFaultStatusTarget?.fault.status === 'DONE' ? 'Cofnąć wykonanie usterki?' : 'Zakończyć usterkę?'"
+      :description="listFaultStatusTarget?.fault.status === 'DONE'
+        ? 'Czy na pewno chcesz oznaczyć tę usterkę jako niezrobioną?'
+        : 'Czy na pewno chcesz oznaczyć tę usterkę jako zrobioną?'"
+      :confirm-label="listFaultStatusTarget?.fault.status === 'DONE' ? 'Oznacz jako niezrobioną' : 'Oznacz jako zrobioną'"
+      :busy="isMutating"
+      :confirm-disabled="!canChangeFaultStatus"
+      @close="listFaultStatusTarget = null"
+      @confirm="confirmListFaultStatusChange"
+    />
 
     <AppModal
       :open="isCreateModalOpen"
@@ -711,7 +779,6 @@ import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, rea
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import {
-  Building2,
   CalendarClock,
   Camera,
   Check,
@@ -719,14 +786,15 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Circle,
   CircleCheck,
   CircleX,
   Clock,
   Columns3,
   FileDown,
   ImagePlus,
+  List,
   ListChecks,
-  Percent,
   Plus,
   SquarePen,
   TriangleAlert,
@@ -754,16 +822,12 @@ import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
 import { useRepairStore } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
-import type { Mechanic, Repair, RepairStatus, RepairWeek } from '@/types/repair'
+import type { Mechanic, Repair, RepairFault, RepairStatus } from '@/types/repair'
 import type { Vehicle } from '@/types/fleet'
 
 type TabKey = 'base' | 'other' | 'field' | 'map'
+type RepairViewMode = 'kanban' | 'list'
 type RepairColumnKey = 'new' | 'progress' | 'done'
-
-interface RepairsViewState {
-  activeTab?: TabKey
-  selectedWeekKey?: string
-}
 
 interface DraftFault {
   id: string
@@ -779,7 +843,7 @@ interface DraftFaultPhotoDraft {
 }
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
-const REPAIRS_VIEW_STATE_KEY = 'routewise.repairs.viewState'
+const REPAIRS_VIEW_MODE_KEY = 'routewise.repairs.viewMode'
 const router = useRouter()
 const authStore = useAuthStore()
 const fleetStore = useFleetStore()
@@ -788,16 +852,13 @@ const uiStore = useUiStore()
 const repairsViewRoot = ref<HTMLElement | null>(null)
 const {
   repairs,
-  weeks,
-  fieldAndUnassigned,
   mechanics,
   places,
   isLoading,
   isMutating,
 } = storeToRefs(repairStore)
-const savedViewState = readRepairsViewState()
-const activeTab = ref<TabKey>(savedViewState.activeTab || 'base')
-const selectedWeekKey = ref(savedViewState.selectedWeekKey || '')
+const activeTab = ref<TabKey>('base')
+const repairViewMode = ref<RepairViewMode>(readRepairViewMode())
 const repairSearch = ref('')
 const normalizedRepairSearch = computed(() => normalizeSearchValue(repairSearch.value))
 const draggedRepairId = ref<number | null>(null)
@@ -806,6 +867,8 @@ const dragPreview = reactive({ x: 0, y: 0 })
 const dragOverColumn = ref<RepairColumnKey | null>(null)
 const collapsedRepairColumnKeys = ref<Set<RepairColumnKey>>(new Set())
 const collapsedRepairIds = ref<Set<number>>(new Set())
+const expandedListRepairIds = ref<Set<number>>(new Set())
+const listFaultStatusTarget = ref<{ repair: Repair; fault: RepairFault } | null>(null)
 const expandedFieldRepairIds = ref<Set<number>>(new Set())
 const selectedFieldRepairIds = ref<Set<number>>(new Set())
 const isCreateModalOpen = ref(false)
@@ -849,21 +912,15 @@ let repairMarkers: any[] = []
 const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 const MAX_PHOTO_SIZE = 20 * 1024 * 1024
 
-const tabs: Array<{ value: TabKey; label: string; icon: Component }> = [
-  { value: 'base', label: 'Naprawy na bazie', icon: Columns3 },
-  { value: 'other', label: 'Pozostałe', icon: Columns3 },
-  { value: 'field', label: 'W terenie', icon: Wrench },
+const repairViewTabs: Array<{ value: RepairViewMode; label: string; icon: Component }> = [
+  { value: 'kanban', label: 'Kanban', icon: Columns3 },
+  { value: 'list', label: 'Lista', icon: List },
 ]
 
-const visibleTabs = computed(() => tabs)
-
-const tabOptions = computed<AppSelectOption[]>(() => visibleTabs.value.map((tab) => ({
-  value: tab.value,
-  label: tab.label,
-})))
-
-function setActiveTab(value: string) {
-  if (isVisibleTabKey(value)) activeTab.value = value
+function setRepairViewMode(value: string) {
+  if (value === 'kanban' || value === 'list') {
+    repairViewMode.value = value
+  }
 }
 
 const repairStatusOptions: AppSelectOption[] = [
@@ -876,25 +933,12 @@ const repairStatusOptions: AppSelectOption[] = [
   { label: 'Anulowana', value: 'cancelled' },
 ]
 
-const weekOptions = computed<AppSelectOption[]>(() => [...weeks.value]
-  .sort((first, second) => second.start.localeCompare(first.start))
-  .map((week) => ({
-  value: weekKey(week),
-  label: `Tydzień ${week.week} (${formatDate(week.start)} - ${formatDate(week.end)})`,
-})))
-
-const selectedWeekIndex = computed(() => weeks.value.findIndex((week) => weekKey(week) === selectedWeekKey.value))
-const canSelectPreviousWeek = computed(() => selectedWeekIndex.value > 0)
-const canSelectNextWeek = computed(() => selectedWeekIndex.value >= 0 && selectedWeekIndex.value < weeks.value.length - 1)
 const canCreateRepairs = computed(() => hasPermission('repairs.create'))
 const canUpdateRepairs = computed(() => hasPermission('repairs.update'))
 const canCreateFaults = computed(() => hasPermission('faults.create'))
+const canChangeFaultStatus = computed(() => hasPermission('faults.change_status'))
 const canAddFaultPhotos = computed(() => hasPermission('fault_photos.add'))
-const selectedWeek = computed(() => weeks.value[selectedWeekIndex.value] || weeks.value[0] || null)
-const isKanbanTab = computed(() => activeTab.value === 'base' || activeTab.value === 'other')
-const selectedWeekLabel = computed(() => selectedWeek.value
-  ? `Tydzień ${selectedWeek.value.week}: ${formatDate(selectedWeek.value.start)} - ${formatDate(selectedWeek.value.end)}`
-  : 'Brak danych tygodnia')
+const selectedWeekLabel = computed(() => 'Wszystkie naprawy')
 
 const vehicleOptions = computed<AppSearchSelectOption[]>(() => fleetStore.apiVehicles.map((vehicle) => ({
   value: String(vehicle.id),
@@ -907,9 +951,7 @@ const placeOptions = computed<AppSearchSelectOption[]>(() => places.value.map((p
   label: place.name,
 })))
 
-const selectedWeekRepairs = computed(() => selectedWeek.value?.repairs?.length
-  ? uniqueRepairs(selectedWeek.value.repairs)
-  : uniqueRepairs(repairs.value.filter((repair) => selectedWeek.value ? isRepairInWeek(repair, selectedWeek.value) : true)))
+const selectedWeekRepairs = computed(() => uniqueRepairs(repairs.value))
 
 function repairMatchesCreateVehicle(repair: Repair) {
   return String(repair.vehicle?.id ?? repair.vehicleId) === String(createForm.vehicleId)
@@ -918,13 +960,7 @@ function repairMatchesCreateVehicle(repair: Repair) {
 const existingOpenRepairForCreateVehicle = computed(() => {
   if (!createForm.vehicleId) return null
 
-  const availableRepairs = uniqueRepairs([
-    ...repairs.value,
-    ...weeks.value.flatMap((week) => week.repairs || []),
-    ...fieldAndUnassigned.value,
-  ])
-
-  return availableRepairs.find((repair) => {
+  return repairs.value.find((repair) => {
     const status = normalizeRepairStatus(repair.status)
     return repairMatchesCreateVehicle(repair)
       && status !== 'done'
@@ -934,7 +970,16 @@ const existingOpenRepairForCreateVehicle = computed(() => {
 
 const existingWeekRepairForCreateVehicle = computed(() => {
   if (!createForm.vehicleId) return null
-  return selectedWeekRepairs.value.find(repairMatchesCreateVehicle) || null
+  const referenceDate = parseDateOnly(createForm.arrivalAt) || new Date()
+  const weekStart = startOfIsoWeek(referenceDate)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekEnd.getDate() + 7)
+
+  return repairs.value.find((repair) => {
+    if (!repairMatchesCreateVehicle(repair)) return false
+    const date = parseDateOnly(repair.plannedArrivalAt)
+    return Boolean(date && date >= weekStart && date < weekEnd)
+  }) || null
 })
 
 const filteredSelectedWeekRepairs = computed(() => selectedWeekRepairs.value.filter((repair) => repairMatchesSearch(repair)))
@@ -949,36 +994,11 @@ const otherWeekRepairs = computed(() => filteredSelectedWeekRepairs.value.filter
   && !isBaseRepair(repair)
 )))
 
-const activeKanbanRepairs = computed(() => activeTab.value === 'other' ? otherWeekRepairs.value : baseWeekRepairs.value)
+const activeKanbanRepairs = computed(() => filteredSelectedWeekRepairs.value)
 
 const sortedKanbanRepairs = computed(() => [...activeKanbanRepairs.value].sort((first, second) => {
-  if (activeTab.value === 'base') {
-    const firstIsInPoland = repairCountryCode(first) === 'PL'
-    const secondIsInPoland = repairCountryCode(second) === 'PL'
-
-    if (firstIsInPoland !== secondIsInPoland) {
-      return firstIsInPoland ? -1 : 1
-    }
-  }
-
   return repairTimestamp(first) - repairTimestamp(second)
 }))
-
-const weeklyStats = computed(() => {
-  const total = activeKanbanRepairs.value.length
-  const completed = activeKanbanRepairs.value.filter((repair) => normalizeRepairStatus(repair.status) === 'done').length
-  const location = activeKanbanRepairs.value.filter((repair) => {
-    const status = normalizeRepairStatus(repair.status)
-    return status !== 'IN_FIELD' && status !== 'done' && status !== 'cancelled'
-  }).length
-
-  return {
-    total,
-    location,
-    completed,
-    completionPercent: total ? Math.round((completed / total) * 100) : 0,
-  }
-})
 
 const repairColumns = computed(() => {
   const columns: Array<{ key: RepairColumnKey; label: string; icon: Component; targetStatus: RepairStatus; repairs: Repair[] }> = [
@@ -995,10 +1015,8 @@ const repairColumns = computed(() => {
   return columns
 })
 
-const fieldRepairs = computed(() => uniqueRepairs([
-  ...repairs.value,
-  ...fieldAndUnassigned.value,
-]).filter((repair) => normalizeRepairStatus(repair.status) === 'IN_FIELD' && repairMatchesSearch(repair)))
+const fieldRepairs = computed(() => repairs.value
+  .filter((repair) => normalizeRepairStatus(repair.status) === 'IN_FIELD' && repairMatchesSearch(repair)))
 
 const selectedFieldRepairs = computed(() => fieldRepairs.value.filter((repair) => selectedFieldRepairIds.value.has(repair.id)))
 const areAllFieldRepairsSelected = computed(() => (
@@ -1006,10 +1024,7 @@ const areAllFieldRepairsSelected = computed(() => (
   fieldRepairs.value.every((repair) => selectedFieldRepairIds.value.has(repair.id))
 ))
 
-const mapSourceRepairs = computed(() => uniqueRepairs([
-  ...filteredSelectedWeekRepairs.value,
-  ...fieldAndUnassigned.value,
-]).filter((repair) => repairMatchesSearch(repair)))
+const mapSourceRepairs = computed(() => filteredSelectedWeekRepairs.value.filter((repair) => repairMatchesSearch(repair)))
 
 const mapFilteredRepairs = computed(() => mapSourceRepairs.value
   .filter((repair) => normalizeRepairStatus(repair.status) !== 'done'))
@@ -1191,15 +1206,11 @@ function statusVariant(status: string | null | undefined): 'neutral' | 'success'
 function columnKeyForRepair(repair: Repair): RepairColumnKey | null {
   const status = normalizeRepairStatus(repair.status)
 
-  if (status === 'IN_FIELD') {
-    return null
-  }
-
-  if (status === 'at_location') {
+  if (status === 'at_location' || status === 'ready_to_be_repaired') {
     return 'progress'
   }
 
-  if (status === 'done') {
+  if (status === 'done' || status === 'cancelled') {
     return 'done'
   }
 
@@ -1276,6 +1287,14 @@ function parseDateOnly(value: string | null | undefined) {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
+function startOfIsoWeek(value: Date) {
+  const date = new Date(value.getFullYear(), value.getMonth(), value.getDate())
+  const day = date.getDay() || 7
+  date.setDate(date.getDate() - day + 1)
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
 function dateValue(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
@@ -1283,21 +1302,6 @@ function dateValue(date: Date) {
 function repairTimestamp(repair: Repair) {
   const timestamp = new Date(repair.plannedArrivalAt || '').getTime()
   return Number.isNaN(timestamp) ? Number.MAX_SAFE_INTEGER : timestamp
-}
-
-function repairDateValue(repair: Repair) {
-  const date = parseDateOnly(repair.plannedArrivalAt)
-  return date ? dateValue(date) : ''
-}
-
-function isRepairInWeek(repair: Repair, week: RepairWeek) {
-  const value = repairDateValue(repair)
-
-  if (!value) {
-    return true
-  }
-
-  return value >= week.start && value <= week.end
 }
 
 function formatDate(value: string | null | undefined) {
@@ -1325,65 +1329,20 @@ function formatDateTime(value: string | null | undefined) {
   })
 }
 
-function isVisibleTabKey(value: unknown): value is TabKey {
-  return value === 'base' || value === 'other' || value === 'field'
-}
-
-function readRepairsViewState(): RepairsViewState {
+function readRepairViewMode(): RepairViewMode {
   try {
-    const storedState = sessionStorage.getItem(REPAIRS_VIEW_STATE_KEY)
-
-    if (!storedState) {
-      return {}
-    }
-
-    const parsedState = JSON.parse(storedState) as RepairsViewState
-
-    return {
-      activeTab: isVisibleTabKey(parsedState.activeTab) ? parsedState.activeTab : undefined,
-      selectedWeekKey: typeof parsedState.selectedWeekKey === 'string' ? parsedState.selectedWeekKey : undefined,
-    }
+    return localStorage.getItem(REPAIRS_VIEW_MODE_KEY) === 'list' ? 'list' : 'kanban'
   } catch {
-    sessionStorage.removeItem(REPAIRS_VIEW_STATE_KEY)
-    return {}
+    return 'kanban'
   }
 }
 
-function persistRepairsViewState() {
+function persistRepairViewMode() {
   try {
-    sessionStorage.setItem(REPAIRS_VIEW_STATE_KEY, JSON.stringify({
-      activeTab: activeTab.value,
-      selectedWeekKey: selectedWeekKey.value,
-    }))
+    localStorage.setItem(REPAIRS_VIEW_MODE_KEY, repairViewMode.value)
   } catch {
-    // Session storage can be unavailable in private modes; the view still works without persistence.
+    // Local storage can be unavailable in private modes; the view still works without persistence.
   }
-}
-
-function weekKey(week: RepairWeek) {
-  return `${week.year}-${week.week}`
-}
-
-function selectDefaultWeek() {
-  if (!weeks.value.length) {
-    selectedWeekKey.value = ''
-    return
-  }
-
-  const today = dateValue(new Date())
-  const currentWeek = weeks.value.find((week) => week.start <= today && week.end >= today)
-  const upcomingWeek = weeks.value.find((week) => week.start >= today)
-  selectedWeekKey.value = weekKey(currentWeek || upcomingWeek || weeks.value[0])
-}
-
-function selectAdjacentWeek(offset: number) {
-  const nextIndex = selectedWeekIndex.value + offset
-
-  if (nextIndex < 0 || nextIndex >= weeks.value.length) {
-    return
-  }
-
-  selectedWeekKey.value = weekKey(weeks.value[nextIndex])
 }
 
 function uniqueRepairs(items: Repair[]) {
@@ -1827,7 +1786,7 @@ async function restoreRepairsReturnPosition() {
 }
 
 async function openRepairDetails(repair: Repair) {
-  persistRepairsViewState()
+  persistRepairViewMode()
   captureRepairsReturnPosition()
   await router.push({ name: 'repair-detail', params: { id: repair.id } })
   document.querySelector<HTMLElement>('[data-app-scroll-container]')?.scrollTo({ top: 0 })
@@ -1989,6 +1948,56 @@ function toggleRepairColumn(columnKey: RepairColumnKey) {
   collapsedRepairColumnKeys.value = nextCollapsedKeys
 }
 
+function isListRepairExpanded(repairId: number) {
+  return expandedListRepairIds.value.has(repairId)
+}
+
+function toggleListRepair(repairId: number) {
+  const nextExpandedIds = new Set(expandedListRepairIds.value)
+
+  if (nextExpandedIds.has(repairId)) {
+    nextExpandedIds.delete(repairId)
+  } else {
+    nextExpandedIds.add(repairId)
+  }
+
+  expandedListRepairIds.value = nextExpandedIds
+}
+
+function requestListFaultStatusChange(repair: Repair, fault: RepairFault) {
+  if (!canChangeFaultStatus.value || isMutating.value) {
+    return
+  }
+
+  listFaultStatusTarget.value = { repair, fault }
+}
+
+async function confirmListFaultStatusChange() {
+  const target = listFaultStatusTarget.value
+
+  if (!target || !canChangeFaultStatus.value) {
+    return
+  }
+
+  const shouldReopen = target.fault.status === 'DONE'
+
+  try {
+    await repairStore.updateRepairFaultStatus(target.repair.id, target.fault.id, {
+      status: shouldReopen ? 'open' : 'done',
+    })
+    listFaultStatusTarget.value = null
+    uiStore.addToast({
+      type: 'success',
+      title: shouldReopen ? 'Usterka ponownie otwarta' : 'Usterka zakończona',
+      message: shouldReopen
+        ? 'Oznaczono usterkę jako niezrobioną.'
+        : 'Oznaczono usterkę jako zrobioną.',
+    })
+  } catch {
+    // Globalny interceptor API pokazuje szczegóły błędu.
+  }
+}
+
 function updateRepairDragPreview(event: DragEvent) {
   if (event.clientX || event.clientY) {
     dragPreview.x = event.clientX
@@ -2075,10 +2084,6 @@ async function dropRepairOnColumn(column: { key: RepairColumnKey; targetStatus: 
 
 async function loadRepairs(options?: { silent?: boolean }) {
   await repairStore.loadRepairs(options)
-
-  if (!selectedWeekKey.value || !weeks.value.some((week) => weekKey(week) === selectedWeekKey.value)) {
-    selectDefaultWeek()
-  }
 }
 
 async function loadDictionaries() {
@@ -2091,10 +2096,6 @@ async function loadData() {
     loadDictionaries(),
     fleetStore.loadFleetData({ silent: true }),
   ])
-
-  if (!selectedWeekKey.value || !weeks.value.some((week) => weekKey(week) === selectedWeekKey.value)) {
-    selectDefaultWeek()
-  }
 }
 
 async function refreshAfterMutation() {
@@ -2356,9 +2357,7 @@ watch(activeTab, (tab) => {
   }
 })
 
-watch([activeTab, selectedWeekKey], () => {
-  persistRepairsViewState()
-})
+watch(repairViewMode, persistRepairViewMode)
 
 watch(fieldRepairs, (visibleRepairs) => {
   const visibleIds = new Set(visibleRepairs.map((repair) => repair.id))
@@ -2370,7 +2369,7 @@ watch(fieldRepairs, (visibleRepairs) => {
   )
 })
 
-watch([selectedWeekKey, mapRepairVehicles], () => {
+watch(mapRepairVehicles, () => {
   if (activeTab.value === 'map') {
     renderRepairMap()
   }
@@ -2391,49 +2390,6 @@ onBeforeUnmount(() => {
 
 })
 </script>
-
-<style scoped>
-.repair-stat-tile {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.75rem;
-  border: 1px solid rgb(var(--rw-app-border));
-  border-radius: 1rem;
-  background: rgb(var(--rw-app-panel));
-  padding: 0.75rem;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
-}
-
-.repair-stat-icon {
-  display: inline-flex;
-  height: 2rem;
-  width: 2rem;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 0.75rem;
-  background: rgb(var(--rw-app-elevated));
-  color: rgb(var(--rw-app-muted));
-}
-
-.repair-stat-label {
-  overflow: hidden;
-  color: rgb(var(--rw-app-muted));
-  font-size: 0.6875rem;
-  font-weight: 600;
-  line-height: 1rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.repair-stat-value {
-  color: rgb(var(--rw-app-text));
-  font-size: 1.125rem;
-  font-weight: 700;
-  line-height: 1.5rem;
-}
-</style>
 
 <style>
 .rw-map-vehicle-marker {

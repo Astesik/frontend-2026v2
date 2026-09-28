@@ -105,19 +105,6 @@ export interface Repair {
   photos: RepairPhoto[]
 }
 
-export interface RepairWeek {
-  year: number
-  week: number
-  start: string
-  end: string
-  repairs: Repair[]
-}
-
-export interface RepairWeeksResponse {
-  fieldAndUnassigned: Repair[]
-  weeks: RepairWeek[]
-}
-
 export interface RepairPayload {
   vehicleId: number
   placeId: number

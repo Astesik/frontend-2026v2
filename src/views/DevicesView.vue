@@ -68,7 +68,16 @@
               <td class="py-1.5 pr-3"><AppBadge fixed-width="sm" variant="neutral">{{ deviceTypeLabel(device.type) }}</AppBadge></td>
               <td class="py-1.5 pr-3"><AppBadge fixed-width="sm" :variant="device.status === 'ACTIVE' ? 'success' : 'neutral'">{{ deviceStatusLabel(device.status) }}</AppBadge></td>
               <td class="py-1.5 pr-3 text-ui-text-secondary">{{ providerLabel(device.provider) }}</td>
-              <td class="py-1.5 pr-3"><AppBadge fixed-width="md" :variant="device.assignedToVehicle ? 'info' : 'neutral'">{{ device.assignedToVehicle ? 'Przypisane' : 'Wolne' }}</AppBadge></td>
+              <td class="py-1.5 pr-3">
+                <RouterLink
+                  v-if="device.assignedVehicleId"
+                  class="inline-flex min-w-24 items-center justify-center rounded-[var(--rw-radius-control)] border border-info-100 bg-info-50 px-2 py-1 text-xs font-semibold text-info-600 transition hover:border-info-200 hover:bg-info-100 dark:border-info-400/40 dark:bg-info-400/10 dark:text-info-400"
+                  :to="{ name: 'vehicle-detail', params: { id: device.assignedVehicleId } }"
+                >
+                  {{ device.assignedVehicleLicensePlate || `Pojazd #${device.assignedVehicleId}` }}
+                </RouterLink>
+                <AppBadge v-else fixed-width="md" variant="neutral">Wolne</AppBadge>
+              </td>
               <td class="py-1.5 pr-3 font-medium" :class="lastPositionClasses(device.lastPositionAt)">{{ formatDateTime(device.lastPositionAt) }}</td>
               <td class="py-1.5 pr-3 text-ui-text-secondary">{{ formatDateTime(device.createdAt) }}</td>
               <td class="sticky right-0 z-10 bg-ui-surface py-1.5 pr-1 text-right shadow-[-1px_0_0_0_rgb(var(--rw-border))] transition group-hover:bg-ui-hover">
@@ -161,7 +170,7 @@ const filteredDevices = computed(() => {
 
     if (!query) return true
 
-    return [device.id, device.deviceName, device.serialNumber, device.provider, device.externalId, device.companyIntegrationId]
+    return [device.id, device.deviceName, device.serialNumber, device.provider, device.externalId, device.companyIntegrationId, device.assignedVehicleLicensePlate]
       .filter((value) => value !== null && value !== undefined)
       .some((value) => String(value).toLowerCase().includes(query))
   })
@@ -200,7 +209,7 @@ function setSort(column: DeviceSortKey) {
 }
 
 function sortableValue(device: DeviceListItem, key: DeviceSortKey) {
-  if (key === 'assignedToVehicle') return device.assignedToVehicle ? 1 : 0
+  if (key === 'assignedToVehicle') return device.assignedVehicleLicensePlate || (device.assignedToVehicle ? 'Przypisane' : 'Wolne')
   if (key === 'lastPositionAt' || key === 'createdAt') {
     const value = device[key]
     const timestamp = value ? new Date(value).getTime() : Number.POSITIVE_INFINITY

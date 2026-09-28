@@ -18,7 +18,6 @@ import type {
   RepairPayload,
   RepairPhoto,
   RepairUpdatePayload,
-  RepairWeek,
 } from '@/types/repair'
 
 interface RepairFaultCreatePayload extends RepairFaultPayload {
@@ -38,8 +37,6 @@ interface RepairsReturnPosition {
 
 export const useRepairStore = defineStore('repairs', () => {
   const repairs = ref<Repair[]>([])
-  const weeks = ref<RepairWeek[]>([])
-  const fieldAndUnassigned = ref<Repair[]>([])
   const currentRepair = ref<Repair | null>(null)
   const currentRepairComments = ref<RepairComment[]>([])
   const repairDetailsById = ref<Record<string, Repair>>({})
@@ -86,11 +83,6 @@ export const useRepairStore = defineStore('repairs', () => {
     }
 
     repairs.value = repairs.value.map(patchRepair)
-    weeks.value = weeks.value.map((week) => ({
-      ...week,
-      repairs: week.repairs.map(patchRepair),
-    }))
-    fieldAndUnassigned.value = fieldAndUnassigned.value.map(patchRepair)
 
     if (String(currentRepair.value?.id) === repairKey && currentRepair.value) {
       currentRepair.value = patchRepair(currentRepair.value)
@@ -112,13 +104,6 @@ export const useRepairStore = defineStore('repairs', () => {
     } else {
       repairs.value = [...repairs.value, nextRepair]
     }
-
-    weeks.value = weeks.value.map((week) => ({
-      ...week,
-      repairs: week.repairs.map((repair) => repair.id === nextRepair.id ? nextRepair : repair),
-    }))
-
-    fieldAndUnassigned.value = fieldAndUnassigned.value.map((repair) => repair.id === nextRepair.id ? nextRepair : repair)
 
     if (currentRepair.value?.id === nextRepair.id) {
       currentRepair.value = {
@@ -142,14 +127,7 @@ export const useRepairStore = defineStore('repairs', () => {
   }
 
   async function loadRepairs(options?: { silent?: boolean }) {
-    const [repairList, weekList] = await Promise.all([
-      repairService.getRepairs(undefined, options),
-      repairService.getRepairWeeks(options),
-    ])
-
-    repairs.value = repairList
-    weeks.value = weekList.weeks
-    fieldAndUnassigned.value = weekList.fieldAndUnassigned
+    repairs.value = await repairService.getRepairs(undefined, options)
   }
 
   async function loadListData(options?: { silent?: boolean }) {
@@ -385,11 +363,6 @@ export const useRepairStore = defineStore('repairs', () => {
       await repairService.deleteRepair(repairId)
       const key = String(repairId)
       repairs.value = repairs.value.filter((repair) => String(repair.id) !== String(repairId))
-      weeks.value = weeks.value.map((week) => ({
-        ...week,
-        repairs: week.repairs.filter((repair) => String(repair.id) !== String(repairId)),
-      }))
-      fieldAndUnassigned.value = fieldAndUnassigned.value.filter((repair) => String(repair.id) !== String(repairId))
       delete repairDetailsById.value[key]
       delete repairCommentsById.value[key]
 
@@ -613,8 +586,6 @@ export const useRepairStore = defineStore('repairs', () => {
 
   function resetApiState() {
     repairs.value = []
-    weeks.value = []
-    fieldAndUnassigned.value = []
     currentRepair.value = null
     currentRepairComments.value = []
     repairDetailsById.value = {}
@@ -632,8 +603,6 @@ export const useRepairStore = defineStore('repairs', () => {
 
   return {
     repairs,
-    weeks,
-    fieldAndUnassigned,
     currentRepair,
     currentRepairComments,
     repairDetailsById,

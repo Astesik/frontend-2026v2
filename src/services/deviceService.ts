@@ -16,6 +16,8 @@ function normalizeDevice<T extends DeviceListItem>(device: T): T {
     type: String(device.type || 'NEW').toUpperCase() as DeviceType,
     status: String(device.status || 'ACTIVE').toUpperCase() as DeviceStatus,
     provider: String(device.provider || 'LOCAL').toUpperCase() as DeviceProvider,
+    assignedVehicleId: device.assignedVehicleId ?? null,
+    assignedVehicleLicensePlate: device.assignedVehicleLicensePlate || null,
   }
 }
 
