@@ -13,6 +13,8 @@
         :readonly="readonly"
         :aria-invalid="Boolean(error)"
         :aria-describedby="describedBy"
+        :aria-label="ariaLabel"
+        :maxlength="maxlength"
         :class="inputClasses"
         @input="onInput"
         @blur="emit('blur', $event)"
@@ -52,6 +54,8 @@ const props = withDefaults(defineProps<{
   required?: boolean
   clearable?: boolean
   size?: 'sm' | 'md'
+  maxlength?: number
+  ariaLabel?: string
 }>(), {
   id: undefined,
   label: undefined,
@@ -65,6 +69,8 @@ const props = withDefaults(defineProps<{
   required: false,
   clearable: false,
   size: 'md',
+  maxlength: undefined,
+  ariaLabel: undefined,
 })
 
 const emit = defineEmits<{

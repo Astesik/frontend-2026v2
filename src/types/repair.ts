@@ -96,6 +96,7 @@ export interface Repair {
   departureTime?: string | null
   status: RepairStatus | string
   description: string | null
+  createdAt?: string | null
   createdBy: RepairCreatedBy | null
   createdByUsername?: string | null
   faults: RepairFault[]

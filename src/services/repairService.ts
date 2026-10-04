@@ -183,6 +183,7 @@ function normalizeRepair(repair: Repair): Repair {
     placeName: repair.placeName ?? repair.place?.name ?? null,
     status: normalizeRepairStatus(repair.status),
     description: repair.description || null,
+    createdAt: repair.createdAt || null,
     createdBy,
     createdByUsername,
     faults,

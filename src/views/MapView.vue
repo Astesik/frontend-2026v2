@@ -699,13 +699,13 @@
               <div class="flex items-center justify-between gap-2 pb-0.5">
                 <p class="text-[11px] font-semibold text-ui-mutedText">Aktywne naprawy</p>
                 <AppButton
-                  v-if="canCreateRepairs"
+                  v-if="canCreateRepairs && canCreateVehicleFaults"
                   class="!h-7 !px-2 !text-[11px]"
                   size="sm"
                   @click="openCreateRepairFromDrawer"
                 >
                   <Plus class="h-3.5 w-3.5" />
-                  Dodaj naprawę
+                  Dodaj usterkę
                 </AppButton>
               </div>
 
@@ -714,18 +714,30 @@
                 :key="repair.id"
                 class="overflow-hidden rounded-[6px] border border-ui-border bg-ui-surface"
               >
-                <div class="space-y-2 p-2.5">
+                <div class="space-y-3 p-3">
+                  <div class="flex items-start justify-between gap-3">
+                    <div class="min-w-0 space-y-1 text-[11px] text-ui-text-secondary">
+                      <p class="flex items-start gap-1.5">
+                        <MapPin class="mt-0.5 h-3.5 w-3.5 shrink-0 text-ui-icon" />
+                        <span class="min-w-0 break-words">Miejsce: <span class="font-medium text-ui-text">{{ repair.place?.name || repair.placeName || '—' }}</span></span>
+                      </p>
+                      <p class="flex items-start gap-1.5">
+                        <UserRound class="mt-0.5 h-3.5 w-3.5 shrink-0 text-ui-icon" />
+                        <span class="min-w-0 break-words">Dodał: {{ repairCreatedByName(repair) }}</span>
+                      </p>
+                    </div>
+                    <AppIconButton label="Przejdź do naprawy" size="sm" class="shrink-0" @click="openRepairDetails(repair)">
+                      <ArrowRight class="h-4 w-4" />
+                    </AppIconButton>
+                  </div>
                   <ul v-if="openRepairFaults(repair).length" class="divide-y divide-ui-divider">
-                    <li v-for="fault in openRepairFaults(repair)" :key="fault.id" class="flex items-start gap-2 py-2 first:pt-0 last:pb-0 text-[11px] text-ui-text-secondary">
-                      <span class="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-danger-500"></span>
-                      <span class="min-w-0 break-words">{{ fault.description }}</span>
+                    <li v-for="fault in openRepairFaults(repair)" :key="fault.id" class="flex items-start gap-2 py-2 first:pt-0 last:pb-0 text-sm text-ui-text">
+                      <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-danger-500"></span>
+                      <span class="min-w-0 whitespace-pre-wrap break-words font-semibold">{{ fault.description }}</span>
                     </li>
                   </ul>
                   <p v-else class="py-1 text-[11px] text-ui-mutedText">Brak otwartych usterek.</p>
 
-                  <AppButton class="w-full" size="sm" variant="secondary" @click="openRepairDetails(repair)">
-                    Przejdź do naprawy
-                  </AppButton>
                 </div>
               </article>
               <div v-if="!selectedVehicleActiveRepairs.length" class="rounded-[6px] border border-dashed border-ui-border px-3 py-8 text-center text-xs text-ui-mutedText">Brak aktywnych napraw.</div>
@@ -745,6 +757,7 @@
         :open="isRepairCreateModalOpen"
         :initial-vehicle-id="selectedVehicle?.backendId ?? null"
         lock-vehicle
+        quick-report
         :existing-repairs="repairs"
         @close="isRepairCreateModalOpen = false"
         @created="handleRepairCreated"
@@ -853,9 +866,10 @@
 import { storeToRefs } from 'pinia'
 import { computed, defineComponent, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref, render, shallowRef, watch, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, CircleAlert, Container, Copy, Flag, Gauge, GlobeX, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightOpen, Plus, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, Wrench, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Check, CircleAlert, Container, Copy, Flag, Gauge, GlobeX, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightOpen, Plus, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, UserRound, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
@@ -1355,6 +1369,7 @@ const selectedVehicle = computed(() => (
 ))
 const canReadVehiclePhotos = computed(() => authStore.hasActiveCompanyPermission('vehicle_photos.read'))
 const canCreateRepairs = computed(() => authStore.canManageCompany || authStore.hasActiveCompanyPermission('repairs.create'))
+const canCreateVehicleFaults = computed(() => authStore.canManageCompany || authStore.hasActiveCompanyPermission('faults.create'))
 const vehicleDrawerStyle = computed(() => vehicleDrawerMeasuredHeight.value
   ? { height: `min(${vehicleDrawerMeasuredHeight.value}px, 100%)` }
   : undefined)

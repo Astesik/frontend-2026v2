@@ -103,11 +103,11 @@
                 <dd class="repair-detail-row__value">{{ formatDateTime(repair.plannedDepartureAt) }}</dd>
               </div>
             </div>
-            <div class="repair-detail-row items-start">
-              <FileText class="repair-detail-row__icon mt-0.5" />
+            <div class="repair-detail-row">
+              <CalendarClock class="repair-detail-row__icon" />
               <div class="min-w-0">
-                <dt class="ui-caption">Uwagi</dt>
-                <dd class="repair-detail-row__value whitespace-pre-wrap">{{ repair.description || '-' }}</dd>
+                <dt class="ui-caption">Data utworzenia</dt>
+                <dd class="repair-detail-row__value">{{ formatDateTime(repair.createdAt ?? null) }}</dd>
               </div>
             </div>
           </div>
@@ -132,8 +132,8 @@
               </div>
             </div>
             <div class="space-y-1.5">
-              <label class="ui-form-label">Uwagi</label>
-              <AppTextarea v-model="editForm.description" placeholder="Uwagi do naprawy" :rows="4" size="sm" />
+              <p class="ui-caption">Data utworzenia</p>
+              <p class="text-sm text-ui-text">{{ formatDateTime(repair.createdAt ?? null) }}</p>
             </div>
           </div>
 
@@ -925,7 +925,6 @@ import AppIconLink from '@/components/ui/AppIconLink.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppSearchSelect, { type AppSearchSelectOption } from '@/components/ui/AppSearchSelect.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
-import AppTextarea from '@/components/ui/AppTextarea.vue'
 import { repairService } from '@/services/repairService'
 import { useAuthStore } from '@/stores/authStore'
 import { useRepairStore } from '@/stores/repairStore'
@@ -993,7 +992,6 @@ const editForm = reactive({
   placeId: '',
   arrivalAt: '',
   departureAt: '',
-  description: '',
 })
 const repairId = computed(() => String(route.params.id || ''))
 const allFaultPhotos = computed(() => (repair.value?.faults || []).flatMap((fault) => fault.photos || []))
@@ -1355,11 +1353,6 @@ function toIsoDateTime(value: string) {
   return Number.isNaN(parsedDate.getTime()) ? null : parsedDate.toISOString()
 }
 
-function nullableDescription(value: string) {
-  const normalized = value.trim()
-  return normalized || null
-}
-
 function mechanicIdValue(value: string) {
   const parsed = Number(value)
   return Number.isFinite(parsed) && value !== '' ? parsed : null
@@ -1373,7 +1366,6 @@ function resetEditForm(value: Repair) {
     placeId: placeId ? String(placeId) : '',
     arrivalAt: dateTimeInputValue(value.plannedArrivalAt, '08:00'),
     departureAt: dateTimeInputValue(value.plannedDepartureAt, '16:00'),
-    description: value.description || '',
   })
 }
 
@@ -1978,7 +1970,6 @@ async function updateRepairDetails() {
       plannedArrivalAt: toIsoDateTime(editForm.arrivalAt),
       plannedDepartureAt: toIsoDateTime(editForm.departureAt),
       status: editForm.status,
-      description: nullableDescription(editForm.description),
     })
     infoEditMode.value = false
     uiStore.addToast({

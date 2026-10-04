@@ -127,6 +127,7 @@ const baseNavigation: Array<{ to: string; label: string; icon: Component; group:
   { to: '/map', label: 'Mapa', icon: MapPinned, group: 'main' },
   { to: '/vehicles', label: 'Pojazdy', icon: Truck, group: 'main' },
   { to: '/devices', label: 'Urządzenia', icon: Cpu, group: 'main' },
+  { to: '/drivers', label: 'Kierowcy', icon: UserRound, group: 'main' },
   { to: '/repairs', label: 'Naprawy', icon: Wrench, group: 'main' },
   { to: '/settings', label: 'Ustawienia', icon: Settings, group: 'settings' },
 ]
@@ -141,6 +142,7 @@ function hasPermissionPrefix(prefix: string) {
 function canSeeNavigationItem(path: string) {
   if (path === '/vehicles') return hasPermissionPrefix('vehicles.')
   if (path === '/devices') return hasPermissionPrefix('devices.')
+  if (path === '/drivers') return hasPermissionPrefix('drivers.')
   if (path === '/repairs') return hasPermissionPrefix('repairs.')
 
   if (path === '/settings') {

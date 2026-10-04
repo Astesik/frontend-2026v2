@@ -9,9 +9,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
-import { useFleetStore } from '@/stores/fleetStore'
+import { useDriverStore } from '@/stores/driverStore'
 
 const props = withDefaults(defineProps<{
   modelValue: string
@@ -28,13 +28,19 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
 }>()
 
-const fleetStore = useFleetStore()
+const driverStore = useDriverStore()
 
 const options = computed(() => [
   ...(props.includeAll ? [{ value: 'all', label: 'Wszyscy kierowcy' }] : []),
-  ...fleetStore.driverOptions.map((option) => ({
+  ...driverStore.selectDrivers.map((option) => ({
     value: String(option.id),
-    label: option.label,
+    label: option.label?.trim() || `Kierowca #${option.id}`,
   })),
 ])
+
+onMounted(() => {
+  if (!driverStore.selectDrivers.length && !driverStore.isSelectLoading) {
+    void driverStore.loadSelectDrivers()
+  }
+})
 </script>

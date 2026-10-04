@@ -14,30 +14,25 @@
           size="sm"
           clearable
         />
-        <AppButton
-          size="sm"
-          :disabled="!canCreateRepairs"
-          :title="!canCreateRepairs ? 'Brak uprawnienia: repairs.create' : undefined"
-          @click="openCreateModal"
-        >
-          <Plus class="h-4 w-4" />
-          Dodaj nową naprawę
-        </AppButton>
         <AppButton size="sm" variant="secondary" @click="openMechanicsModal">
           <Users class="h-4 w-4" />
           Mechanicy
         </AppButton>
       </div>
 
-      <div class="w-full shrink-0 sm:flex sm:justify-end xl:w-auto">
+      <div class="flex w-full shrink-0 flex-wrap items-center gap-2 sm:justify-end xl:w-auto">
         <AppTabs
-          class="w-full sm:w-fit"
+          class="w-fit max-w-full"
           :model-value="repairViewMode"
           :items="repairViewTabs"
           size="sm"
           aria-label="Sposób wyświetlania napraw"
           @update:model-value="setRepairViewMode"
         />
+        <AppButton size="sm" :disabled="!canCreateRepairs" @click="openCreateModal">
+          <Plus class="h-4 w-4" />
+          Dodaj nową naprawę
+        </AppButton>
       </div>
     </header>
 
@@ -451,256 +446,13 @@
       @confirm="confirmListFaultStatusChange"
     />
 
-    <AppModal
+    <RepairCreateModal
       :open="isCreateModalOpen"
-      title="Dodaj nową naprawę"
-      size="xl"
-      :busy="isMutating"
-      :close-on-backdrop="false"
-      :close-on-escape="false"
-      panel-class="h-[calc(100dvh-1.5rem)] sm:h-[calc(100dvh-3rem)] sm:max-h-[46rem]"
-      body-class="!flex !min-h-0 !flex-1 !flex-col !overflow-hidden !bg-ui-surface !p-4 sm:!p-5"
+      :existing-repairs="repairs"
       @close="closeCreateModal"
-    >
-      <div v-if="!createResult" class="flex shrink-0 justify-center border-b border-ui-divider pb-4">
-        <AppStepIndicator
-          :steps="createWizardSteps"
-          :current-step="createWizardStep"
-          :max-reachable-step="createMaxReachableStep"
-          @select="selectCreateWizardStep"
-        />
-      </div>
-
-      <form
-        v-if="!createResult"
-        id="create-repair-form"
-        class="min-h-0 flex-1 overflow-hidden pt-4"
-        @submit.prevent="createWizardStep === 0 ? goToCreateFaultsStep() : submitCreateRepair()"
-      >
-          <section v-if="createWizardStep === 0" class="mx-auto h-full max-w-4xl overflow-y-auto px-1 pb-1">
-            <div class="grid gap-4 sm:grid-cols-2">
-              <AppSearchSelect
-                v-model="createForm.vehicleId"
-                label="Pojazd"
-                placeholder="Wybierz pojazd"
-                :options="vehicleOptions"
-                :error="createDetailsError && !createForm.vehicleId ? 'Wybierz pojazd.' : undefined"
-              />
-              <AppSearchSelect
-                v-model="createForm.placeId"
-                label="Miejsce"
-                placeholder="Wybierz miejsce"
-                :options="placeOptions"
-                :error="createDetailsError && !createForm.placeId ? 'Wybierz miejsce naprawy.' : undefined"
-              />
-              <div
-                v-if="existingWeekRepairForCreateVehicle"
-                class="flex flex-col gap-3 rounded-[var(--rw-radius-control)] border border-warning-100 bg-warning-50 px-4 py-3 text-warning-600 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between dark:border-warning-400/40 dark:bg-warning-400/10 dark:text-warning-400"
-              >
-                <div class="flex min-w-0 items-start gap-3">
-                  <CalendarClock class="mt-0.5 h-5 w-5 shrink-0 text-ui-icon" />
-                  <p class="min-w-0 text-sm font-semibold">Dla tego pojazdu istnieje już naprawa w tym tygodniu.</p>
-                </div>
-                <AppButton type="button" size="sm" variant="secondary" class="shrink-0" @click="openRepairFromCreate(existingWeekRepairForCreateVehicle)">
-                  Przejdź do naprawy
-                </AppButton>
-              </div>
-              <div
-                v-else-if="existingOpenRepairForCreateVehicle"
-                class="flex flex-col gap-3 rounded-[var(--rw-radius-control)] border border-warning-100 bg-warning-50 px-4 py-3 text-warning-600 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between dark:border-warning-400/40 dark:bg-warning-400/10 dark:text-warning-400"
-              >
-                <div class="flex min-w-0 items-start gap-3">
-                  <TriangleAlert class="mt-0.5 h-5 w-5 shrink-0" />
-                  <p class="min-w-0 text-sm font-semibold">Dla tego pojazdu istnieje już niezamknięta naprawa.</p>
-                </div>
-                <AppButton type="button" size="sm" variant="secondary" class="shrink-0" @click="openRepairFromCreate(existingOpenRepairForCreateVehicle)">
-                  Przejdź do naprawy
-                </AppButton>
-              </div>
-              <AppSelect v-model="createForm.status" label="Status" :options="repairStatusOptions" />
-              <AppDateTimePicker v-model="createForm.arrivalAt" label="Planowany przyjazd" default-time="08:00" />
-              <AppDateTimePicker v-model="createForm.departureAt" label="Planowany wyjazd" default-time="16:00" />
-              <AppTextarea v-model="createForm.description" class="sm:col-span-2" label="Uwagi" placeholder="Uwagi do naprawy" :rows="4" />
-            </div>
-          </section>
-
-          <section v-else class="flex h-full min-h-0 flex-col">
-            <div class="mb-4 flex shrink-0 items-center justify-between gap-3">
-              <h3 class="ui-section-title">Usterki</h3>
-              <AppBadge>{{ draftFaults.length }}</AppBadge>
-            </div>
-
-            <div class="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-              <article
-                v-for="(fault, index) in draftFaults"
-                :key="fault.id"
-                class="rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-muted p-3.5"
-              >
-                <div class="mb-2 flex items-center justify-between gap-3">
-                  <span class="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--rw-radius-item)] border border-ui-border bg-ui-surface text-sm font-semibold text-ui-text shadow-soft">
-                    {{ index + 1 }}
-                  </span>
-                  <AppIconButton label="Usuń usterkę" size="sm" variant="ghost" @click="removeDraftFault(fault.id)">
-                    <Trash2 class="h-4 w-4" />
-                  </AppIconButton>
-                </div>
-
-                <AppInput
-                  v-model="fault.description"
-                  label="Opis usterki"
-                  placeholder="Np. wymiana klocków, światła, plandeka..."
-                  :disabled="!canCreateFaults"
-                />
-
-                <section class="mt-3 rounded-[var(--rw-radius-control)] border border-ui-divider bg-ui-surface p-3">
-                  <div class="mb-2 flex items-center justify-between gap-2">
-                    <div class="flex min-w-0 items-center gap-2">
-                      <ImagePlus class="h-4 w-4 shrink-0 text-ui-icon" />
-                      <h4 class="truncate ui-label text-ui-text">Zdjęcia</h4>
-                    </div>
-                    <AppBadge>{{ fault.photos.length }}</AppBadge>
-                  </div>
-
-                  <button
-                    type="button"
-                    class="flex min-h-16 w-full flex-col items-center justify-center gap-1.5 rounded-[var(--rw-radius-control)] border border-dashed border-ui-border bg-ui-input px-3 py-3 text-center text-sm font-medium text-ui-text-secondary transition hover:border-ui-border-strong hover:bg-ui-hover hover:text-ui-text disabled:cursor-not-allowed disabled:bg-ui-disabled disabled:text-ui-disabled-text"
-                    :disabled="isMutating || !canAddFaultPhotos"
-                    @click="openDraftFaultPhotoAdd(fault.id)"
-                  >
-                    <ImagePlus class="h-4 w-4" />
-                    Dodaj zdjęcia
-                  </button>
-
-                  <p v-if="fault.photoError" class="mt-2 ui-error">{{ fault.photoError }}</p>
-
-                  <div v-if="fault.photos.length" class="mt-2 grid max-h-28 grid-cols-[repeat(auto-fill,minmax(3.75rem,1fr))] gap-2 overflow-y-auto pr-1">
-                    <article
-                      v-for="photo in fault.photos"
-                      :key="photo.id"
-                      class="group relative aspect-square overflow-hidden rounded-[var(--rw-radius-item)] border border-ui-border bg-ui-muted"
-                    >
-                      <img :src="photo.objectUrl" :alt="photo.file.name" class="h-full w-full object-cover" />
-                      <button
-                        type="button"
-                        class="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-ui-overlay/75 text-white transition hover:bg-ui-overlay"
-                        aria-label="Usuń zdjęcie z dodawanej usterki"
-                        @click="removeDraftFaultPhoto(fault.id, photo.id)"
-                      >
-                        <X class="h-3 w-3" />
-                      </button>
-                    </article>
-                  </div>
-                </section>
-              </article>
-
-              <button
-                type="button"
-                class="flex min-h-20 w-full flex-col items-center justify-center gap-2 rounded-[var(--rw-radius-panel)] border border-dashed border-ui-border bg-ui-surface px-4 py-4 text-center text-sm font-medium text-ui-text-secondary transition hover:border-ui-border-strong hover:bg-ui-hover hover:text-ui-text disabled:cursor-not-allowed disabled:bg-ui-disabled disabled:text-ui-disabled-text"
-                :disabled="!canCreateFaults"
-                @click="addDraftFault"
-              >
-                <span class="inline-flex h-9 w-9 items-center justify-center rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted">
-                  <Plus class="h-4 w-4" />
-                </span>
-                Dodaj kolejną usterkę
-              </button>
-            </div>
-          </section>
-      </form>
-
-      <section v-else class="mx-auto flex min-h-0 max-w-xl flex-1 flex-col items-center justify-center px-4 py-8 text-center">
-        <div
-          class="grid h-16 w-16 place-items-center rounded-full"
-          :class="createResult === 'success' ? 'bg-success-50 text-success-600 dark:bg-success-500/10 dark:text-success-400' : 'bg-danger-50 text-danger-600 dark:bg-danger-500/10 dark:text-danger-400'"
-        >
-          <CircleCheck v-if="createResult === 'success'" class="h-9 w-9" />
-          <CircleX v-else class="h-9 w-9" />
-        </div>
-        <h3 class="mt-4 text-xl font-semibold text-ui-text">
-          {{ createResult === 'success' ? 'Naprawa dodana!' : 'Napotkano problem' }}
-        </h3>
-        <p class="mt-2 max-w-md ui-body-sm text-ui-mutedText">{{ createResultMessage }}</p>
-      </section>
-
-      <template #footer>
-        <template v-if="createResult === 'success'">
-          <AppButton type="button" variant="secondary" @click="closeCreateModal">Zamknij</AppButton>
-          <AppButton type="button" @click="openCreatedRepair">Przejdź do naprawy</AppButton>
-        </template>
-        <template v-else-if="createResult === 'error'">
-          <AppButton type="button" variant="secondary" @click="returnToCreateFaults">Wróć do usterek</AppButton>
-          <AppButton type="button" :loading="isMutating" @click="submitCreateRepair">Spróbuj ponownie</AppButton>
-        </template>
-        <template v-else-if="createWizardStep === 0">
-          <AppButton type="button" variant="secondary" @click="closeCreateModal">Anuluj</AppButton>
-          <AppButton form="create-repair-form" type="submit">Dalej</AppButton>
-        </template>
-        <template v-else>
-          <AppButton type="button" variant="secondary" @click="selectCreateWizardStep(0)">Wstecz</AppButton>
-          <AppButton form="create-repair-form" type="submit" :loading="isMutating" :disabled="!canCreateRepairs">
-            Zapisz naprawę
-          </AppButton>
-        </template>
-      </template>
-    </AppModal>
-
-    <input
-      ref="draftFaultPhotoInput"
-      type="file"
-      class="fixed left-[-9999px] top-0 h-px w-px opacity-0"
-      accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
-      multiple
-      @change="handleDraftFaultPhotoInputSelection"
+      @created="handleCreatedRepair"
+      @open-repair="openRepairFromCreate"
     />
-
-    <input
-      ref="draftFaultCameraInput"
-      type="file"
-      class="fixed left-[-9999px] top-0 h-px w-px opacity-0"
-      accept="image/*"
-      capture="environment"
-      @change="handleDraftFaultPhotoInputSelection"
-    />
-
-    <Teleport to="body">
-      <div
-        v-if="draftPhotoPickerFaultId"
-        class="fixed inset-0 z-[360] flex items-end justify-center bg-transparent p-3 md:hidden"
-        @click.self="closeDraftPhotoPickerMenu"
-      >
-        <section class="w-full max-w-sm overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-app-border dark:bg-app-panel">
-          <header class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 dark:border-app-border">
-            <p class="text-sm font-semibold text-slate-950 dark:text-slate-50">Dodaj zdjęcie</p>
-            <button
-              type="button"
-              class="inline-flex h-8 w-8 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
-              aria-label="Zamknij wybór zdjęcia"
-              @click="closeDraftPhotoPickerMenu"
-            >
-              <X class="h-4 w-4" />
-            </button>
-          </header>
-          <div class="grid gap-2 p-3">
-            <button
-              type="button"
-              class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-app-border dark:bg-app-dark dark:text-slate-100 dark:hover:bg-app-elevated"
-              @click="chooseDraftPhotoSource('gallery')"
-            >
-              <ImagePlus class="h-5 w-5 text-slate-400" />
-              Wybierz z galerii
-            </button>
-            <button
-              type="button"
-              class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-app-border dark:bg-app-dark dark:text-slate-100 dark:hover:bg-app-elevated"
-              @click="chooseDraftPhotoSource('camera')"
-            >
-              <Camera class="h-5 w-5 text-slate-400" />
-              Zrób zdjęcie
-            </button>
-          </div>
-        </section>
-      </div>
-    </Teleport>
 
     <AppModal
       :open="isMechanicsModalOpen"
@@ -801,8 +553,6 @@ import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, rea
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import {
-  CalendarClock,
-  Camera,
   Check,
   CheckCircle2,
   ChevronDown,
@@ -810,16 +560,13 @@ import {
   ChevronRight,
   Circle,
   CircleCheck,
-  CircleX,
   Clock,
   Columns3,
   FileDown,
-  ImagePlus,
   List,
   ListChecks,
   Plus,
   SquarePen,
-  TriangleAlert,
   Trash2,
   Users,
   Wrench,
@@ -829,16 +576,11 @@ import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
-import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
-import AppSearchSelect, { type AppSearchSelectOption } from '@/components/ui/AppSearchSelect.vue'
-import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
-import AppStepIndicator from '@/components/ui/AppStepIndicator.vue'
 import AppTabs from '@/components/ui/AppTabs.vue'
-import AppTextarea from '@/components/ui/AppTextarea.vue'
-import { getApiErrorMessage } from '@/services/api'
+import RepairCreateModal from '@/components/repairs/RepairCreateModal.vue'
 import { loadGoogleMaps } from '@/services/googleMapsLoader'
 import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
@@ -851,19 +593,6 @@ type TabKey = 'base' | 'other' | 'field' | 'map'
 type RepairViewMode = 'kanban' | 'list'
 type RepairColumnKey = 'new' | 'progress' | 'done'
 
-interface DraftFault {
-  id: string
-  description: string
-  photos: DraftFaultPhotoDraft[]
-  photoError: string
-}
-
-interface DraftFaultPhotoDraft {
-  id: string
-  file: File
-  objectUrl: string
-}
-
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
 const REPAIRS_VIEW_MODE_KEY = 'routewise.repairs.viewMode'
 const router = useRouter()
@@ -875,7 +604,6 @@ const repairsViewRoot = ref<HTMLElement | null>(null)
 const {
   repairs,
   mechanics,
-  places,
   isLoading,
   isMutating,
 } = storeToRefs(repairStore)
@@ -902,31 +630,8 @@ const isCreateModalOpen = ref(false)
 const isMechanicsModalOpen = ref(false)
 const isMechanicFormModalOpen = ref(false)
 const mechanicToDelete = ref<Mechanic | null>(null)
-const draftFaultPhotoInput = ref<HTMLInputElement | null>(null)
-const draftFaultCameraInput = ref<HTMLInputElement | null>(null)
-const selectedDraftFaultPhotoInputId = ref<string | null>(null)
-const draftPhotoPickerFaultId = ref<string | null>(null)
 const mapElement = ref<HTMLDivElement | null>(null)
 const mapState = ref<'idle' | 'loading' | 'ready' | 'missing-key' | 'error'>('idle')
-const createForm = reactive({
-  vehicleId: '',
-  placeId: '',
-  status: 'planned' as RepairStatus,
-  arrivalAt: '',
-  departureAt: '',
-  description: '',
-})
-const createWizardSteps = [
-  { label: 'Dane naprawy' },
-  { label: 'Usterki' },
-]
-const createWizardStep = ref(0)
-const createMaxReachableStep = ref(0)
-const createDetailsError = ref(false)
-const createResult = ref<'success' | 'error' | null>(null)
-const createResultMessage = ref('')
-const createdRepair = ref<Repair | null>(null)
-const draftFaults = ref<DraftFault[]>([createDraftFault()])
 const mechanicForm = reactive({
   id: null as number | null,
   firstName: '',
@@ -936,8 +641,6 @@ let googleRef: any = null
 let repairMap: any = null
 let repairMarkers: any[] = []
 
-const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
-const MAX_PHOTO_SIZE = 20 * 1024 * 1024
 const REPAIRS_PAGE_SIZE = 15
 
 const repairViewTabs: Array<{ value: RepairViewMode; label: string; icon: Component }> = [
@@ -951,64 +654,12 @@ function setRepairViewMode(value: string) {
   }
 }
 
-const repairStatusOptions: AppSelectOption[] = [
-  { label: 'Nowa', value: 'new' },
-  { label: 'Zaplanowana', value: 'planned' },
-  { label: 'Gotowa do naprawy', value: 'ready_to_be_repaired' },
-  { label: 'W lokalizacji', value: 'at_location' },
-  { label: 'W terenie', value: 'IN_FIELD' },
-  { label: 'Zakończona', value: 'done' },
-  { label: 'Anulowana', value: 'cancelled' },
-]
-
 const canCreateRepairs = computed(() => hasPermission('repairs.create'))
 const canUpdateRepairs = computed(() => hasPermission('repairs.update'))
-const canCreateFaults = computed(() => hasPermission('faults.create'))
 const canChangeFaultStatus = computed(() => hasPermission('faults.change_status'))
-const canAddFaultPhotos = computed(() => hasPermission('fault_photos.add'))
 const selectedWeekLabel = computed(() => 'Wszystkie naprawy')
 
-const vehicleOptions = computed<AppSearchSelectOption[]>(() => fleetStore.apiVehicles.map((vehicle) => ({
-  value: String(vehicle.id),
-  label: vehicle.licensePlate,
-  searchText: vehicle.licensePlate,
-})))
-
-const placeOptions = computed<AppSearchSelectOption[]>(() => places.value.map((place) => ({
-  value: String(place.id),
-  label: place.name,
-})))
-
 const selectedWeekRepairs = computed(() => uniqueRepairs(repairs.value))
-
-function repairMatchesCreateVehicle(repair: Repair) {
-  return String(repair.vehicle?.id ?? repair.vehicleId) === String(createForm.vehicleId)
-}
-
-const existingOpenRepairForCreateVehicle = computed(() => {
-  if (!createForm.vehicleId) return null
-
-  return repairs.value.find((repair) => {
-    const status = normalizeRepairStatus(repair.status)
-    return repairMatchesCreateVehicle(repair)
-      && status !== 'done'
-      && status !== 'cancelled'
-  }) || null
-})
-
-const existingWeekRepairForCreateVehicle = computed(() => {
-  if (!createForm.vehicleId) return null
-  const referenceDate = parseDateOnly(createForm.arrivalAt) || new Date()
-  const weekStart = startOfIsoWeek(referenceDate)
-  const weekEnd = new Date(weekStart)
-  weekEnd.setDate(weekEnd.getDate() + 7)
-
-  return repairs.value.find((repair) => {
-    if (!repairMatchesCreateVehicle(repair)) return false
-    const date = parseDateOnly(repair.plannedArrivalAt)
-    return Boolean(date && date >= weekStart && date < weekEnd)
-  }) || null
-})
 
 const filteredSelectedWeekRepairs = computed(() => selectedWeekRepairs.value.filter((repair) => repairMatchesSearch(repair)))
 
@@ -1379,291 +1030,22 @@ function uniqueRepairs(items: Repair[]) {
   return Array.from(repairsById.values()).sort((first, second) => repairTimestamp(first) - repairTimestamp(second))
 }
 
-function createDraftFault(): DraftFault {
-  return {
-    id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-    description: '',
-    photos: [],
-    photoError: '',
-  }
-}
-
-function clearDraftFaultPhotoDrafts(faults = draftFaults.value) {
-  faults.forEach((fault) => {
-    fault.photos.forEach((photo) => URL.revokeObjectURL(photo.objectUrl))
-  })
-}
-
-function resetCreateForm() {
-  clearDraftFaultPhotoDrafts()
-  Object.assign(createForm, {
-    vehicleId: '',
-    placeId: '',
-    status: 'planned' as RepairStatus,
-    arrivalAt: `${dateValue(new Date())}T08:00`,
-    departureAt: '',
-    description: '',
-  })
-  draftFaults.value = [createDraftFault()]
-  createWizardStep.value = 0
-  createMaxReachableStep.value = 0
-  createDetailsError.value = false
-  createResult.value = null
-  createResultMessage.value = ''
-  createdRepair.value = null
-}
-
-function validateCreateDetails() {
-  const isValid = Boolean(createForm.vehicleId && createForm.placeId)
-  createDetailsError.value = !isValid
-  return isValid
-}
-
-function goToCreateFaultsStep() {
-  if (!validateCreateDetails()) return
-  createWizardStep.value = 1
-  createMaxReachableStep.value = 1
-}
-
-function selectCreateWizardStep(step: number) {
-  if (createResult.value || step < 0 || step > createMaxReachableStep.value) return
-  if (step === 1 && !validateCreateDetails()) return
-  createWizardStep.value = step
-}
-
-function returnToCreateFaults() {
-  createResult.value = null
-  createResultMessage.value = ''
-  createWizardStep.value = 1
-  createMaxReachableStep.value = 1
-}
-
-function toIsoDateTime(value: string) {
-  if (!value) {
-    return null
-  }
-
-  const parsedDate = new Date(value)
-  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate.toISOString()
-}
-
-function nullableDescription(value: string) {
-  const normalized = value.trim()
-  return normalized || null
-}
-
-function addDraftFault() {
-  if (!canCreateFaults.value) {
-    return
-  }
-
-  draftFaults.value = [...draftFaults.value, createDraftFault()]
-}
-
-function removeDraftFault(id: string) {
-  const removedFault = draftFaults.value.find((fault) => fault.id === id)
-  if (removedFault) {
-    clearDraftFaultPhotoDrafts([removedFault])
-  }
-
-  draftFaults.value = draftFaults.value.filter((fault) => fault.id !== id)
-
-  if (!draftFaults.value.length) {
-    draftFaults.value = [createDraftFault()]
-  }
-}
-
-function validateRepairPhoto(file: File) {
-  if (!ALLOWED_PHOTO_TYPES.has(file.type)) {
-    return 'Dozwolone formaty: JPG, PNG, GIF i WEBP.'
-  }
-
-  if (file.size > MAX_PHOTO_SIZE) {
-    return 'Zdjęcie może mieć maksymalnie 20 MB.'
-  }
-
-  return null
-}
-
-function blurFileInput(input: HTMLInputElement) {
-  window.requestAnimationFrame(() => {
-    if (document.activeElement === input) {
-      input.blur()
-    }
-  })
-}
-
-function shouldShowMobilePhotoMenu() {
-  return typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
-}
-
-function closeDraftPhotoPickerMenu() {
-  draftPhotoPickerFaultId.value = null
-}
-
-function openDraftFaultPhotoAdd(faultId: string) {
-  if (isMutating.value || !canAddFaultPhotos.value) {
-    return
-  }
-
-  if (shouldShowMobilePhotoMenu()) {
-    draftPhotoPickerFaultId.value = faultId
-    return
-  }
-
-  openDraftFaultGalleryPicker(faultId)
-}
-
-function chooseDraftPhotoSource(source: 'gallery' | 'camera') {
-  const faultId = draftPhotoPickerFaultId.value
-
-  if (!faultId) {
-    return
-  }
-
-  if (source === 'camera') {
-    openDraftFaultCameraPicker(faultId)
-  } else {
-    openDraftFaultGalleryPicker(faultId)
-  }
-
-  draftPhotoPickerFaultId.value = null
-}
-
-function openDraftFaultGalleryPicker(faultId: string) {
-  if (isMutating.value || !canAddFaultPhotos.value) {
-    return
-  }
-
-  const input = draftFaultPhotoInput.value
-
-  if (!input) {
-    return
-  }
-
-  selectedDraftFaultPhotoInputId.value = faultId
-  input.value = ''
-  input.click()
-  blurFileInput(input)
-}
-
-function openDraftFaultCameraPicker(faultId: string) {
-  if (isMutating.value || !canAddFaultPhotos.value) {
-    return
-  }
-
-  const input = draftFaultCameraInput.value
-
-  if (!input) {
-    return
-  }
-
-  selectedDraftFaultPhotoInputId.value = faultId
-  input.value = ''
-  input.click()
-  blurFileInput(input)
-}
-
-function handleDraftFaultPhotoInputSelection(event: Event) {
-  const faultId = selectedDraftFaultPhotoInputId.value
-  selectedDraftFaultPhotoInputId.value = null
-
-  if (!faultId) {
-    const input = event.target as HTMLInputElement
-    input.value = ''
-    return
-  }
-
-  handleDraftFaultPhotoSelection(faultId, event)
-}
-
-function handleDraftFaultPhotoSelection(faultId: string, event: Event) {
-  const input = event.target as HTMLInputElement
-  const files = Array.from(input.files || [])
-  const fault = draftFaults.value.find((item) => item.id === faultId)
-  input.value = ''
-
-  if (!fault) {
-    return
-  }
-
-  if (!canAddFaultPhotos.value) {
-    fault.photoError = 'Brak uprawnienia do dodawania zdjęć.'
-    return
-  }
-
-  fault.photoError = ''
-
-  files.forEach((file) => {
-    const validationError = validateRepairPhoto(file)
-
-    if (validationError) {
-      fault.photoError = validationError
-      return
-    }
-
-    fault.photos = [
-      ...fault.photos,
-      {
-        id: `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(16).slice(2)}`,
-        file,
-        objectUrl: URL.createObjectURL(file),
-      },
-    ]
-  })
-}
-
-function removeDraftFaultPhoto(faultId: string, photoId: string) {
-  const fault = draftFaults.value.find((item) => item.id === faultId)
-
-  if (!fault) {
-    return
-  }
-
-  const removedPhoto = fault.photos.find((photo) => photo.id === photoId)
-
-  if (removedPhoto) {
-    URL.revokeObjectURL(removedPhoto.objectUrl)
-  }
-
-  fault.photos = fault.photos.filter((photo) => photo.id !== photoId)
-}
-
 function openCreateModal() {
-  if (!canCreateRepairs.value) {
-    return
-  }
-
-  resetCreateForm()
-  isCreateModalOpen.value = true
-  void repairStore.loadDictionaries()
+  if (canCreateRepairs.value) isCreateModalOpen.value = true
 }
 
 function closeCreateModal() {
-  if (!isMutating.value) {
-    clearDraftFaultPhotoDrafts()
-    closeDraftPhotoPickerMenu()
-    selectedDraftFaultPhotoInputId.value = null
-    isCreateModalOpen.value = false
-    createResult.value = null
-    createResultMessage.value = ''
-    createdRepair.value = null
-  }
+  if (!isMutating.value) isCreateModalOpen.value = false
 }
 
-function openCreatedRepair() {
-  const repair = createdRepair.value
-  if (!repair) return
+function openRepairFromCreate(repair: Repair) {
   closeCreateModal()
   openRepairDetails(repair)
 }
 
-function openRepairFromCreate(repair: Repair | null) {
-  if (!repair) return
-  closeCreateModal()
-  openRepairDetails(repair)
+async function handleCreatedRepair() {
+  await refreshAfterMutation()
 }
-
 function mechanicDisplayName(mechanic: Mechanic) {
   return mechanic.fullName || [mechanic.firstName, mechanic.lastName].filter(Boolean).join(' ') || `Mechanik #${mechanic.id}`
 }
@@ -1885,10 +1267,6 @@ function repairPdfSection(repair: Repair) {
         <div><span>Planowany przyjazd</span><strong>${escapeHtml(formatDateTime(repair.plannedArrivalAt))}</strong></div>
         <div><span>Planowany odjazd</span><strong>${escapeHtml(formatDateTime(repair.plannedDepartureAt))}</strong></div>
         <div><span>Dodał</span><strong>${escapeHtml(createdBy)}</strong></div>
-      </div>
-      <div class="notes">
-        <span>Uwagi</span>
-        <p>${escapeHtml(repair.description || 'Brak uwag.')}</p>
       </div>
       <h2>Usterki</h2>
       <table>
@@ -2155,52 +1533,6 @@ async function refreshAfterMutation() {
   ])
 }
 
-async function submitCreateRepair() {
-  if (!canCreateRepairs.value) {
-    return
-  }
-
-  if (!validateCreateDetails()) {
-    createResult.value = null
-    createWizardStep.value = 0
-    return
-  }
-
-  createResult.value = null
-  createResultMessage.value = ''
-  isMutating.value = true
-
-  try {
-    const result = await repairStore.createRepairWithFaults({
-      vehicleId: Number(createForm.vehicleId),
-      placeId: Number(createForm.placeId),
-      plannedArrivalAt: toIsoDateTime(createForm.arrivalAt),
-      plannedDepartureAt: toIsoDateTime(createForm.departureAt),
-      status: normalizeRepairStatus(createForm.status),
-      description: nullableDescription(createForm.description),
-    }, canCreateFaults.value
-      ? draftFaults.value.map((fault) => ({
-          description: fault.description,
-          assignedMechanicId: null,
-          photos: canAddFaultPhotos.value ? fault.photos.map((photo) => photo.file) : [],
-        }))
-      : [], { silent: true })
-
-    await refreshAfterMutation()
-    createdRepair.value = result.repair
-    createResultMessage.value = result.photoUploadFailures
-      ? `Naprawa została utworzona, ale nie udało się wysłać części zdjęć (${result.photoUploadFailures}).`
-      : `Naprawa dla pojazdu ${repairVehicleLabel(result.repair)} została zapisana.`
-    createResult.value = 'success'
-    clearDraftFaultPhotoDrafts()
-  } catch (error) {
-    createResultMessage.value = getApiErrorMessage(error)
-    createResult.value = 'error'
-  } finally {
-    isMutating.value = false
-  }
-}
-
 function vehicleDriverLabel(vehicle: Vehicle) {
   return vehicle.driverName || ''
 }
@@ -2437,7 +1769,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   clearRepairMarkers()
-  clearDraftFaultPhotoDrafts()
 
 })
 </script>
