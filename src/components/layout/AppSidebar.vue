@@ -54,7 +54,7 @@
     </section>
 
     <nav class="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pt-5">
-      <p v-if="!displaySidebarCollapsed" class="mb-2 px-3 text-[10px] font-semibold uppercase text-ui-mutedText">
+      <p v-if="mainNavigation.length && !displaySidebarCollapsed" class="mb-2 px-3 text-[10px] font-semibold uppercase text-ui-mutedText">
         Menu
       </p>
       <div class="flex flex-col gap-1">
@@ -67,6 +67,23 @@
           :collapsed="displaySidebarCollapsed"
           @click="uiStore.setMobileSidebarOpen(false)"
         />
+      </div>
+
+      <div v-if="fleetNavigation.length" class="mt-5 border-t border-ui-border pt-4">
+        <p v-if="!displaySidebarCollapsed" class="mb-2 px-3 text-[10px] font-semibold uppercase text-ui-mutedText">
+          Flota
+        </p>
+        <div class="flex flex-col gap-1">
+          <SidebarItem
+            v-for="item in fleetNavigation"
+            :key="item.to"
+            :to="item.to"
+            :label="item.label"
+            :icon="item.icon"
+            :collapsed="displaySidebarCollapsed"
+            @click="uiStore.setMobileSidebarOpen(false)"
+          />
+        </div>
       </div>
 
       <div v-if="settingsNavigation.length" class="mt-5 border-t border-ui-border pt-4">
@@ -110,6 +127,7 @@ import {
   House,
   LogOut,
   MapPinned,
+  Route,
   Settings,
   Truck,
   UserRound,
@@ -119,18 +137,21 @@ import {
 import SidebarItem from './SidebarItem.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useUiStore } from '@/stores/uiStore'
+import { useVehicleReturnPermissions } from '@/composables/useVehicleReturnPermissions'
 
 const uiStore = useUiStore()
 const authStore = useAuthStore()
 const router = useRouter()
+const { canRead: canReadVehicleReturns } = useVehicleReturnPermissions()
 
-const baseNavigation: Array<{ to: string; label: string; icon: Component; group: 'main' | 'settings' }> = [
+const baseNavigation: Array<{ to: string; label: string; icon: Component; group: 'main' | 'fleet' | 'settings' }> = [
   { to: '/dashboard', label: 'Strona główna', icon: House, group: 'main' },
   { to: '/map', label: 'Mapa', icon: MapPinned, group: 'main' },
-  { to: '/vehicles', label: 'Pojazdy', icon: Truck, group: 'main' },
-  { to: '/devices', label: 'Urządzenia', icon: Cpu, group: 'main' },
-  { to: '/drivers', label: 'Kierowcy', icon: UserRound, group: 'main' },
-  { to: '/repairs', label: 'Naprawy', icon: Wrench, group: 'main' },
+  { to: '/vehicles', label: 'Pojazdy', icon: Truck, group: 'fleet' },
+  { to: '/devices', label: 'Urządzenia', icon: Cpu, group: 'fleet' },
+  { to: '/drivers', label: 'Kierowcy', icon: UserRound, group: 'fleet' },
+  { to: '/repairs', label: 'Naprawy', icon: Wrench, group: 'fleet' },
+  { to: '/trips', label: 'Zjazdy i wyjazdy', icon: Route, group: 'main' },
   { to: '/settings', label: 'Ustawienia', icon: Settings, group: 'settings' },
 ]
 
@@ -142,6 +163,7 @@ function hasPermissionPrefix(prefix: string) {
 }
 
 function canSeeNavigationItem(path: string) {
+  if (path === '/trips') return canReadVehicleReturns.value
   if (path === '/dashboard') return authStore.canManageCompany || authStore.hasActiveCompanyPermission('dashboard.read') || authStore.hasActiveCompanyPermission('positions.read')
   if (path === '/vehicles') return hasPermissionPrefix('vehicles.')
   if (path === '/devices') return hasPermissionPrefix('devices.')
@@ -178,6 +200,7 @@ function humanizeRole(value: string) {
 
 const visibleNavigation = computed(() => baseNavigation.filter((item) => canSeeNavigationItem(item.to)))
 const mainNavigation = computed(() => visibleNavigation.value.filter((item) => item.group === 'main'))
+const fleetNavigation = computed(() => visibleNavigation.value.filter((item) => item.group === 'fleet'))
 const settingsNavigation = computed(() => visibleNavigation.value.filter((item) => item.group === 'settings'))
 const displaySidebarCollapsed = computed(() => uiStore.sidebarCollapsed && !uiStore.mobileSidebarOpen)
 const companyRoleLabel = computed(() => {

@@ -5,6 +5,7 @@ import { authService } from '@/services/authService'
 import { useCompanyManagementStore } from './companyManagementStore'
 import { useDeviceStore } from './deviceStore'
 import { useDailyStatisticsStore } from './dailyStatisticsStore'
+import { useVehicleReturnStore } from './vehicleReturnStore'
 import { useDriverStore } from './driverStore'
 import { useFleetStore } from './fleetStore'
 import { useNotificationStore } from './notificationStore'
@@ -346,6 +347,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function clearLocalSession() {
+    useVehicleReturnStore().resetApiState()
     useDailyStatisticsStore().resetApiState()
     useFleetStore().resetApiState()
     useDeviceStore().resetApiState()

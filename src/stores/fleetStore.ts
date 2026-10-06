@@ -404,13 +404,16 @@ export const useFleetStore = defineStore('fleet', () => {
     alerts: alerts.value.length,
   }))
 
+  let vehicleRequest = 0
   async function fetchVehicles(options?: { silent?: boolean }) {
+    const request = ++vehicleRequest
     isVehiclesLoading.value = true
 
     try {
-      apiVehicles.value = await vehicleService.getVehicles(options)
+      const response = await vehicleService.getVehicles(options)
+      if (request === vehicleRequest) apiVehicles.value = response
     } finally {
-      isVehiclesLoading.value = false
+      if (request === vehicleRequest) isVehiclesLoading.value = false
     }
   }
 
@@ -750,6 +753,7 @@ export const useFleetStore = defineStore('fleet', () => {
   }
 
   function resetApiState() {
+    vehicleRequest += 1
     apiVehicles.value = []
     lastPositions.value = []
     vehicleGroups.value = []

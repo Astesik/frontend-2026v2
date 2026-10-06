@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "type-check": "vue-tsc --noEmit",
+    "test:vehicle-returns": "node scripts/test-vehicle-returns.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },

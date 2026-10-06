@@ -27,11 +27,7 @@
               <span v-else class="font-semibold text-ui-text">{{ vehicle.licensePlate }}</span>
             </td>
             <td class="max-w-64 px-3 py-2 align-top">
-              <ul v-if="vehicle.drivers.length" class="space-y-1">
-                <li v-for="driver in vehicle.drivers" :key="`${driver.driverId ?? driver.externalId}-${driver.slot}`" class="text-xs text-ui-text-secondary" :title="`Slot ${driver.slot + 1} · ${formatStatisticsDate(driver.firstSeenAt, timezone)} – ${formatStatisticsDate(driver.lastSeenAt, timezone)}`">
-                  {{ driver.driverName || (driver.driverId != null ? `Kierowca #${driver.driverId}` : `Kierowca ${driver.externalId}`) }}
-                </li>
-              </ul>
+              <span v-if="vehicle.drivers.length" class="block max-w-64 truncate text-xs text-ui-text-secondary" :title="driverNames(vehicle)">{{ driverNames(vehicle) }}</span>
               <span v-else class="ui-caption">Brak danych</span>
             </td>
             <td class="px-3 py-2 align-top text-right whitespace-nowrap tabular-nums">{{ formatStatisticsMetric(vehicle.distanceKm, 'km', 2) }}</td>
@@ -51,7 +47,7 @@ import { RouterLink } from 'vue-router'
 import { ArrowDown, ArrowUp, ArrowUpDown, Truck } from 'lucide-vue-next'
 import AppInput from '@/components/ui/AppInput.vue'
 import type { DailyVehicleStatistics } from '@/types/dailyStatistics'
-import { formatStatisticsDate, formatStatisticsMetric, sortDailyVehicleStatistics, type DailyStatisticsSortKey } from '@/utils/dailyStatistics'
+import { formatStatisticsMetric, sortDailyVehicleStatistics, type DailyStatisticsSortKey } from '@/utils/dailyStatistics'
 
 const props = defineProps<{ vehicles: DailyVehicleStatistics[]; timezone: string; canReadVehicles: boolean }>()
 const search = ref('')
@@ -67,6 +63,10 @@ const filteredVehicles = computed(() => {
   return props.vehicles.filter((vehicle) => [vehicle.licensePlate, ...vehicle.drivers.map((driver) => driver.driverName || driver.externalId)].some((text) => text.toLocaleLowerCase('pl-PL').includes(query)))
 })
 const sortedVehicles = computed(() => sortDailyVehicleStatistics(filteredVehicles.value, sortKey.value, sortDirection.value))
+
+function driverNames(vehicle: DailyVehicleStatistics) {
+  return vehicle.drivers.map((driver) => driver.driverName || (driver.driverId != null ? `Kierowca #${driver.driverId}` : `Kierowca ${driver.externalId}`)).join(', ')
+}
 
 function setSort(key: DailyStatisticsSortKey) {
   if (sortKey.value === key) sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'

@@ -777,49 +777,54 @@
 
     <div
       v-if="activeAlertTooltip"
-      class="fixed z-[80] w-80 -translate-y-1/2 rounded-[3px] bg-[#48484e] p-0 text-left normal-case text-white shadow-[0_3px_6px_-4px_rgba(0,0,0,.24),0_6px_12px_rgba(0,0,0,.16),0_9px_18px_8px_rgba(0,0,0,.10)]"
+      class="ui-popover fixed z-[80] w-80 -translate-y-1/2 p-3 text-left text-xs normal-case"
       :style="{ left: `${activeAlertTooltip.x}px`, top: `${activeAlertTooltip.y}px` }"
       @mouseenter="cancelAlertTooltipHide"
       @mouseleave="scheduleAlertTooltipHide"
       @click.stop
     >
-      <div class="flex items-center gap-1.5 border-b border-white/10 px-3.5 py-2 text-[13px] font-medium text-white/90">
-        <CircleAlert class="h-3.5 w-3.5" />
+      <div class="flex items-center gap-2 font-semibold text-ui-text">
+        <CircleAlert class="h-3.5 w-3.5 text-ui-icon" />
         <span>Alerty i terminy</span>
-        <span class="ml-auto rounded-[6px] bg-white/10 px-2 py-0.5 text-[11px]">
+        <span class="ml-auto rounded-[6px] border border-ui-border bg-ui-muted px-2 py-0.5 text-[11px] text-ui-text-secondary">
           {{ activeAlertTooltip.items.length }}
         </span>
       </div>
-      <div class="max-h-[70vh] space-y-2 overflow-y-auto px-3.5 py-2">
+      <div class="mt-2 max-h-[70vh] space-y-2 overflow-y-auto">
         <button
           v-for="alert in activeAlertTooltip.items"
           :key="alert.id"
           type="button"
-          class="block w-full rounded-sm border border-white/10 bg-white/[0.03] px-2.5 py-2 text-left transition"
-          :class="alert.repairId ? 'cursor-pointer hover:border-white/25 hover:bg-white/10' : 'cursor-default'"
+          class="block w-full border-t border-ui-divider py-2 text-left transition"
+          :class="alert.repairId ? 'cursor-pointer rounded-[6px] hover:bg-ui-dropdown-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus' : 'cursor-default'"
           @click="openAlertRepair(alert)"
         >
-          <div class="flex items-center justify-between gap-3">
-            <span class="font-medium text-white/90">{{ alert.title }}</span>
-            <span class="text-[11px]" :class="alertDeadlineClasses(alert)">{{ alert.daysLabel }}</span>
+          <div v-if="!alert.repairId" class="flex items-start justify-between gap-3">
+            <span class="min-w-0 break-words font-medium text-ui-text">{{ alert.title }}</span>
+            <span class="shrink-0 text-right text-[11px]" :class="alertDeadlineClasses(alert)">{{ alert.daysLabel }}</span>
           </div>
-          <div v-if="alert.repairId" class="mt-1.5 space-y-1 text-[11px] text-white/75">
-            <div class="flex items-center gap-1.5">
-              <Wrench class="h-2.5 w-2.5 shrink-0" />
-              <span class="truncate">Miejsce: {{ alert.placeName }}</span>
+          <div v-if="alert.repairId" class="space-y-3">
+            <div class="min-w-0 space-y-1 text-[11px] text-ui-text-secondary">
+              <p class="flex items-start gap-1.5">
+                <MapPin class="mt-0.5 h-3.5 w-3.5 shrink-0 text-ui-icon" />
+                <span class="min-w-0 break-words">Miejsce: <span class="font-medium text-ui-text">{{ alert.placeName }}</span></span>
+              </p>
+              <p class="flex items-start gap-1.5">
+                <UserRound class="mt-0.5 h-3.5 w-3.5 shrink-0 text-ui-icon" />
+                <span class="min-w-0 break-words">Dodał: {{ alert.createdByName }}</span>
+              </p>
             </div>
-            <div class="truncate">Dodał: {{ alert.createdByName }}</div>
-            <div>
-              <span class="font-medium text-white/90">Usterki:</span>
-              <ul v-if="alert.faults.length" class="mt-1 space-y-0.5 pl-3">
-                <li v-for="fault in alert.faults" :key="fault" class="list-disc">{{ fault }}</li>
-              </ul>
-              <span v-else class="ml-1">brak</span>
-            </div>
+            <ul v-if="alert.faults.length" class="divide-y divide-ui-divider">
+              <li v-for="(fault, index) in alert.faults" :key="index" class="flex items-start gap-2 py-2 first:pt-0 last:pb-0 text-sm text-ui-text">
+                <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-danger-500"></span>
+                <span class="min-w-0 whitespace-pre-wrap break-words font-semibold">{{ fault }}</span>
+              </li>
+            </ul>
+            <p v-else class="py-1 text-[11px] text-ui-mutedText">Brak otwartych usterek.</p>
           </div>
-          <div v-else class="mt-1 flex items-center gap-1.5 text-[11px] text-white/75">
-            <GlobeX v-if="alert.id === 'gps-offline'" class="h-2.5 w-2.5" />
-            <CircleAlert v-else class="h-2.5 w-2.5" />
+          <div v-else class="mt-1 flex items-center gap-1.5 text-[11px] text-ui-text-secondary">
+            <GlobeX v-if="alert.id === 'gps-offline'" class="h-3.5 w-3.5 shrink-0 text-ui-icon" />
+            <CircleAlert v-else class="h-3.5 w-3.5 shrink-0 text-ui-icon" />
             <span v-if="alert.dateLabel">
               Do:
               <span :class="alertDeadlineClasses(alert)">{{ alert.dateLabel }}</span>
@@ -1990,7 +1995,7 @@ function vehicleAlertItems(vehicle: Vehicle): VehicleAlertItem[] {
     repairId: repair.id,
     placeName: repair.placeName || repair.place?.name || 'Brak przypisanego miejsca',
     createdByName: repairCreatedByName(repair),
-    faults: repair.faults.map((fault) => fault.description).filter(Boolean),
+    faults: openRepairFaults(repair).map((fault) => fault.description).filter(Boolean),
   }))
 
   alerts.push(...repairAlerts)
@@ -2102,10 +2107,10 @@ function alertDeadlineClasses(alert: VehicleAlertItem) {
   }
 
   if (alert.variant === 'warning') {
-    return 'font-semibold text-amber-300'
+    return 'font-semibold text-warning-600 dark:text-warning-400'
   }
 
-  return 'text-white/55'
+  return 'text-ui-mutedText'
 }
 
 function vehicleAlertSeverity(vehicle: Vehicle) {

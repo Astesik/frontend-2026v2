@@ -81,7 +81,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'trips/:id',
         name: 'trip-detail',
-        component: () => import('@/views/TripDetailView.vue'),
+        redirect: (to) => ({ name: 'trips', query: { entry: String(to.params.id) } }),
       },
       {
         path: 'drivers',
