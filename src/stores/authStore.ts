@@ -4,6 +4,7 @@ import { refreshAccessToken, registerAuthSessionHandlers, setAuthToken } from '@
 import { authService } from '@/services/authService'
 import { useCompanyManagementStore } from './companyManagementStore'
 import { useDeviceStore } from './deviceStore'
+import { useDailyStatisticsStore } from './dailyStatisticsStore'
 import { useDriverStore } from './driverStore'
 import { useFleetStore } from './fleetStore'
 import { useNotificationStore } from './notificationStore'
@@ -345,6 +346,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function clearLocalSession() {
+    useDailyStatisticsStore().resetApiState()
     useFleetStore().resetApiState()
     useDeviceStore().resetApiState()
     useDriverStore().resetApiState()

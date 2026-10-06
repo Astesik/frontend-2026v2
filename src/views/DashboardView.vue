@@ -1,168 +1,112 @@
 <template>
-  <div class="space-y-6">
-    <header class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-      <div>
-        <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Centrum operacyjne</p>
-        <h1 class="mt-1 ui-page-title">Dashboard floty</h1>
-      </div>
-      <div class="grid gap-3 sm:grid-cols-2 lg:w-[34rem]">
-        <VehicleSelect
-          :model-value="fleetStore.selectedVehicleId"
-          label="Pojazd"
-          @update:model-value="fleetStore.setSelectedVehicle"
-        />
-        <DriverSelect
-          :model-value="fleetStore.selectedDriverId"
-          label="Kierowca"
-          @update:model-value="fleetStore.setSelectedDriver"
-        />
-      </div>
+  <div class="min-w-0 space-y-5 lg:flex lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:flex-col lg:gap-5 lg:space-y-0">
+    <header>
+      <h1 class="ui-page-title">Strona główna</h1>
     </header>
 
-    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-      <AppCard v-for="stat in stats" :key="stat.label" compact>
-        <div class="flex items-center justify-between gap-3">
+    <section class="grid gap-3 sm:grid-cols-3">
+      <AppCard v-for="metric in metrics" :key="metric.label" compact>
+        <div class="flex items-start justify-between gap-3">
           <div>
-            <p class="text-sm text-slate-500 dark:text-slate-400">{{ stat.label }}</p>
-            <p class="mt-2 text-2xl font-semibold text-slate-950 dark:text-slate-50">{{ stat.value }}</p>
+            <p class="ui-label text-ui-text-secondary">{{ metric.label }}</p>
+            <p class="mt-2 text-xl font-semibold tabular-nums text-ui-text">{{ metric.value }}</p>
           </div>
-          <component :is="stat.icon" class="h-5 w-5 text-slate-400" />
+          <component :is="metric.icon" class="h-5 w-5 shrink-0 text-ui-icon" />
         </div>
       </AppCard>
     </section>
 
-    <section class="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-      <AppCard title="Mapa floty" description="Podglad pozycji GPS i aktywnych pojazdow.">
-        <div class="relative h-[26rem] overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 dark:border-app-border dark:bg-app-elevated">
-          <div class="absolute inset-0 opacity-70">
-            <div class="absolute left-0 top-1/4 h-px w-full bg-slate-300 dark:bg-app-border"></div>
-            <div class="absolute left-0 top-2/3 h-px w-full bg-slate-300 dark:bg-app-border"></div>
-            <div class="absolute left-1/4 top-0 h-full w-px bg-slate-300 dark:bg-app-border"></div>
-            <div class="absolute left-2/3 top-0 h-full w-px bg-slate-300 dark:bg-app-border"></div>
-            <div class="absolute -left-16 top-32 h-24 w-[34rem] rotate-12 rounded-full border border-slate-300 dark:border-app-border"></div>
-            <div class="absolute left-24 top-8 h-[30rem] w-20 rotate-45 rounded-full border border-slate-300 dark:border-app-border"></div>
-          </div>
+    <AppCard :title="`Statystyki dzienne - ${statistics.vehicles.length} pojazdów`" :icon="ChartNoAxesCombined" compact class="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden" content-class="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+      <template #actions>
+        <AppIconButton label="Odśwież statystyki" :loading="statistics.isLoading" :disabled="!canReadStatistics" @click="refresh">
+          <RefreshCw class="h-4 w-4" />
+        </AppIconButton>
+      </template>
+      <p v-if="!canReadStatistics" class="py-8 text-center ui-body-sm text-ui-mutedText">Statystyki dzienne nie są dostępne dla tej sesji.</p>
+      <div v-else-if="statistics.isLoading && !statistics.data" class="flex items-center justify-center gap-2 py-12 ui-body-sm text-ui-mutedText" role="status"><LoaderCircle class="h-4 w-4 animate-spin" />Pobieranie statystyk...</div>
+      <div v-else-if="statistics.error && !statistics.data" class="py-8 text-center">
+        <p class="ui-body-sm text-danger-600 dark:text-danger-400" role="alert">{{ statistics.error }}</p>
+        <AppButton class="mt-3" size="sm" variant="secondary" @click="refresh"><RefreshCw class="h-3.5 w-3.5" />Spróbuj ponownie</AppButton>
+      </div>
+      <template v-else-if="statistics.data">
+        <p v-if="statistics.error" class="mb-3 ui-body-sm text-warning-600 dark:text-warning-400" role="alert">Nie udało się odświeżyć danych. Wyświetlane są ostatnio pobrane wyniki.</p>
+        <DailyVehicleStatisticsTable :key="statistics.companyId || ''" class="lg:min-h-0 lg:flex-1" :vehicles="statistics.vehicles" :timezone="statistics.data.timezone" :can-read-vehicles="canReadVehicles" />
+      </template>
+    </AppCard>
 
-          <div class="absolute left-[22%] top-[35%] flex items-center gap-2 rounded-[6px] border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-200">
-            <Truck class="h-4 w-4" />
-            WA 4829P
-          </div>
-          <div class="absolute right-[18%] top-[50%] flex items-center gap-2 rounded-[6px] border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-200">
-            <Truck class="h-4 w-4" />
-            PO 19H8C
-          </div>
-          <div class="absolute bottom-[18%] left-[48%] flex items-center gap-2 rounded-[6px] border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-200">
-            <Truck class="h-4 w-4" />
-            GD 1204R
-          </div>
-        </div>
-      </AppCard>
-
-      <AppCard title="Ostatnie pozycje GPS" description="Najnowsze punkty telemetryczne.">
-        <div class="space-y-4">
-          <div v-for="position in fleetStore.positions" :key="position.id" class="border-b border-slate-100 pb-4 last:border-0 last:pb-0 dark:border-app-border">
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <p class="font-medium text-slate-950 dark:text-slate-50">{{ position.vehicleName }}</p>
-                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ position.address }}</p>
-              </div>
-              <AppBadge variant="neutral">{{ position.timestamp }}</AppBadge>
-            </div>
-            <div class="mt-3 flex flex-wrap gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <span>{{ position.coordinates }}</span>
-              <span>•</span>
-              <span>{{ position.speed }} km/h</span>
-            </div>
-          </div>
-        </div>
-      </AppCard>
-    </section>
-
-    <section class="grid gap-6 xl:grid-cols-[1fr_0.8fr]">
-      <AppCard title="Pojazdy" description="Aktualny stan jednostek w trasie.">
-        <div class="space-y-3">
-          <div v-for="vehicle in visibleVehicles" :key="vehicle.id" class="flex flex-col gap-3 rounded-2xl border border-slate-100 px-4 py-3 dark:border-app-border sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0">
-              <div class="flex flex-wrap items-center gap-2">
-                <p class="font-medium text-slate-950 dark:text-slate-50">{{ vehicle.name }}</p>
-                <AppBadge :variant="statusVariant(vehicle.status)">{{ statusLabel(vehicle.status) }}</AppBadge>
-              </div>
-              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ vehicle.plateNumber }} • {{ vehicle.location }}</p>
-            </div>
-            <div class="flex shrink-0 items-center gap-4 text-sm text-slate-500 dark:text-slate-400">
-              <span>{{ vehicle.speed }} km/h</span>
-              <span>{{ vehicle.fuelLevel }}%</span>
-              <span>{{ vehicle.lastUpdate }}</span>
-            </div>
-          </div>
-        </div>
-      </AppCard>
-
-      <AppCard title="Alerty i aktywnosc" description="Ostatnie zdarzenia operacyjne.">
-        <div class="space-y-4">
-          <div v-for="alert in fleetStore.alerts" :key="alert.id" class="flex gap-3 border-b border-slate-100 pb-4 last:border-0 last:pb-0 dark:border-app-border">
-            <div class="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 dark:bg-app-elevated dark:text-slate-300">
-              <Bell class="h-4 w-4" />
-            </div>
-            <div class="min-w-0 flex-1">
-              <div class="flex items-start justify-between gap-3">
-                <p class="font-medium text-slate-950 dark:text-slate-50">{{ alert.title }}</p>
-                <AppBadge :variant="alert.type">{{ alert.timestamp }}</AppBadge>
-              </div>
-              <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ alert.description }}</p>
-            </div>
-          </div>
-        </div>
-      </AppCard>
-    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Activity, Bell, CirclePause, Signal, TriangleAlert, Truck } from 'lucide-vue-next'
-import DriverSelect from '@/components/selects/DriverSelect.vue'
-import VehicleSelect from '@/components/selects/VehicleSelect.vue'
-import AppBadge from '@/components/ui/AppBadge.vue'
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
+import { ChartNoAxesCombined, Fuel, Gauge, LoaderCircle, RefreshCw, Route } from 'lucide-vue-next'
+import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
-import { useFleetStore } from '@/stores/fleetStore'
-import type { VehicleStatus } from '@/types/fleet'
+import AppIconButton from '@/components/ui/AppIconButton.vue'
+import DailyVehicleStatisticsTable from '@/components/statistics/DailyVehicleStatisticsTable.vue'
+import { useAuthStore } from '@/stores/authStore'
+import { useDailyStatisticsStore } from '@/stores/dailyStatisticsStore'
+import { formatStatisticsMetric } from '@/utils/dailyStatistics'
 
-const fleetStore = useFleetStore()
+const authStore = useAuthStore()
+const statistics = useDailyStatisticsStore()
+const canReadStatistics = computed(() => Boolean(authStore.isAuthenticated && authStore.activeCompanyId && (authStore.canManageCompany || authStore.hasActiveCompanyPermission('positions.read'))))
+const canReadVehicles = computed(() => authStore.canManageCompany || authStore.hasActiveCompanyPermission('vehicles.read'))
+const metrics = computed(() => {
+  const rows = statistics.vehicles
+  const distances = rows.filter((row) => row.distanceKm != null)
+  const fuels = rows.filter((row) => row.fuelUsedLiters != null)
+  const paired = rows.filter((row) => row.distanceKm != null && row.distanceKm > 0 && row.fuelUsedLiters != null && row.averageFuelConsumptionLPer100Km != null)
+  const pairedDistance = paired.reduce((sum, row) => sum + row.distanceKm!, 0)
+  const pairedFuel = paired.reduce((sum, row) => sum + row.fuelUsedLiters!, 0)
+  return [
+    { label: 'Przejechane kilometry', value: formatStatisticsMetric(distances.length ? distances.reduce((sum, row) => sum + row.distanceKm!, 0) : null, 'km', 2), icon: Route },
+    { label: 'Zużyte paliwo', value: formatStatisticsMetric(fuels.length ? fuels.reduce((sum, row) => sum + row.fuelUsedLiters!, 0) : null, 'l'), icon: Fuel },
+    { label: 'Średnie spalanie floty', value: formatStatisticsMetric(pairedDistance > 0 ? pairedFuel / pairedDistance * 100 : null, 'l/100 km', 2), icon: Gauge },
+  ]
+})
 
-const stats = computed(() => [
-  { label: 'Pojazdy', value: fleetStore.fleetStats.total, icon: Truck },
-  { label: 'W ruchu', value: fleetStore.fleetStats.moving, icon: Activity },
-  { label: 'Postoj', value: fleetStore.fleetStats.idle, icon: CirclePause },
-  { label: 'Offline', value: fleetStore.fleetStats.offline, icon: Signal },
-  { label: 'Alerty', value: fleetStore.fleetStats.alerts, icon: TriangleAlert },
-])
+let timer: ReturnType<typeof setTimeout> | null = null
+let mounted = false
+let viewGeneration = 0
 
-const visibleVehicles = computed(() => fleetStore.vehicles.filter((vehicle) => {
-  const vehicleMatches = fleetStore.selectedVehicleId === 'all' || vehicle.id === fleetStore.selectedVehicleId
-  const driverMatches = fleetStore.selectedDriverId === 'all' || vehicle.driverId === fleetStore.selectedDriverId
-  return vehicleMatches && driverMatches
-}))
-
-function statusLabel(status: VehicleStatus) {
-  const labels: Record<VehicleStatus, string> = {
-    moving: 'W ruchu',
-    idle: 'Postoj',
-    offline: 'Offline',
-    service: 'Serwis',
-  }
-
-  return labels[status]
+function stopTimer() {
+  if (timer != null) clearTimeout(timer)
+  timer = null
 }
 
-function statusVariant(status: VehicleStatus) {
-  const variants: Record<VehicleStatus, 'neutral' | 'success' | 'warning' | 'error' | 'info'> = {
-    moving: 'success',
-    idle: 'info',
-    offline: 'error',
-    service: 'warning',
+async function refresh() {
+  stopTimer()
+  if (!canReadStatistics.value || !authStore.activeCompanyId || document.hidden) return
+  const currentGeneration = viewGeneration
+  await statistics.load(authStore.activeCompanyId)
+  if (mounted && currentGeneration === viewGeneration && canReadStatistics.value && !document.hidden) {
+    stopTimer()
+    timer = setTimeout(() => { void refresh() }, 30_000)
   }
-
-  return variants[status]
 }
+
+function visibilityChanged() {
+  stopTimer()
+  if (!document.hidden) void refresh()
+}
+
+watch([() => authStore.activeCompanyId, canReadStatistics], () => {
+  viewGeneration += 1
+  stopTimer()
+  statistics.resetApiState()
+  if (mounted) void refresh()
+})
+
+onMounted(() => {
+  mounted = true
+  document.addEventListener('visibilitychange', visibilityChanged)
+  void refresh()
+})
+onBeforeUnmount(() => {
+  mounted = false
+  viewGeneration += 1
+  stopTimer()
+  document.removeEventListener('visibilitychange', visibilityChanged)
+})
 </script>

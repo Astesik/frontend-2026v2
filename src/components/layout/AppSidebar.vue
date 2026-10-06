@@ -107,6 +107,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Cpu,
+  House,
   LogOut,
   MapPinned,
   Settings,
@@ -124,6 +125,7 @@ const authStore = useAuthStore()
 const router = useRouter()
 
 const baseNavigation: Array<{ to: string; label: string; icon: Component; group: 'main' | 'settings' }> = [
+  { to: '/dashboard', label: 'Strona główna', icon: House, group: 'main' },
   { to: '/map', label: 'Mapa', icon: MapPinned, group: 'main' },
   { to: '/vehicles', label: 'Pojazdy', icon: Truck, group: 'main' },
   { to: '/devices', label: 'Urządzenia', icon: Cpu, group: 'main' },
@@ -140,6 +142,7 @@ function hasPermissionPrefix(prefix: string) {
 }
 
 function canSeeNavigationItem(path: string) {
+  if (path === '/dashboard') return authStore.canManageCompany || authStore.hasActiveCompanyPermission('dashboard.read') || authStore.hasActiveCompanyPermission('positions.read')
   if (path === '/vehicles') return hasPermissionPrefix('vehicles.')
   if (path === '/devices') return hasPermissionPrefix('devices.')
   if (path === '/drivers') return hasPermissionPrefix('drivers.')

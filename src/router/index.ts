@@ -27,6 +27,7 @@ const routes: RouteRecordRaw[] = [
     children: [
       {
         path: 'dashboard',
+        alias: '/home',
         name: 'dashboard',
         component: () => import('@/views/DashboardView.vue'),
       },
