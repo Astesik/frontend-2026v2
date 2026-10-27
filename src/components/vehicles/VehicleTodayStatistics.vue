@@ -4,7 +4,7 @@
       <dt class="text-ui-mutedText">Dystans dziś</dt>
       <dd class="text-right font-semibold tabular-nums text-ui-text" :title="error" :aria-busy="loading">{{ distanceLabel }}</dd>
     </div>
-    <div class="flex items-center justify-between gap-3 px-3 py-2">
+    <div v-if="!hideConsumption" class="flex items-center justify-between gap-3 px-3 py-2">
       <dt class="shrink-0 text-ui-mutedText">Spalanie dziś</dt>
       <dd class="text-right font-semibold tabular-nums text-ui-text" :title="error" :aria-busy="loading">{{ consumptionLabel }}</dd>
     </div>
@@ -18,14 +18,21 @@ import { todayHistoryRange } from '@/utils/historyTime'
 import { historyMetric } from '@/utils/localPositionHistory'
 import type { LocalHistorySummary } from '@/types/localPositionHistory'
 
-const props = defineProps<{ vehicleId: number; companyId: number | string | null; enabled: boolean; refreshKey: number }>()
+const props = defineProps<{ vehicleId: number; companyId: number | string | null; enabled: boolean; refreshKey: number; hideConsumption?: boolean }>()
 const summary = shallowRef<LocalHistorySummary | null>(null)
 const loading = ref(false)
 const error = ref('')
-const distanceLabel = computed(() => loading.value && !summary.value ? 'Pobieranie…' : historyMetric(summary.value?.distanceKm, 'km'))
+const distanceLabel = computed(() => {
+  if (loading.value && !summary.value) return 'Pobieranie…'
+  if (error.value) return 'Brak danych'
+  const distance = summary.value?.distanceKm
+  return distance != null && Number.isFinite(distance) ? historyMetric(distance, 'km') : '0 km'
+})
 const consumptionLabel = computed(() => {
   if (loading.value && !summary.value) return 'Pobieranie…'
-  const consumption = historyMetric(summary.value?.consumptionLPer100Km, 'l/100 km')
+  if (error.value) return 'Brak danych'
+  const value = summary.value?.consumptionLPer100Km
+  const consumption = value != null && Number.isFinite(value) ? historyMetric(value, 'l/100 km') : '0 l/100 km'
   const fuel = summary.value?.fuelUsedLiters
   return fuel != null && Number.isFinite(fuel) ? `${consumption} (${historyMetric(fuel, 'l')})` : consumption
 })

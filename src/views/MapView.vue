@@ -631,7 +631,7 @@
                 <div v-if="selectedVehicle.vehicleType !== 'trailer'" class="flex items-center justify-between gap-3 px-3 py-2">
                   <dt class="text-ui-mutedText">Paliwo</dt><dd class="font-semibold text-ui-text">{{ formatFuel(selectedVehicle) }}</dd>
                 </div>
-                <div class="flex items-center justify-between gap-3 px-3 py-2">
+                <div v-if="hasSelectedVehicleBattery" class="flex items-center justify-between gap-3 px-3 py-2">
                   <dt class="text-ui-mutedText">Bateria</dt>
                   <dd><VehicleBatteryLevel :level="selectedVehicle.batteryLevel" /></dd>
                 </div>
@@ -644,6 +644,7 @@
                 </div>
                 <VehicleTodayStatistics
                   :vehicle-id="selectedVehicle.backendId"
+                  :hide-consumption="selectedVehicle.vehicleType === 'trailer'"
                   :company-id="authStore.activeCompanyId"
                   :enabled="workspaceActive && canReadLocalHistory"
                   :refresh-key="positionRefreshNextAt"
@@ -653,7 +654,7 @@
                 </div>
               </dl>
 
-              <div class="border-t border-ui-divider bg-ui-muted px-3 py-1.5 text-[10px] font-semibold uppercase text-ui-mutedText">Przeglądy i winiety</div>
+              <div class="border-t border-ui-divider bg-ui-muted px-3 py-1.5 text-[10px] font-semibold uppercase text-ui-mutedText">{{ selectedVehicle.vehicleType === 'trailer' ? 'Przeglądy' : 'Przeglądy i winiety' }}</div>
               <div class="divide-y divide-ui-divider">
                 <div v-for="item in selectedVehicleLifecycleItems" :key="item.label" class="flex items-center justify-between gap-2 px-3 py-2">
                   <div class="min-w-0"><p class="truncate text-xs font-medium text-ui-text">{{ item.label }}</p><p class="text-[10px] text-ui-mutedText">{{ item.dateLabel }}</p></div>
@@ -1201,6 +1202,10 @@ const selectedVehicle = computed(() => (
     : null
 ))
 const canReadVehiclePhotos = computed(() => authStore.hasActiveCompanyPermission('vehicle_photos.read'))
+const hasSelectedVehicleBattery = computed(() => {
+  const level = selectedVehicle.value?.batteryLevel
+  return typeof level === 'number' && Number.isFinite(level) && level >= 0 && level <= 100
+})
 const canReadLocalHistory = computed(() => Boolean(authStore.isAuthenticated && authStore.activeCompanyId && (authStore.hasActiveCompanyRole('COMPANY_ADMIN') || authStore.user?.sysAdmin === true || (authStore.hasActiveCompanyPermission('positions.read') && authStore.hasActiveCompanyPermission('vehicles.read')))))
 const canCreateRepairs = computed(() => authStore.canManageCompany || authStore.hasActiveCompanyPermission('repairs.create'))
 const canCreateVehicleFaults = computed(() => authStore.canManageCompany || authStore.hasActiveCompanyPermission('faults.create'))
@@ -1376,14 +1381,16 @@ const selectedVehicleLifecycleItems = computed(() => {
       label: 'Przegląd techniczny',
       date: selectedVehicle.value.technicalInspection,
     },
-    {
-      label: 'Tachograf',
-      date: selectedVehicle.value.tachographInspection,
-    },
-    {
-      label: 'Winieta UK',
-      date: selectedVehicle.value.vignetteUk,
-    },
+    ...(selectedVehicle.value.vehicleType === 'trailer' ? [] : [
+      {
+        label: 'Tachograf',
+        date: selectedVehicle.value.tachographInspection,
+      },
+      {
+        label: 'Winieta UK',
+        date: selectedVehicle.value.vignetteUk,
+      },
+    ]),
   ].map((item) => {
     const daysLeft = daysUntilDate(item.date)
 
