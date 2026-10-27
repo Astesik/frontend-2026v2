@@ -10,9 +10,9 @@ export function returnTripRequest(entry: VehicleReturnEntry): DriverTripRequest 
 export function validHistoryPosition(point: {lat:number|null;lon:number|null;positionValid?:boolean}) {
   return point.positionValid !== false && point.lat != null && point.lon != null && Number.isFinite(point.lat) && Number.isFinite(point.lon) && Math.abs(point.lat) <= 90 && Math.abs(point.lon) <= 180
 }
-export function historySegmentBreak(previous: LocalHistoryPoint, point: LocalHistoryPoint) {
+export function historySegmentBreak(previous: LocalHistoryPoint, point: LocalHistoryPoint, connectTelemetryGaps = false) {
   const gap = Date.parse(point.ts) - Date.parse(previous.ts)
-  return previous.deviceId !== point.deviceId || previous.provider !== point.provider || !Number.isFinite(gap) || gap < 0 || gap > 300000
+  return previous.deviceId !== point.deviceId || previous.provider !== point.provider || !Number.isFinite(gap) || gap < 0 || (!connectTelemetryGaps && gap > 300000)
 }
 export function historyMetric(value: number | null | undefined, unit = '') {
   return value == null || !Number.isFinite(value) ? 'Brak danych' : new Intl.NumberFormat('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2}).format(value) + (unit ? ' ' + unit : '')
@@ -30,6 +30,7 @@ export function historyPointFuel(point: Pick<LocalHistoryPoint, 'fuelLiters' | '
 }
 export function fuelEventLabel(event: LocalFuelEvent) { return event.type === 'POSSIBLE_REFUEL' ? 'Możliwe tankowanie' : 'Potencjalny ubytek paliwa' }
 const warnings: Record<string,string> = {
+  GAPS_IN_TELEMETRY:'W danych pojazdu występują przerwy. Historia trasy może być niepełna.',
   PARTIAL_COUNTER_COVERAGE:'Niepełne pokrycie liczników — podsumowanie może obejmować tylko część przejazdu.',
   UNCONFIRMED_FUEL_CHANGE:'Wykryto niepotwierdzoną zmianę poziomu paliwa.',
   FUEL_EVENT_LIMIT_REACHED:'Raport osiągnął limit zdarzeń paliwowych.',
@@ -37,4 +38,4 @@ const warnings: Record<string,string> = {
   WHOLE_VEHICLE_ROUTE_AFTER_DRIVER_START:'Raport obejmuje całą trasę pojazdu od pierwszego odczytu kierowcy, także po późniejszej zmianie kierowcy.',
   IDENTIFIER_WITHOUT_ABSENCE_FLAG:'Obecność karty została ustalona na podstawie identyfikatora, bez jawnej flagi obecności.',
 }
-export function localHistoryWarning(code: string) { return warnings[code] || 'Ostrzeżenie danych: ' + code }
+export function localHistoryWarning(code: string) { return warnings[code.toUpperCase()] || 'Ostrzeżenie danych: ' + code }

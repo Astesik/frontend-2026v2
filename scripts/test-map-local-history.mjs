@@ -42,6 +42,23 @@ assert.equal(history.records.value[4].id,5)
 history.clear()
 assert.equal(history.path.value.length,0)
 assert.equal(history.segmentStarts.value.length,0)
+let vehicleType = 'trailer'
+const trailerHistory = load('src/composables/usePositionHistory.ts',{'@/utils/localPositionHistory':utils}).usePositionHistory({connectTelemetryGaps:()=>vehicleType === 'trailer'})
+const sparsePoints = [first, {...first,id:2,ts:'2026-10-06T09:00:00Z',lat:null}, {...first,id:3,ts:'2026-10-06T14:00:00Z',lon:20}]
+trailerHistory.replace(sparsePoints)
+assert.deepEqual(plain(trailerHistory.segmentStarts.value),[0], 'Trailer points six hours apart must remain connected')
+assert.deepEqual(plain(trailerHistory.pathRecordIndexes.value),[0,2], 'Invalid GPS points must still be skipped')
+trailerHistory.append([{...first,id:4,ts:'2026-10-08T14:00:00Z',lon:21}])
+assert.deepEqual(plain(trailerHistory.segmentStarts.value),[0], 'Paged trailer points must connect across multi-day gaps')
+assert.equal(trailerHistory.path.value.length,3)
+vehicleType = 'truck'
+trailerHistory.replace(sparsePoints)
+assert.deepEqual(plain(trailerHistory.segmentStarts.value),[0,1], 'Trucks must retain their existing gap segmentation')
+vehicleType = 'trailer'
+trailerHistory.replace([first,{...first,id:5,deviceId:2,ts:'2026-10-06T14:00:00Z'},{...first,id:6,deviceId:2,provider:'OTHER',ts:'2026-10-06T20:00:00Z'}])
+assert.deepEqual(plain(trailerHistory.segmentStarts.value),[0,1,2], 'Device and provider changes must still split the route')
+trailerHistory.clear()
+assert.equal(trailerHistory.path.value.length,0)
 const calls=[]
 let apiPage
 const module=load('src/services/localPositionHistoryService.ts',{'./api':{api:{post:async(url,body,config)=>{calls.push({url,body:plain(body),signal:config.signal});return {data:await apiPage(body,url)}}}}})

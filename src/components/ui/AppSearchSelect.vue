@@ -192,5 +192,8 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 watch(() => props.modelValue, syncSelectedLabel, { immediate: true })
-watch(() => props.options, syncSelectedLabel)
+watch(() => props.options, () => {
+  if (isOpen.value) activeIndex.value = firstEnabledIndex()
+  else syncSelectedLabel()
+})
 </script>

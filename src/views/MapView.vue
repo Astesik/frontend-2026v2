@@ -255,7 +255,7 @@
             </div>
           </dl>
           <ul v-if="historyWarnings.length" class="mt-3 space-y-2 text-[11px] text-warning-600 dark:text-warning-400">
-            <li v-for="warning in historyWarnings" :key="warning">{{ warning }}</li>
+            <li v-for="warning in historyWarnings" :key="warning" class="rounded-xl border border-yellow-200 bg-yellow-50 px-2.5 py-2 text-yellow-800 dark:border-yellow-700/50 dark:bg-yellow-950/40 dark:text-yellow-200">{{ warning }}</li>
           </ul>
           <p v-if="!fleetStore.isRouteHistoryLoading && !positionHistory.records.value.length" class="mt-3 ui-caption text-ui-mutedText">Brak historii w lokalnej bazie dla tego zakresu.</p>
           <div v-if="historyFuelEvents.length" class="mt-3 space-y-2 border-t border-ui-border pt-3">
@@ -626,7 +626,6 @@
                   <dt class="text-ui-mutedText">Kierowca</dt>
                   <dd class="flex min-w-0 items-center justify-end gap-1.5">
                     <span class="truncate font-semibold text-ui-text">{{ vehicleDriverLabel(selectedVehicle) || '[]' }}</span>
-                    <AppButton class="!h-6 shrink-0 !px-1.5 !text-[10px]" variant="secondary" size="sm"><Gauge class="h-3 w-3" />Tacho</AppButton>
                   </dd>
                 </div>
                 <div v-if="selectedVehicle.vehicleType !== 'trailer'" class="flex items-center justify-between gap-3 px-3 py-2">
@@ -643,6 +642,12 @@
                     <button type="button" class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] text-ui-icon transition hover:bg-ui-hover hover:text-ui-text" title="Kopiuj koordynaty" @click="copyVehiclePosition(selectedVehicle)"><Copy class="h-3.5 w-3.5" /></button>
                   </dd>
                 </div>
+                <VehicleTodayStatistics
+                  :vehicle-id="selectedVehicle.backendId"
+                  :company-id="authStore.activeCompanyId"
+                  :enabled="workspaceActive && canReadLocalHistory"
+                  :refresh-key="positionRefreshNextAt"
+                />
                 <div class="flex items-center justify-between gap-3 px-3 py-2">
                   <dt class="text-ui-mutedText">Aktualizacja</dt><dd class="text-right font-semibold text-ui-text">{{ vehicleSignalLabel(selectedVehicle) }}</dd>
                 </div>
@@ -836,9 +841,10 @@ import { useWorkspacePortal } from '@/composables/useWorkspace'
 import { storeToRefs } from 'pinia'
 import { computed, defineComponent, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref, render, shallowRef, watch, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Check, CircleAlert, Container, Copy, Flag, Gauge, GlobeX, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, UserRound, Wrench, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Check, CircleAlert, Container, Copy, Flag, GlobeX, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, UserRound, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import VehicleBatteryLevel from '@/components/vehicles/VehicleBatteryLevel.vue'
+import VehicleTodayStatistics from '@/components/vehicles/VehicleTodayStatistics.vue'
 import FleetVehicleList from '@/components/map/FleetVehicleList.vue'
 import { Fuel } from 'lucide-vue-next'
 import FuelStationMapLayer from '@/components/fuel-stations/FuelStationMapLayer.vue'
@@ -1066,7 +1072,7 @@ const {
   isLoading: arePlacesLoading,
   isMutating: isPlaceMutating,
 } = storeToRefs(placeStore)
-const positionHistory = usePositionHistory()
+const positionHistory = usePositionHistory({ connectTelemetryGaps: () => selectedVehicle.value?.vehicleType === 'trailer' })
 const activeMode = ref<MapMode>('list')
 const selectedFleetId = ref(readSelectedFleet())
 const selectedVehicleId = ref<string | null>(null)
@@ -1342,7 +1348,9 @@ const historyDistanceLabel = computed(() => historyMetric(fleetStore.currentPosi
 const historyFuelUsedLabel = computed(() => historyMetric(fleetStore.currentPositionHistorySummary?.fuelUsedLiters ?? null, 'l'))
 const historyConsumptionLabel = computed(() => historyMetric(fleetStore.currentPositionHistorySummary?.consumptionLPer100Km ?? null, 'l/100 km'))
 const historyWarnings = computed(() => {
-  const warnings = (fleetStore.currentPositionHistorySummary?.warnings || []).map(localHistoryWarning)
+  const warnings = (fleetStore.currentPositionHistorySummary?.warnings || [])
+    .filter(code => code.toUpperCase() !== 'GAPS_IN_TELEMETRY')
+    .map(localHistoryWarning)
   if (fleetStore.currentPositionHistorySummary?.distanceSource === 'GPS_ESTIMATE') warnings.unshift('Kilometry są oszacowaniem odległości między odczytami GPS, nie przebiegiem drogowym.')
   if (fleetStore.currentPositionHistoryVehicleId && !fleetStore.isRouteHistoryLoading && !fleetStore.currentPositionHistoryComplete) warnings.unshift('Nie pobrano całej historii. Widoczna trasa może być niepełna.')
   return warnings

@@ -26,7 +26,7 @@ function sortHistory(points: ApiPositionHistoryPoint[]) {
   return [...points].sort((first, second) => historyTimestamp(first) - historyTimestamp(second) || first.id - second.id)
 }
 
-export function usePositionHistory() {
+export function usePositionHistory(options: { connectTelemetryGaps?: () => boolean } = {}) {
   const records = shallowRef<ApiPositionHistoryPoint[]>(markRaw([]))
   const path = shallowRef<RouteLatLng[]>(markRaw([]))
   const pathRecordIndexes = shallowRef<number[]>(markRaw([]))
@@ -43,7 +43,7 @@ export function usePositionHistory() {
         return
       }
 
-      if (!previous || historySegmentBreak(previous, point)) nextStarts.push(nextPath.length)
+      if (!previous || historySegmentBreak(previous, point, options.connectTelemetryGaps?.() ?? false)) nextStarts.push(nextPath.length)
       nextPath.push({ lat: point.lat!, lng: point.lon! })
       nextIndexes.push(recordIndex)
       previous = point
