@@ -132,12 +132,12 @@
             <AppInput v-model="createForm.make" label="Marka" />
             <AppInput v-model="createForm.vin" label="VIN" />
             <AppInput v-model="createForm.productionYear" label="Rok produkcji" type="number" />
-            <AppDatePicker v-model="createForm.firstRegistration" label="Pierwsza rejestracja" />
-            <AppDatePicker v-model="createForm.technicalInspection" label="Przegląd techniczny" />
-            <AppDatePicker v-model="createForm.tachographInspection" label="Legalizacja tachografu" />
-            <AppDatePicker v-model="createForm.vignetteUk" label="Winieta UK" />
-            <AppDatePicker v-model="createForm.vignetteLuxembourg" label="Winieta Luksemburg" />
-            <AppDatePicker v-model="createForm.vignetteDenmark" label="Winieta Dania" />
+            <AppDatePicker v-model="createForm.firstRegistration" editable label="Pierwsza rejestracja" />
+            <AppDatePicker v-model="createForm.technicalInspection" editable label="Przegląd techniczny" />
+            <AppDatePicker v-model="createForm.tachographInspection" editable label="Legalizacja tachografu" />
+            <AppDatePicker v-model="createForm.vignetteUk" editable label="Winieta UK" />
+            <AppDatePicker v-model="createForm.vignetteLuxembourg" editable label="Winieta Luksemburg" />
+            <AppDatePicker v-model="createForm.vignetteDenmark" editable label="Winieta Dania" />
             <AppInput v-model="createForm.fuelTank" label="Zbiornik paliwa" type="number" />
             <AppSelect v-model="createForm.status" label="Status" :options="vehicleStatusFormOptions" />
             <AppTextarea

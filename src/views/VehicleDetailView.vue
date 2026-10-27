@@ -48,14 +48,14 @@
           <form id="vehicle-inline-edit-form" @submit.prevent="submitVehicleEdit">
             <table class="vehicle-information-table w-full table-fixed border-collapse" aria-label="Informacje o pojeździe">
               <tbody>
-                <InfoRow label="Numer rejestracyjny" :value="vehicle.licensePlate" :editing="isEditModalOpen">
+                <InfoRow label="Numer rejestracyjny" :value="vehicle.licensePlate" :editing="isEditModalOpen" copyable>
                   <input v-model="editForm.licensePlate" class="vehicle-inline-control" aria-label="Numer rejestracyjny" :disabled="isUpdatingVehicle" required />
                 </InfoRow>
-                <InfoRow label="VIN" :value="vehicle.vin" :editing="isEditModalOpen">
+                <InfoRow label="VIN" :value="vehicle.vin" :editing="isEditModalOpen" copyable>
                   <input v-model="editForm.vin" class="vehicle-inline-control" aria-label="VIN" :disabled="isUpdatingVehicle" />
                 </InfoRow>
-                <InfoRow label="Pierwsza rejestracja" :value="formatDate(vehicle.firstRegistration)" :editing="isEditModalOpen">
-                  <AppDatePicker v-model="editForm.firstRegistration" inline aria-label="Pierwsza rejestracja" :disabled="isUpdatingVehicle" />
+                <InfoRow label="Pierwsza rejestracja" :value="formatDate(vehicle.firstRegistration)" :editing="isEditModalOpen" copyable>
+                  <AppDatePicker v-model="editForm.firstRegistration" inline editable aria-label="Pierwsza rejestracja" :disabled="isUpdatingVehicle" />
                 </InfoRow>
                 <InfoRow label="Typ pojazdu" :value="vehicleTypeLabel(vehicle.type)" :editing="isEditModalOpen">
                   <template #display><span class="inline-flex items-center gap-1.5"><VehicleTypeIcon :type="vehicle.type" class="h-4 w-4" />{{ vehicleTypeLabel(vehicle.type) }}</span></template>
@@ -422,7 +422,7 @@ import { useWorkspaceDirty, useWorkspaceTitle, useWorkspaceViewState } from '@/c
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type PropType } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Battery, CalendarCheck, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleCheck, Cpu, Ellipsis, ExternalLink, FileText, Files, History, Images, Info, MapPin, Plus, RefreshCw, SquarePen, Truck, Unplug, Wrench, X } from 'lucide-vue-next'
+import { ArrowLeft, Battery, CalendarCheck, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleCheck, Copy, Cpu, Ellipsis, ExternalLink, FileText, Files, History, Images, Info, MapPin, Plus, RefreshCw, SquarePen, Truck, Unplug, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
@@ -716,6 +716,7 @@ const InfoRow = defineComponent({
     value: { type: [String, Number] as PropType<string | number | null | undefined>, default: null },
     editing: Boolean,
     multiline: Boolean,
+    copyable: Boolean,
   },
   setup(props, { slots }) {
     return () => h('tr', { class: 'border-b border-ui-border last:border-b-0' }, [
@@ -725,7 +726,10 @@ const InfoRow = defineComponent({
       h('td', { class: 'px-2 py-1 align-top text-left text-[13px] font-semibold leading-5 text-ui-text' }, [
         h('div', { class: 'relative min-w-0' }, [
           // Keep the display text in the flow so editors cannot change row geometry.
-          h('div', { class: ['min-h-9 whitespace-pre-wrap break-words border border-transparent px-2 py-[7px]', props.multiline ? 'min-h-[5.5rem]' : '', props.editing ? 'invisible' : ''], 'aria-hidden': props.editing || undefined }, slots.display?.() ?? formatValue(props.value)),
+          h('div', { class: ['min-h-9 whitespace-pre-wrap break-words border border-transparent px-2 py-[7px]', props.copyable ? 'pr-9' : '', props.multiline ? 'min-h-[5.5rem]' : '', props.editing ? 'invisible' : ''], 'aria-hidden': props.editing || undefined }, slots.display?.() ?? formatValue(props.value)),
+          props.copyable && !props.editing && props.value != null && props.value !== '' && props.value !== '-'
+            ? h(AppIconButton, { label: `Kopiuj: ${props.label}`, size: 'sm', variant: 'ghost', class: 'absolute right-0 top-0.5', onClick: () => copyVehicleInformation(String(props.value), props.label) }, () => h(Copy, { class: 'h-3.5 w-3.5' }))
+            : null,
           props.editing ? h('div', { class: 'absolute inset-0' }, slots.default?.()) : null,
         ]),
       ]),
@@ -753,13 +757,22 @@ const InspectionRow = defineComponent({
           h(AppBadge, { variant }, () => daysLabel(days)),
           h('div', { class: 'relative h-8 w-[9.5rem] min-w-0 shrink' }, [
             h('p', { class: ['flex h-full items-center justify-end px-2 ui-caption tabular-nums', props.editing ? 'invisible' : ''], 'aria-hidden': props.editing || undefined }, formatDate(props.date)),
-            props.editing ? h(AppDatePicker, { inline: true, ariaLabel: props.label, modelValue: props.modelValue, disabled: props.disabled, 'onUpdate:modelValue': (value: string) => emit('update:modelValue', value) }) : null,
+            props.editing ? h(AppDatePicker, { inline: true, editable: true, ariaLabel: props.label, modelValue: props.modelValue, disabled: props.disabled, 'onUpdate:modelValue': (value: string) => emit('update:modelValue', value) }) : null,
           ]),
         ]),
       ])
     }
   },
 })
+
+async function copyVehicleInformation(value: string, label: string) {
+  try {
+    await navigator.clipboard.writeText(value)
+    uiStore.addToast({ type: 'success', title: 'Skopiowano do schowka', message: label })
+  } catch {
+    uiStore.addToast({ type: 'error', title: 'Nie udało się skopiować danych', message: 'Sprawdź uprawnienia schowka w przeglądarce i spróbuj ponownie.' })
+  }
+}
 
 function createEmptyVehicleForm() {
   return {

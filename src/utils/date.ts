@@ -12,6 +12,22 @@ export function toDateValue(date: Date) {
   return `${year}-${month}-${day}`
 }
 
+export function parseTypedDate(value: string): string | null {
+  const text = value.trim()
+  if (!text) return ''
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(text)
+  const local = /^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/.exec(text)
+  const compact = /^(\d{2})(\d{2})(\d{4})$/.exec(text)
+  const match = iso || local || compact
+  if (!match) return null
+  const year = Number(iso ? match[1] : match[3])
+  const month = Number(match[2])
+  const day = Number(iso ? match[3] : match[1])
+  if (year < 1000 || year > 9999) return null
+  const date = new Date(year, month - 1, day)
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? toDateValue(date) : null
+}
+
 export function formatDisplayDate(value: string) {
   const date = parseDateValue(value)
   return date ? date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : value
