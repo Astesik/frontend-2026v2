@@ -1,125 +1,58 @@
 <template>
-  <div class="space-y-3">
-    <header class="flex items-center gap-3">
-      <div class="flex items-center gap-3">
-        <AppIconLink
-          :to="{ name: 'devices' }"
-          label="Wróć do urządzeń"
-        >
-          <ArrowLeft class="h-4 w-4" />
-        </AppIconLink>
+  <div class="space-y-3 md:flex md:h-full md:min-h-0 md:flex-col md:gap-3 md:space-y-0 md:overflow-hidden">
+    <header class="flex shrink-0 flex-col items-start gap-3">
+      <div class="flex min-w-0 items-center gap-3">
+        <AppIconLink class="md:hidden" :to="{ name: 'devices' }" label="Wróć do listy urządzeń" size="sm"><ArrowLeft class="h-4 w-4" /></AppIconLink>
         <div class="min-w-0">
-          <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Urządzenie #{{ deviceId }}</p>
-          <h1 class="mt-1 truncate ui-page-title">
-            {{ device?.deviceName || 'Szczegóły urządzenia' }}
-          </h1>
+        <p class="text-sm font-medium text-ui-mutedText">Urządzenie #{{ deviceId }}</p>
+        <h1 class="mt-1 break-words ui-page-title">{{ device?.deviceName || 'Szczegóły urządzenia' }}</h1>
         </div>
       </div>
-
     </header>
 
-    <div v-if="deviceStore.isDetailLoading" class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-400">
-      Pobieranie szczegółów urządzenia...
-    </div>
+    <div v-if="isDetailLoading" class="ui-surface p-6 ui-body-sm text-ui-mutedText">Pobieranie szczegółów urządzenia...</div>
+    <div v-else-if="!device" class="ui-surface p-6 ui-body-sm text-ui-mutedText">Nie znaleziono urządzenia.</div>
 
-    <div v-else-if="!device" class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-400">
-      Nie znaleziono urządzenia.
-    </div>
-
-    <div v-else class="grid min-w-0 gap-3 xl:grid-cols-[22rem_minmax(0,1fr)] xl:items-start">
-      <AppCard class="min-w-0 xl:sticky xl:top-0" title="Informacje" :icon="Info" compact content-class="!p-0">
+    <div v-else class="grid min-w-0 gap-3 md:min-h-0 md:flex-1 md:overflow-y-auto">
+      <AppCard class="flex min-h-0 min-w-0 flex-col" title="Informacje" :icon="Info" compact content-class="!p-0 min-h-0 flex-1 overflow-y-auto">
         <template #actions>
-          <AppButton
-            v-if="!editMode"
-            size="sm"
-            variant="secondary"
-            :disabled="!canUpdateDevices"
-            :title="!canUpdateDevices ? 'Brak uprawnienia: devices.update' : undefined"
-            @click="openEdit"
-          >
-            <SquarePen class="h-4 w-4" />
-            Edytuj
-          </AppButton>
-          <div v-else class="flex flex-wrap justify-end gap-2">
-            <AppButton size="sm" variant="ghost" :disabled="deviceStore.isMutating" @click="cancelEdit">
-              <X class="h-4 w-4" />
-              Anuluj
-            </AppButton>
-            <AppButton
-              size="sm"
-              variant="secondary"
-              :loading="deviceStore.isMutating"
-              :disabled="!canUpdateDevices"
-              :title="!canUpdateDevices ? 'Brak uprawnienia: devices.update' : undefined"
-              @click="saveDevice"
-            >
-              <Check class="h-4 w-4" />
-              Zapisz
-            </AppButton>
+          <div class="flex h-8 w-[4.5rem] items-center justify-end gap-2">
+            <template v-if="editMode">
+              <AppIconButton label="Anuluj edycję urządzenia" size="sm" variant="ghost" :disabled="deviceStore.isMutating" @click="cancelEdit"><X class="h-4 w-4" /></AppIconButton>
+              <AppIconButton label="Zapisz urządzenie" size="sm" type="submit" :form="'device-inline-edit-' + deviceId" :loading="deviceStore.isMutating" :disabled="!canUpdateDevices"><Check class="h-4 w-4" /></AppIconButton>
+            </template>
+            <span v-else ref="informationMenuAnchor" class="inline-flex">
+              <AppIconButton label="Opcje urządzenia" size="sm" variant="ghost" aria-haspopup="menu" :aria-expanded="isInformationMenuOpen" @click="isInformationMenuOpen = !isInformationMenuOpen"><Ellipsis class="h-4 w-4" /></AppIconButton>
+            </span>
           </div>
+          <AppDropdown :open="isInformationMenuOpen" :anchor="informationMenuAnchor" role="menu" :match-width="false" content-class="min-w-40 p-1" @close="isInformationMenuOpen = false">
+            <AppDropdownItem role="menuitem" :disabled="!canUpdateDevices" @click="openEdit"><SquarePen class="h-4 w-4" />Edytuj</AppDropdownItem>
+            <AppDropdownItem role="menuitem" class="text-danger-600 dark:text-danger-400" :disabled="!canDeleteDevices" @click="openDeleteConfirmation"><Trash2 class="h-4 w-4" />Usuń urządzenie</AppDropdownItem>
+          </AppDropdown>
         </template>
-
-        <div class="border-b border-ui-divider bg-ui-muted px-4 py-3">
-          <div class="flex min-w-0 items-center justify-between gap-3">
-            <div class="flex min-w-0 items-center gap-2.5">
-              <span class="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface text-ui-mutedText">
-                <Cpu class="h-4 w-4" />
-              </span>
-              <div class="min-w-0">
-                <p class="ui-caption">Urządzenie</p>
-                <p class="truncate text-sm font-semibold text-ui-text">{{ device.deviceName || `#${device.id}` }}</p>
-              </div>
-            </div>
-            <AppBadge :variant="device.status === 'ACTIVE' ? 'success' : 'neutral'">{{ deviceStatusLabel(device.status) }}</AppBadge>
-          </div>
-        </div>
-
-        <div v-if="!editMode" class="divide-y divide-ui-divider px-4">
-          <InfoLine label="Nazwa" :value="device.deviceName || '-'" />
-          <InfoLine label="Typ" :value="deviceTypeLabel(device.type)" />
-          <InfoLine label="Status" :value="deviceStatusLabel(device.status)" />
-        </div>
-
-        <div v-else class="space-y-3 px-4 py-3">
-          <AppInput v-model="editForm.deviceName" label="Nazwa" />
-          <AppSelect v-model="editForm.type" label="Typ" :options="typeOptions" />
-          <AppSelect v-model="editForm.status" label="Status" :options="statusOptions" />
-        </div>
-
-        <div class="border-t border-ui-divider p-3">
-          <AppButton
-            class="w-full"
-            size="sm"
-            variant="danger"
-            :disabled="!canDeleteDevices"
-            :title="!canDeleteDevices ? 'Brak uprawnienia: devices.delete' : undefined"
-            @click="openDeleteConfirmation"
-          >
-            <Trash2 class="h-4 w-4" />
-            Usuń urządzenie
-          </AppButton>
-        </div>
-      </AppCard>
-
-      <AppCard class="min-w-0" title="Dane techniczne" :icon="Cpu" compact content-class="!p-0">
-        <div class="divide-y divide-ui-divider px-4 sm:grid sm:grid-cols-2 sm:divide-y-0">
-          <InfoLine label="Numer seryjny" :value="device.serialNumber" mono />
-          <InfoLine label="Dostawca" :value="providerLabel(device.provider)" />
-          <div class="grid min-w-0 grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-center gap-3 py-3 sm:px-2">
-            <p class="ui-caption">Przypisanie</p>
-            <RouterLink
-              v-if="device.assignedVehicleId"
-              class="min-w-0 break-words text-right text-[13px] font-semibold text-ui-text transition hover:text-ui-text-secondary"
-              :to="{ name: 'vehicle-detail', params: { id: device.assignedVehicleId } }"
-            >
-              {{ device.assignedVehicleLicensePlate || `Pojazd #${device.assignedVehicleId}` }}
-            </RouterLink>
-            <p v-else class="text-right text-[13px] font-semibold text-ui-mutedText">Nieprzypisane</p>
-          </div>
-          <InfoLine label="Ostatnia pozycja" :value="formatDateTime(device.lastPositionAt)" :danger="isPositionOffline(device.lastPositionAt)" />
-          <InfoLine label="Utworzono" :value="formatDateTime(device.createdAt)" />
-          <InfoLine label="Wewnętrzne ID" :value="String(device.id)" mono />
-        </div>
+        <form :id="'device-inline-edit-' + deviceId" @submit.prevent="saveDevice">
+          <table class="w-full table-fixed border-collapse" aria-label="Informacje o urządzeniu">
+            <tbody>
+              <InfoLine label="Nazwa" :value="device.deviceName || '-'" :editing="editMode">
+                <template #editor><input v-model="editForm.deviceName" class="device-inline-control" aria-label="Nazwa urządzenia" :disabled="deviceStore.isMutating" /></template>
+              </InfoLine>
+              <InfoLine label="Typ" :value="deviceTypeLabel(device.type)" :editing="editMode">
+                <template #editor><AppSelect v-model="editForm.type" inline aria-label="Typ urządzenia" :options="typeOptions" :disabled="deviceStore.isMutating" /></template>
+              </InfoLine>
+              <InfoLine label="Status" :value="deviceStatusLabel(device.status)" :editing="editMode">
+                <template #editor><AppSelect v-model="editForm.status" inline aria-label="Status urządzenia" :options="statusOptions" :disabled="deviceStore.isMutating" /></template>
+              </InfoLine>
+              <InfoLine label="Numer seryjny" :value="device.serialNumber" mono />
+              <InfoLine label="Dostawca" :value="providerLabel(device.provider)" />
+              <InfoLine label="Przypisanie" :value="device.assignedVehicleLicensePlate || (device.assignedVehicleId ? 'Pojazd #' + device.assignedVehicleId : 'Nieprzypisane')">
+                <RouterLink v-if="device.assignedVehicleId" class="break-words underline-offset-4 hover:underline focus-visible:underline" :to="{ name: 'vehicle-detail', params: { id: device.assignedVehicleId } }">{{ device.assignedVehicleLicensePlate || 'Pojazd #' + device.assignedVehicleId }}</RouterLink>
+                <span v-else>Nieprzypisane</span>
+              </InfoLine>
+              <InfoLine label="Ostatnia pozycja" :value="formatDateTime(device.lastPositionAt)" :danger="isPositionOffline(device.lastPositionAt)" />
+              <InfoLine label="Utworzono" :value="formatDateTime(device.createdAt)" />
+            </tbody>
+          </table>
+        </form>
       </AppCard>
     </div>
 
@@ -141,16 +74,16 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceDirty, useWorkspaceTitle } from '@/composables/useWorkspace'
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Check, Cpu, Info, SquarePen, Trash2, X } from 'lucide-vue-next'
-import AppBadge from '@/components/ui/AppBadge.vue'
-import AppButton from '@/components/ui/AppButton.vue'
+import { ArrowLeft, Check, Ellipsis, Info, SquarePen, Trash2, X } from 'lucide-vue-next'
 import AppCard from '@/components/ui/AppCard.vue'
-import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppIconLink from '@/components/ui/AppIconLink.vue'
-import AppInput from '@/components/ui/AppInput.vue'
+import AppIconButton from '@/components/ui/AppIconButton.vue'
+import AppDropdown from '@/components/ui/AppDropdown.vue'
+import AppDropdownItem from '@/components/ui/AppDropdownItem.vue'
+import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useDeviceStore } from '@/stores/deviceStore'
@@ -162,10 +95,14 @@ const router = useRouter()
 const authStore = useAuthStore()
 const uiStore = useUiStore()
 const deviceStore = useDeviceStore()
-const { currentDevice: device } = storeToRefs(deviceStore)
+const device = computed(() => deviceStore.detailsById[deviceId.value] || null)
 const editMode = ref(false)
+const isInformationMenuOpen = ref(false)
+const informationMenuAnchor = ref<HTMLElement | null>(null)
+const isDetailLoading = ref(false)
 const showDeleteConfirmation = ref(false)
 const deviceId = computed(() => String(route.params.id || ''))
+useWorkspaceTitle(computed(() => device.value ? `Urządzenie - ${device.value.deviceName?.trim() || 'bez nazwy'}` : null))
 const canUpdateDevices = computed(() => hasPermission('devices.update'))
 const canDeleteDevices = computed(() => hasPermission('devices.delete'))
 const editForm = reactive({
@@ -192,11 +129,17 @@ const InfoLine = defineComponent({
     value: { type: String, required: true },
     mono: { type: Boolean, default: false },
     danger: { type: Boolean, default: false },
+    editing: Boolean,
   },
-  setup(props) {
-    return () => h('div', { class: 'grid min-w-0 grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] items-center gap-3 py-3 sm:px-2' }, [
-      h('p', { class: 'ui-caption' }, props.label),
-      h('p', { class: ['min-w-0 break-words text-right text-[13px] font-semibold', props.danger ? 'text-danger-600 dark:text-danger-400' : 'text-ui-text', props.mono ? 'font-mono' : ''] }, props.value),
+  setup(props, { slots }) {
+    return () => h('tr', { class: 'border-b border-ui-border last:border-b-0' }, [
+      h('td', { class: 'w-[44%] border-r border-ui-border px-3 py-1 align-top ui-caption' }, [h('div', { class: 'py-2 leading-5' }, props.label)]),
+      h('td', { class: ['px-2 py-1 align-top text-left text-[13px] font-semibold leading-5', props.danger ? 'text-danger-600 dark:text-danger-400' : 'text-ui-text', props.mono ? 'font-mono' : ''] }, [
+        h('div', { class: 'relative min-w-0' }, [
+          h('div', { class: ['min-h-9 whitespace-pre-wrap break-words border border-transparent px-2 py-[7px]', props.editing ? 'invisible' : ''], 'aria-hidden': props.editing || undefined }, slots.default?.() || props.value),
+          props.editing ? h('div', { class: 'absolute inset-0' }, slots.editor?.()) : null,
+        ]),
+      ]),
     ])
   },
 })
@@ -215,12 +158,14 @@ function hasPermission(permission: string) {
 
 function openEdit() {
   if (!device.value || !canUpdateDevices.value) return
+  isInformationMenuOpen.value = false
   resetEditForm(device.value)
   editMode.value = true
 }
 
 function openDeleteConfirmation() {
   if (!canDeleteDevices.value) return
+  isInformationMenuOpen.value = false
   showDeleteConfirmation.value = true
 }
 
@@ -232,12 +177,15 @@ function cancelEdit() {
 
 async function loadDevice() {
   if (!deviceId.value) return
+  isDetailLoading.value = true
 
   try {
     const result = await deviceStore.loadDevice(deviceId.value)
     resetEditForm(result)
   } catch {
     // The global API interceptor displays the error.
+  } finally {
+    isDetailLoading.value = false
   }
 }
 
@@ -285,7 +233,7 @@ function providerLabel(provider: DeviceProvider) {
 function formatDateTime(value: string | null) {
   if (!value) return '-'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 function isPositionOffline(value: string | null) {
@@ -297,4 +245,29 @@ function isPositionOffline(value: string | null) {
 watch(deviceId, () => void loadDevice())
 onMounted(() => void loadDevice())
 onBeforeUnmount(() => deviceStore.clearCurrentDevice())
+useWorkspaceDirty(computed(() => editMode.value))
 </script>
+
+<style scoped>
+:deep(.ui-card-header) { min-height: calc(3.5rem + 1px); align-items: center; }
+:deep(.device-inline-control) {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid rgb(var(--rw-border));
+  border-radius: var(--rw-radius-control);
+  background: rgb(var(--rw-surface));
+  padding: 7px 8px;
+  color: inherit;
+  font: inherit;
+  line-height: 20px;
+  text-align: left;
+  outline: none;
+}
+:deep(.device-inline-control:focus) { border-color: rgb(var(--rw-focus-ring)); box-shadow: inset 0 0 0 1px rgb(var(--rw-focus-ring)); }
+:deep(.device-inline-control:disabled) { opacity: .6; }
+</style>

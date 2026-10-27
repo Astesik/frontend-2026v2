@@ -10,10 +10,7 @@ export interface ApiVehicle {
   firstRegistration: string | null
   productionYear: number | null
   make: string | null
-  euroClass: string | null
   type: string | null
-  ownership: string | null
-  ownershipUntil: string | null
   technicalInspection: string | null
   tachographInspection: string | null
   vignetteUk: string | null
@@ -25,6 +22,7 @@ export interface ApiVehicle {
   intermodalSideCode?: string | null
   status: string | null
   lastPositionAt: string | null
+  batteryLevel?: number | null
 }
 
 export interface VehiclePhotoUploader {
@@ -86,6 +84,7 @@ export interface ApiLastPosition {
   fuelPct: number | null
   countryCode: string | null
   ignitionState: string | null
+  batteryLevel?: number | null
   driverSlot0: string | null
   driverSlot1: string | null
   raw: unknown
@@ -111,7 +110,6 @@ export interface Vehicle {
   make: string | null
   vin: string | null
   productionYear: number | null
-  euroClass: string | null
   vehicleType: VehicleType
   rawType: string | null
   countryCode: string
@@ -139,6 +137,7 @@ export interface Vehicle {
   assignedDeviceId: number | null
   assignedDeviceName: string | null
   ignitionState: string | null
+  batteryLevel?: number | null
   heading: number | null
   lastPositionAt: string | null
   positionTimestamp: string | null

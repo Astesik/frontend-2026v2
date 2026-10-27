@@ -43,7 +43,7 @@ const contentClasses = computed(() => [
 ])
 
 const headerClasses = computed(() => [
-  'flex items-start justify-between gap-4 border-b border-ui-divider',
+  'ui-card-header flex shrink-0 items-start justify-between gap-4 border-b border-ui-divider',
   props.compact ? 'px-4 py-3' : 'px-5 py-4',
 ])
 </script>

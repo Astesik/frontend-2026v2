@@ -1,5 +1,6 @@
 import { markRaw, shallowRef } from 'vue'
-import type { ApiPositionHistoryPoint } from '@/services/positionService'
+import type { LocalHistoryPoint as ApiPositionHistoryPoint } from '@/types/localPositionHistory'
+import { validHistoryPosition, historySegmentBreak } from '@/utils/localPositionHistory'
 
 export type RouteLatLng = {
   lat: number
@@ -9,7 +10,7 @@ export type RouteLatLng = {
 function historyPointKey(point: ApiPositionHistoryPoint) {
   return [
     point.deviceId,
-    point.vehicleId,
+    point.id,
     point.ts,
     point.lat,
     point.lon,
@@ -22,29 +23,35 @@ function historyTimestamp(point: ApiPositionHistoryPoint) {
 }
 
 function sortHistory(points: ApiPositionHistoryPoint[]) {
-  return [...points].sort((first, second) => historyTimestamp(first) - historyTimestamp(second))
+  return [...points].sort((first, second) => historyTimestamp(first) - historyTimestamp(second) || first.id - second.id)
 }
 
 export function usePositionHistory() {
   const records = shallowRef<ApiPositionHistoryPoint[]>(markRaw([]))
   const path = shallowRef<RouteLatLng[]>(markRaw([]))
   const pathRecordIndexes = shallowRef<number[]>(markRaw([]))
+  const segmentStarts = shallowRef<number[]>(markRaw([]))
 
   function rebuildPath(nextRecords: ApiPositionHistoryPoint[]) {
     const nextPath: RouteLatLng[] = []
     const nextIndexes: number[] = []
+    const nextStarts: number[] = []
+    let previous: ApiPositionHistoryPoint | null = null
 
     nextRecords.forEach((point, recordIndex) => {
-      if (point.lat === null || point.lon === null) {
+      if (!validHistoryPosition(point)) {
         return
       }
 
-      nextPath.push({ lat: point.lat, lng: point.lon })
+      if (!previous || historySegmentBreak(previous, point)) nextStarts.push(nextPath.length)
+      nextPath.push({ lat: point.lat!, lng: point.lon! })
       nextIndexes.push(recordIndex)
+      previous = point
     })
 
     path.value = markRaw(nextPath)
     pathRecordIndexes.value = markRaw(nextIndexes)
+    segmentStarts.value = markRaw(nextStarts)
   }
 
   function replace(nextRecords: ApiPositionHistoryPoint[]) {
@@ -69,6 +76,7 @@ export function usePositionHistory() {
     records.value = markRaw([])
     path.value = markRaw([])
     pathRecordIndexes.value = markRaw([])
+    segmentStarts.value = markRaw([])
   }
 
   function recordForPathIndex(pathIndex: number) {
@@ -84,6 +92,7 @@ export function usePositionHistory() {
     records,
     path,
     pathRecordIndexes,
+    segmentStarts,
     replace,
     append,
     clear,

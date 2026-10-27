@@ -14,19 +14,28 @@
         :variant="embedded ? 'primary' : 'secondary'"
         :class="embedded ? '!h-7 !px-2 !text-[11px]' : ''"
         :loading="isMutating"
-        @click="photoInput?.click()"
+        @click="openPhotoPicker"
       >
         <ImagePlus :class="embedded ? 'h-3.5 w-3.5' : 'h-4 w-4'" />
         Dodaj zdjęcie
       </AppButton>
       <input
         ref="photoInput"
-        class="hidden"
+        class="fixed left-[-9999px] top-0 h-px w-px opacity-0"
         type="file"
         accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp"
         @change="handlePhotoSelection"
       />
+      <input
+        ref="cameraInput"
+        class="fixed left-[-9999px] top-0 h-px w-px opacity-0"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        @change="handlePhotoSelection"
+      />
     </div>
+    <PhotoSourceMenu :open="photoPickerOpen" @close="photoPickerOpen = false" @choose="choosePhotoSource" />
 
     <p v-if="fileError" class="border border-danger-100 bg-danger-50 px-3 py-2 text-xs text-danger-600 dark:border-danger-400 dark:bg-app-elevated dark:text-danger-400" :class="embedded ? 'rounded-[6px]' : 'mb-3 rounded-xl'">
       {{ fileError }}
@@ -98,7 +107,7 @@
       </article>
     </div>
 
-    <Teleport to="body">
+  <Teleport :to="workspacePortal">
       <div
         v-if="previewPhoto"
         class="fixed inset-0 z-[120] flex flex-col bg-slate-950/95"
@@ -152,9 +161,11 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspacePortal } from '@/composables/useWorkspace'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { Download, ImagePlus, Images, Trash2, X, ZoomIn, ZoomOut } from 'lucide-vue-next'
 import AppButton from '@/components/ui/AppButton.vue'
+import PhotoSourceMenu from '@/components/ui/PhotoSourceMenu.vue'
 import { vehicleService } from '@/services/vehicleService'
 import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
@@ -176,6 +187,9 @@ const authStore = useAuthStore()
 const fleetStore = useFleetStore()
 const uiStore = useUiStore()
 const photoInput = ref<HTMLInputElement | null>(null)
+const cameraInput = ref<HTMLInputElement | null>(null)
+const photoPickerOpen = ref(false)
+const photoInputVehicleKey = ref<string | null>(null)
 const photoUrls = ref<Record<string, string>>({})
 const previewErrors = ref<Set<number>>(new Set())
 const previewPhoto = ref<VehiclePhoto | null>(null)
@@ -250,11 +264,30 @@ function validatePhoto(file: File) {
   return ''
 }
 
+function openPhotoInput(input: HTMLInputElement | null) {
+  if (!input || !canAddPhotos.value || isMutating.value) return
+  photoInputVehicleKey.value = vehicleKey.value
+  input.value = ''
+  input.click()
+  input.blur()
+}
+
+function openPhotoPicker() {
+  if (!canAddPhotos.value || isMutating.value) return
+  if (window.matchMedia('(max-width: 767px)').matches) photoPickerOpen.value = true
+  else openPhotoInput(photoInput.value)
+}
+
+function choosePhotoSource(source: 'gallery' | 'camera') {
+  photoPickerOpen.value = false
+  openPhotoInput(source === 'camera' ? cameraInput.value : photoInput.value)
+}
+
 async function handlePhotoSelection(event: Event) {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   input.value = ''
-  if (!file || !canAddPhotos.value) return
+  if (!file || !canAddPhotos.value || isMutating.value || photoInputVehicleKey.value !== vehicleKey.value) return
 
   fileError.value = validatePhoto(file)
   if (fileError.value) return
@@ -317,6 +350,8 @@ async function confirmDeletePhoto() {
 watch(
   () => [vehicleKey.value, canReadPhotos.value] as const,
   async ([key, canRead]) => {
+    photoPickerOpen.value = false
+    photoInputVehicleKey.value = null
     closePreview()
     photoToDelete.value = null
     fileError.value = ''
@@ -335,10 +370,13 @@ watch(photos, (nextPhotos) => {
   void syncPhotoUrls(nextPhotos)
 })
 
+watch(canAddPhotos, allowed => { if (!allowed) photoPickerOpen.value = false })
+
 onBeforeUnmount(() => {
   previewLoadGeneration += 1
   revokeAllPhotoUrls()
 })
+const workspacePortal = useWorkspacePortal()
 </script>
 
 <style scoped>

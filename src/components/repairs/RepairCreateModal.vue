@@ -94,23 +94,15 @@
   <input ref="galleryInput" type="file" class="fixed left-[-9999px] top-0 h-px w-px opacity-0" accept=".jpg,.jpeg,.png,.gif,.webp,image/jpeg,image/png,image/gif,image/webp" multiple @change="handlePhotoSelection" />
   <input ref="cameraInput" type="file" class="fixed left-[-9999px] top-0 h-px w-px opacity-0" accept="image/*" capture="environment" @change="handlePhotoSelection" />
 
-  <Teleport to="body">
-    <div v-if="photoPickerFaultId" class="fixed inset-0 z-[360] flex items-end justify-center bg-transparent p-3 md:hidden" @click.self="photoPickerFaultId = null">
-      <section class="w-full max-w-sm overflow-hidden rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-surface shadow-modal">
-        <header class="flex items-center justify-between border-b border-ui-divider px-4 py-3"><p class="ui-card-title">Dodaj zdjęcie</p><AppIconButton label="Zamknij" size="sm" variant="ghost" @click="photoPickerFaultId = null"><X class="h-4 w-4" /></AppIconButton></header>
-        <div class="grid gap-2 p-3">
-          <AppButton variant="secondary" full-width @click="choosePhotoSource('gallery')"><ImagePlus class="h-4 w-4" />Wybierz z galerii</AppButton>
-          <AppButton variant="secondary" full-width @click="choosePhotoSource('camera')"><Camera class="h-4 w-4" />Zrób zdjęcie</AppButton>
-        </div>
-      </section>
-    </div>
-  </Teleport>
+  <PhotoSourceMenu :open="Boolean(photoPickerFaultId)" @close="photoPickerFaultId = null" @choose="choosePhotoSource" />
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceDirty } from '@/composables/useWorkspace'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { CalendarClock, Camera, CircleCheck, CircleX, ImagePlus, Plus, Trash2, TriangleAlert, X } from 'lucide-vue-next'
+import { CalendarClock, CircleCheck, CircleX, ImagePlus, Plus, Trash2, TriangleAlert, X } from 'lucide-vue-next'
+import PhotoSourceMenu from '@/components/ui/PhotoSourceMenu.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
@@ -231,6 +223,7 @@ watch(() => props.open, async (value) => {
   try { await repairStore.loadDictionaries() } finally { dictionariesLoading.value = false }
 })
 onBeforeUnmount(() => revokePhotos())
+useWorkspaceDirty(computed(() => props.open && !createdRepair.value && Boolean(form.vehicleId || form.arrivalAt || form.departureAt || faults.value.some(fault => fault.description.trim() || fault.photos.length))))
 </script>
 
 <style scoped>

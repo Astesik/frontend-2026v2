@@ -1,12 +1,12 @@
 <template>
-  <div class="space-y-4">
-    <header>
+  <div class="space-y-4 md:flex md:h-full md:min-h-0 md:flex-col md:gap-4 md:space-y-0 md:overflow-hidden">
+    <header class="shrink-0">
       <h1 class="ui-page-title">Ustawienia</h1>
     </header>
 
     <AppTabs
       v-if="settingsTabs.length"
-      class="sticky top-0 z-20 w-fit"
+      class="sticky top-0 z-20 w-fit max-w-full shrink-0"
       :model-value="activeTab"
       :items="settingsTabs"
       aria-label="Sekcje ustawień"
@@ -19,7 +19,7 @@
       </p>
     </AppCard>
 
-    <AppCard v-if="activeTab === 'fleet'" title="Floty">
+    <AppCard v-if="activeTab === 'fleet'" title="Floty" class="md:flex md:min-h-0 md:flex-1 md:flex-col md:overflow-hidden" content-class="md:min-h-0 md:flex-1 md:overflow-y-auto">
       <template #actions>
         <AppButton size="sm" @click="isCreateGroupModalOpen = true">
           <Plus class="h-4 w-4" />
@@ -116,6 +116,7 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceViewState, useWorkspaceDirty } from '@/composables/useWorkspace'
 import { computed, onMounted, reactive, ref, watch, type Component } from 'vue'
 import { BellRing, Check, Mail, Plus, ShieldCheck, SquarePen, Trash2, Truck } from 'lucide-vue-next'
 import CompanyManagementPanel from '@/components/settings/CompanyManagementPanel.vue'
@@ -419,4 +420,6 @@ onMounted(async () => {
   await authStore.restoreBackendSession()
   await ensureGroupsLoaded()
 })
+useWorkspaceViewState({ activeTab }, { activeTab: 'fleet' })
+useWorkspaceDirty(computed(() => editingGroupId.value !== null || isCreateGroupModalOpen.value))
 </script>

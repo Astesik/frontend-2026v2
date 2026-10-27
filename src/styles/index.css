@@ -1,3 +1,5 @@
+@import './fleet-markers.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,31 +7,31 @@
 @layer base {
   :root {
     /* Routewise semantic design tokens: light theme. */
-    --rw-background: 246 246 246;
-    --rw-sidebar: 246 246 246;
+    --rw-background: 246 247 249;
+    --rw-sidebar: 255 255 255;
     --rw-surface: 255 255 255;
     --rw-surface-elevated: 255 255 255;
-    --rw-surface-muted: 236 236 236;
-    --rw-surface-hover: 236 236 236;
-    --rw-surface-selected: 225 225 225;
-    --rw-border: 225 225 225;
-    --rw-border-strong: 208 208 208;
-    --rw-divider: 236 236 236;
-    --rw-text-primary: 35 35 35;
-    --rw-text-secondary: 82 82 82;
-    --rw-text-muted: 116 116 116;
-    --rw-icon: 104 104 104;
-    --rw-input-background: 246 246 246;
-    --rw-input-border: 225 225 225;
-    --rw-input-hover: 236 236 236;
-    --rw-input-focus: 160 160 160;
+    --rw-surface-muted: 248 250 252;
+    --rw-surface-hover: 242 244 247;
+    --rw-surface-selected: 236 239 243;
+    --rw-border: 226 231 239;
+    --rw-border-strong: 199 210 226;
+    --rw-divider: 235 239 245;
+    --rw-text-primary: 17 30 54;
+    --rw-text-secondary: 65 80 105;
+    --rw-text-muted: 116 130 151;
+    --rw-icon: 142 154 174;
+    --rw-input-background: 255 255 255;
+    --rw-input-border: 220 227 238;
+    --rw-input-hover: 250 251 252;
+    --rw-input-focus: 116 130 151;
     --rw-dropdown-background: 255 255 255;
-    --rw-dropdown-hover: 246 246 246;
-    --rw-dropdown-selected: 236 236 236;
-    --rw-overlay: 28 28 30;
-    --rw-disabled-background: 236 236 236;
-    --rw-disabled-text: 150 150 150;
-    --rw-focus-ring: 208 208 208;
+    --rw-dropdown-hover: 244 245 247;
+    --rw-dropdown-selected: 236 239 243;
+    --rw-overlay: 15 23 42;
+    --rw-disabled-background: 241 245 249;
+    --rw-disabled-text: 142 154 174;
+    --rw-focus-ring: 166 174 184;
 
     --rw-control-sm: 2.25rem;
     --rw-control-md: 2.625rem;
@@ -37,7 +39,7 @@
     --rw-radius-control: 6px;
     --rw-radius-item: 6px;
     --rw-radius-panel: 1rem;
-    --rw-shadow-sm: 0 1px 2px rgb(20 20 20 / 0.04);
+    --rw-shadow-sm: 0 1px 2px rgb(17 30 54 / 0.04);
     --rw-shadow-popover: 0 12px 32px rgb(20 20 20 / 0.10), 0 2px 8px rgb(20 20 20 / 0.06);
     --rw-shadow-modal: 0 24px 64px rgb(20 20 20 / 0.16);
 
@@ -52,18 +54,18 @@
     --rw-app-muted: var(--rw-text-muted);
 
     --rw-white: 255 255 255;
-    /* Legacy neutral utilities point at the same grayscale system. */
-    --rw-slate-50: 246 246 246;
-    --rw-slate-100: 236 236 236;
-    --rw-slate-200: 225 225 225;
-    --rw-slate-300: 208 208 208;
-    --rw-slate-400: 150 150 150;
-    --rw-slate-500: 116 116 116;
-    --rw-slate-600: 82 82 82;
-    --rw-slate-700: 62 62 62;
-    --rw-slate-800: 44 44 44;
-    --rw-slate-900: 35 35 35;
-    --rw-slate-950: 25 25 25;
+    /* Legacy neutral utilities follow the light theme palette. */
+    --rw-slate-50: 248 250 252;
+    --rw-slate-100: 241 245 249;
+    --rw-slate-200: 226 231 239;
+    --rw-slate-300: 199 210 226;
+    --rw-slate-400: 142 154 174;
+    --rw-slate-500: 116 130 151;
+    --rw-slate-600: 78 96 123;
+    --rw-slate-700: 50 69 96;
+    --rw-slate-800: 30 47 73;
+    --rw-slate-900: 17 30 54;
+    --rw-slate-950: 11 22 42;
 
     --rw-success-50: 236 253 243;
     --rw-success-100: 209 250 223;
@@ -89,6 +91,23 @@
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  :root:not(.dark) {
+    --rw-success-50: 233 247 240;
+    --rw-success-100: 184 228 207;
+    --rw-success-600: 4 119 87;
+    --rw-danger-50: 251 234 233;
+    --rw-danger-100: 242 194 189;
+    --rw-danger-400: 244 112 105;
+    --rw-danger-500: 220 49 43;
+    --rw-danger-600: 165 42 36;
+    --rw-warning-50: 255 250 206;
+    --rw-warning-100: 219 213 174;
+    --rw-warning-600: 137 121 29;
+    --rw-info-50: 239 244 255;
+    --rw-info-100: 220 229 255;
+    --rw-info-600: 29 78 216;
   }
 
   :root.dark {
@@ -246,6 +265,37 @@
   .ui-field-lg {
     height: var(--rw-control-lg);
     @apply px-4 text-sm;
+  }
+
+  .ui-inline-field {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+  }
+
+  .ui-inline-field > .relative { height: 100%; }
+
+  .ui-inline-field-control {
+    height: 100%;
+    min-height: 0;
+    padding: 7px 8px;
+    font: inherit;
+    line-height: 20px;
+    box-shadow: none;
+  }
+
+  :root .ui-card-header {
+    border-bottom-color: rgb(var(--rw-border-strong));
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
+  }
+
+  :root:not(.dark) .ui-card-header {
+    background: #fafbfc;
+  }
+
+  :root.dark .ui-card-header {
+    background: rgb(var(--rw-surface-muted));
   }
 
   .ui-surface {

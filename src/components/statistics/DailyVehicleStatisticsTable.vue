@@ -3,7 +3,7 @@
     <div class="flex shrink-0 flex-wrap items-center justify-between gap-3">
       <AppInput v-model="search" class="w-full sm:w-72" size="sm" placeholder="Szukaj pojazdu lub kierowcy" aria-label="Szukaj w statystykach dziennych" clearable />
     </div>
-    <div class="min-h-0 max-h-[32rem] overflow-auto rounded-[6px] border border-ui-border lg:max-h-none lg:flex-1">
+    <div class="min-h-0 max-h-[32rem] overflow-auto rounded-[6px] border border-ui-border md:max-h-none md:flex-1">
       <table class="ui-table min-w-[720px]">
         <thead class="ui-table-head sticky top-0 z-10">
           <tr>

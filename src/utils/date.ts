@@ -14,5 +14,5 @@ export function toDateValue(date: Date) {
 
 export function formatDisplayDate(value: string) {
   const date = parseDateValue(value)
-  return date ? date.toLocaleDateString('pl-PL') : value
+  return date ? date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : value
 }

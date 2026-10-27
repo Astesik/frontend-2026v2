@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { positionService } from '@/services/positionService'
-import type { PositionHistoryRequest, PositionHistorySummary } from '@/services/positionService'
+import { localHistoryPages, localPositionHistoryService } from '@/services/localPositionHistoryService'
+import type { LocalHistoryPoint, LocalHistorySummary } from '@/types/localPositionHistory'
+import { todayHistoryRange } from '@/utils/historyTime'
 import { vehicleGroupService } from '@/services/vehicleGroupService'
 import { vehicleService } from '@/services/vehicleService'
 import type {
@@ -28,6 +30,8 @@ const UPCOMING_ALERT_DAYS = 30
 const TRUCKS_GROUP_ID = 'type:truck'
 const TRAILERS_GROUP_ID = 'type:trailer'
 const INSPECTION_DUE_GROUP_ID = 'status:inspection-due'
+
+interface LocalHistoryOptions { silent?: boolean; onPage?: (points: LocalHistoryPoint[]) => void }
 
 function normalizeVehicleType(type: string | null): VehicleType {
   return type === 'TRAILER' ? 'trailer' : 'truck'
@@ -107,35 +111,6 @@ function formatPositionTimestamp(value: string | null) {
   })
 }
 
-function toUnixTimestampSeconds(value: Date | string) {
-  const date = value instanceof Date ? value : new Date(value)
-
-  if (Number.isNaN(date.getTime())) {
-    throw new Error('Nieprawidlowy zakres dat historii pozycji.')
-  }
-
-  return Math.floor(date.getTime() / 1000).toString()
-}
-
-function getTodayRouteRange(fromValue?: string | null): Pick<PositionHistoryRequest, 'from' | 'to'> {
-  const from = fromValue ? new Date(fromValue) : new Date()
-
-  if (!fromValue) {
-    from.setHours(0, 0, 0, 0)
-  }
-
-  return {
-    from: toUnixTimestampSeconds(from),
-    to: toUnixTimestampSeconds(new Date()),
-  }
-}
-
-function getPositionHistoryRange(from: Date | string, to: Date | string): Pick<PositionHistoryRequest, 'from' | 'to'> {
-  return {
-    from: toUnixTimestampSeconds(from),
-    to: toUnixTimestampSeconds(to),
-  }
-}
 
 function daysUntil(value: string | null) {
   const dueDate = parseDate(value)
@@ -219,7 +194,7 @@ function normalizeVehicle(vehicle: ApiVehicle, position?: ApiLastPosition): Vehi
   const tachographAlert = createLifecycleAlert('tachograph', vehicle.tachographInspection)
   const alerts = [inspectionAlert, tachographAlert].filter(Boolean) as VehicleLifecycleAlert[]
   const vehicleType = normalizeVehicleType(vehicle.type)
-  const model = vehicle.make || vehicle.euroClass || (vehicleType === 'trailer' ? 'Naczepa' : 'Pojazd')
+  const model = vehicle.make || (vehicleType === 'trailer' ? 'Naczepa' : 'Pojazd')
   const hasPosition = Boolean(position && position.lat !== null && position.lon !== null)
 
   return {
@@ -232,7 +207,6 @@ function normalizeVehicle(vehicle: ApiVehicle, position?: ApiLastPosition): Vehi
     make: vehicle.make,
     vin: vehicle.vin,
     productionYear: vehicle.productionYear,
-    euroClass: vehicle.euroClass,
     vehicleType,
     rawType: vehicle.type,
     countryCode: position?.countryCode || 'PL',
@@ -262,6 +236,7 @@ function normalizeVehicle(vehicle: ApiVehicle, position?: ApiLastPosition): Vehi
     assignedDeviceId: vehicle.assignedDeviceId ?? null,
     assignedDeviceName: vehicle.assignedDeviceName || null,
     ignitionState: position?.ignitionState || null,
+    batteryLevel: (position && position.deviceId === vehicle.assignedDeviceId ? position.batteryLevel ?? vehicle.batteryLevel : vehicle.batteryLevel) ?? null,
     heading: position?.heading ?? null,
     lastPositionAt: vehicle.lastPositionAt,
     positionTimestamp: position?.ts || null,
@@ -290,7 +265,10 @@ export const useFleetStore = defineStore('fleet', () => {
   const apiVehicles = ref<ApiVehicle[]>([])
   const lastPositions = ref<ApiLastPosition[]>([])
   const currentPositionHistoryVehicleId = ref<string | null>(null)
-  const currentPositionHistorySummary = ref<PositionHistorySummary | null>(null)
+  const currentPositionHistorySummary = ref<LocalHistorySummary | null>(null)
+  const currentPositionHistoryTimezone = ref('Europe/Warsaw')
+  const currentPositionHistoryLoaded = ref(0)
+  const currentPositionHistoryComplete = ref(false)
   const currentPositionHistoryRange = ref<{ from: string; to: string } | null>(null)
   const currentPositionHistoryMode = ref<'today' | 'custom' | null>(null)
   const vehicleGroups = ref<VehicleGroup[]>([])
@@ -305,6 +283,7 @@ export const useFleetStore = defineStore('fleet', () => {
   const selectedVehicleId = ref<string>(localStorage.getItem(SELECTED_VEHICLE_KEY) || 'all')
   const selectedDriverId = ref<string>(localStorage.getItem(SELECTED_DRIVER_KEY) || 'all')
   let currentPositionHistoryRequestId = 0
+  let historyController: AbortController | null = null
 
   const vehicleById = computed(() => new Map(apiVehicles.value.map((vehicle) => [String(vehicle.id), vehicle])))
 
@@ -405,6 +384,8 @@ export const useFleetStore = defineStore('fleet', () => {
   }))
 
   let vehicleRequest = 0
+  let positionEpoch = 0
+  let positionRequest: Promise<void> | null = null
   async function fetchVehicles(options?: { silent?: boolean }) {
     const request = ++vehicleRequest
     isVehiclesLoading.value = true
@@ -510,14 +491,17 @@ export const useFleetStore = defineStore('fleet', () => {
     return group
   }
 
-  async function fetchLastPositions(options?: { silent?: boolean }) {
+  function fetchLastPositions(options?: { silent?: boolean }) {
+    if (positionRequest) return positionRequest
+    const epoch = positionEpoch
     isPositionsLoading.value = true
-
-    try {
-      lastPositions.value = await positionService.getLastPositions(options)
-    } finally {
-      isPositionsLoading.value = false
-    }
+    const request = positionService.getLastPositions(options).then(positions => {
+      if (epoch === positionEpoch) lastPositions.value = positions
+    }).finally(() => {
+      if (epoch === positionEpoch) { isPositionsLoading.value = false; positionRequest = null }
+    })
+    positionRequest = request
+    return request
   }
 
   function setVehiclePhotoLoading(vehicleId: number | string, loading: boolean) {
@@ -580,6 +564,11 @@ export const useFleetStore = defineStore('fleet', () => {
 
   function clearPositionHistory() {
     currentPositionHistoryRequestId += 1
+    historyController?.abort()
+    historyController = null
+    currentPositionHistoryLoaded.value = 0
+    currentPositionHistoryComplete.value = false
+    currentPositionHistoryTimezone.value = 'Europe/Warsaw'
     currentPositionHistoryVehicleId.value = null
     currentPositionHistorySummary.value = null
     currentPositionHistoryRange.value = null
@@ -587,120 +576,56 @@ export const useFleetStore = defineStore('fleet', () => {
     isRouteHistoryLoading.value = false
   }
 
-  async function fetchTodayRouteHistory(vehicle: Vehicle, options?: { silent?: boolean }) {
-    clearPositionHistory()
-
-    if (!vehicle.assignedDeviceId) {
-      return []
-    }
-
+  async function loadLocalHistory(vehicle: Vehicle, range: { from: string; to: string }, mode: 'today' | 'custom', options: LocalHistoryOptions = {}, append = false) {
+    if (!append) clearPositionHistory()
+    if (append && isRouteHistoryLoading.value) return
     const requestId = currentPositionHistoryRequestId
+    const controller = new AbortController()
+    historyController = controller
     currentPositionHistoryVehicleId.value = vehicle.id
-    currentPositionHistoryMode.value = 'today'
+    currentPositionHistoryMode.value = mode
+    currentPositionHistoryComplete.value = false
+    if (!append) currentPositionHistoryRange.value = range
     isRouteHistoryLoading.value = true
-    const range = getTodayRouteRange()
-    currentPositionHistoryRange.value = range
-
     try {
-      const { result: points, summary } = await positionService.getPositionHistory({
-        device_id: vehicle.assignedDeviceId,
-        from: range.from,
-        to: range.to,
-      }, options)
-
-      if (currentPositionHistoryRequestId === requestId && currentPositionHistoryVehicleId.value === vehicle.id) {
-        currentPositionHistorySummary.value = summary
+      for await (const page of localHistoryPages({vehicle_id:vehicle.backendId, ...range, limit:2000, includeSummary:!append}, controller.signal)) {
+        if (requestId !== currentPositionHistoryRequestId || controller.signal.aborted) return
+        currentPositionHistoryTimezone.value = page.timezone
+        currentPositionHistoryRange.value = {from:append ? currentPositionHistoryRange.value!.from : page.from, to:page.to}
+        if (page.summary !== null) currentPositionHistorySummary.value = page.summary
+        currentPositionHistoryLoaded.value += page.result.length
+        options.onPage?.(page.result)
       }
-
-      return points
+      if (append && requestId === currentPositionHistoryRequestId && !controller.signal.aborted) {
+        const report = await localPositionHistoryService.summary({vehicle_id:vehicle.backendId, ...currentPositionHistoryRange.value!}, controller.signal)
+        if (requestId !== currentPositionHistoryRequestId || controller.signal.aborted) return
+        currentPositionHistorySummary.value = report.summary
+      }
+      if (requestId === currentPositionHistoryRequestId && !controller.signal.aborted) currentPositionHistoryComplete.value = true
+    } catch (error) {
+      if (requestId === currentPositionHistoryRequestId && !controller.signal.aborted) throw error
     } finally {
-      if (currentPositionHistoryRequestId === requestId) {
+      if (requestId === currentPositionHistoryRequestId) {
         isRouteHistoryLoading.value = false
+        historyController = null
       }
     }
   }
 
-  async function appendTodayRouteHistory(
-    vehicle: Vehicle,
-    fromValue: string | null,
-    options?: { silent?: boolean },
-  ) {
-    if (
-      currentPositionHistoryMode.value !== 'today' ||
-      currentPositionHistoryVehicleId.value !== vehicle.id ||
-      !fromValue
-    ) {
+  function fetchTodayRouteHistory(vehicle: Vehicle, options?: LocalHistoryOptions) {
+    return loadLocalHistory(vehicle, todayHistoryRange(), 'today', options)
+  }
+
+  function appendTodayRouteHistory(vehicle: Vehicle, fromValue: string | null, options?: LocalHistoryOptions) {
+    const today = todayHistoryRange()
+    if (currentPositionHistoryMode.value !== 'today' || currentPositionHistoryVehicleId.value !== vehicle.id || !fromValue || Date.parse(currentPositionHistoryRange.value?.from || '') !== Date.parse(today.from)) {
       return fetchTodayRouteHistory(vehicle, options)
     }
-
-    if (!vehicle.assignedDeviceId) {
-      return []
-    }
-
-    const requestId = currentPositionHistoryRequestId
-    isRouteHistoryLoading.value = true
-    const range = getTodayRouteRange(fromValue)
-
-    try {
-      const { result: points, summary } = await positionService.getPositionHistory({
-        device_id: vehicle.assignedDeviceId,
-        from: range.from,
-        to: range.to,
-      }, options)
-
-      if (currentPositionHistoryRequestId === requestId && currentPositionHistoryVehicleId.value === vehicle.id) {
-        currentPositionHistorySummary.value = summary
-        currentPositionHistoryRange.value = {
-          from: currentPositionHistoryRange.value?.from || getTodayRouteRange().from,
-          to: range.to,
-        }
-      }
-
-      return points
-    } finally {
-      if (currentPositionHistoryRequestId === requestId) {
-        isRouteHistoryLoading.value = false
-      }
-    }
+    return loadLocalHistory(vehicle, {...today, from:fromValue}, 'today', options, true)
   }
 
-  async function fetchPositionHistory(
-    vehicle: Vehicle,
-    from: Date | string,
-    to: Date | string,
-    options?: { silent?: boolean },
-  ) {
-    clearPositionHistory()
-
-    if (!vehicle.assignedDeviceId) {
-      return []
-    }
-
-    const requestId = currentPositionHistoryRequestId
-    const range = getPositionHistoryRange(from, to)
-    const payload: PositionHistoryRequest = {
-      ...range,
-      device_id: vehicle.assignedDeviceId,
-    }
-
-    currentPositionHistoryVehicleId.value = vehicle.id
-    currentPositionHistoryMode.value = 'custom'
-    currentPositionHistoryRange.value = range
-    isRouteHistoryLoading.value = true
-
-    try {
-      const { result: points, summary } = await positionService.getPositionHistory(payload, options)
-
-      if (currentPositionHistoryRequestId === requestId && currentPositionHistoryVehicleId.value === vehicle.id) {
-        currentPositionHistorySummary.value = summary
-      }
-
-      return points
-    } finally {
-      if (currentPositionHistoryRequestId === requestId) {
-        isRouteHistoryLoading.value = false
-      }
-    }
+  function fetchPositionHistory(vehicle: Vehicle, from: Date, to: Date, options?: LocalHistoryOptions) {
+    return loadLocalHistory(vehicle, {from:from.toISOString(), to:to.toISOString()}, 'custom', options)
   }
 
   async function loadFleetData(options?: { silent?: boolean }) {
@@ -754,6 +679,8 @@ export const useFleetStore = defineStore('fleet', () => {
 
   function resetApiState() {
     vehicleRequest += 1
+    positionEpoch += 1
+    positionRequest = null
     apiVehicles.value = []
     lastPositions.value = []
     vehicleGroups.value = []
@@ -770,8 +697,12 @@ export const useFleetStore = defineStore('fleet', () => {
   return {
     apiVehicles,
     lastPositions,
+    positionByVehicleId,
     currentPositionHistoryVehicleId,
     currentPositionHistorySummary,
+    currentPositionHistoryTimezone,
+    currentPositionHistoryLoaded,
+    currentPositionHistoryComplete,
     currentPositionHistoryRange,
     currentPositionHistoryMode,
     vehicles,

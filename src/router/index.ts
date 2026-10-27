@@ -1,7 +1,11 @@
-import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, START_LOCATION, type RouteRecordRaw } from 'vue-router'
 import { useAuthStore } from '@/stores/authStore'
 import AppLayout from '@/layouts/AppLayout.vue'
 import AuthLayout from '@/layouts/AuthLayout.vue'
+import { h } from 'vue'
+import { useWorkspaceTabsStore, MAX_WORKSPACE_TABS } from '@/stores/workspaceTabsStore'
+import { useUiStore } from '@/stores/uiStore'
+import { canOpenWorkspace, describeWorkspaceRoute } from '@/workspace/registry'
 
 const routes: RouteRecordRaw[] = [
   {
@@ -26,10 +30,26 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
     children: [
       {
+        path: 'access-denied',
+        name: 'access-denied',
+        component: { render: () => h('p', { class: 'p-6 text-sm text-ui-mutedText' }, 'Brak dostępu do tego widoku. Wybierz dostępną pozycję w menu.') },
+      },
+      {
         path: 'dashboard',
         alias: '/home',
         name: 'dashboard',
         component: () => import('@/views/DashboardView.vue'),
+      },
+      {
+        path: 'fuel-stations',
+        name: 'fuel-stations',
+        component: () => import('@/views/FuelStationsView.vue'),
+      },
+      {
+        path: 'refueling',
+        name: 'refueling',
+        component: () => import('@/views/RefuelingView.vue'),
+        meta: { fullBleed: true },
       },
       {
         path: 'map',
@@ -111,7 +131,7 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
+router.beforeEach((to, from) => {
   const authStore = useAuthStore()
 
   if (!authStore.isRestored) {
@@ -129,10 +149,34 @@ router.beforeEach((to) => {
     return '/map'
   }
 
+  if (to.meta.requiresAuth && authStore.isAuthenticated) {
+    const descriptor = describeWorkspaceRoute(to)
+    if (descriptor && !canOpenWorkspace(descriptor.name, authStore)) return '/access-denied'
+    if (window.matchMedia('(min-width: 768px)').matches) {
+      const workspace = useWorkspaceTabsStore()
+      workspace.ensureContext(String(authStore.user?.userId ?? authStore.user?.id ?? authStore.user?.uid ?? ''), String(authStore.activeCompanyId ?? ''), name => canOpenWorkspace(name, authStore))
+      if (descriptor && from === START_LOCATION) {
+        for (const tab of [...workspace.tabs]) {
+          if (!tab.pinned && tab.id !== descriptor.id) workspace.close(tab.id)
+        }
+      }
+      if (descriptor && !workspace.tabs.some(tab => tab.id === descriptor.id) && workspace.tabs.length >= MAX_WORKSPACE_TABS) {
+        useUiStore().addToast({ type: 'info', title: 'Limit otwartych zakładek', message: `Zamknij jedną z ${MAX_WORKSPACE_TABS} zakładek, aby otworzyć kolejną.` })
+        return false
+      }
+    }
+  }
+
   return true
 })
 
-router.afterEach((to, from) => {
+router.afterEach((to, from, failure) => {
+  if (failure) return
+  if (to.meta.requiresAuth && window.matchMedia('(min-width: 768px)').matches) {
+    const descriptor = describeWorkspaceRoute(to)
+    if (descriptor) useWorkspaceTabsStore().activate(descriptor, to.fullPath)
+    return
+  }
   if (to.fullPath === from.fullPath) {
     return
   }

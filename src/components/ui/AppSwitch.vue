@@ -4,6 +4,7 @@
     <button
       type="button"
       role="switch"
+      :aria-label="label"
       :aria-checked="modelValue"
       :disabled="disabled"
       class="relative h-5 w-9 shrink-0 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus disabled:cursor-not-allowed disabled:bg-ui-disabled"

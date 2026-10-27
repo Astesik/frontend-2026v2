@@ -1,5 +1,5 @@
 <template>
-  <AppCard title="Email / SMTP" compact class="max-w-4xl">
+  <AppCard title="Email / SMTP" compact class="max-w-4xl md:flex md:min-h-0 md:flex-1 md:flex-col md:overflow-hidden" content-class="md:min-h-0 md:flex-1 md:overflow-y-auto">
     <div v-if="isLoadingMail" class="py-8 ui-body-sm text-ui-mutedText">Pobieranie konfiguracji...</div>
 
     <div v-else class="space-y-4">
@@ -60,6 +60,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useWorkspaceDirty } from '@/composables/useWorkspace'
 import { onMounted, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { Send } from 'lucide-vue-next'
@@ -87,6 +89,9 @@ const form = reactive({
   starttlsEnabled: true,
 })
 
+const savedForm = ref(JSON.stringify(form))
+useWorkspaceDirty(computed(() => JSON.stringify(form) !== savedForm.value))
+
 function fillForm() {
   const settings = mailSettings.value
   Object.assign(form, {
@@ -99,6 +104,7 @@ function fillForm() {
     authEnabled: settings?.authEnabled ?? true,
     starttlsEnabled: settings?.starttlsEnabled ?? true,
   })
+  savedForm.value = JSON.stringify(form)
 }
 
 async function saveSettings() {

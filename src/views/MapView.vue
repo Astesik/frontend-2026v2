@@ -63,7 +63,7 @@
           <button
             type="button"
             class="hidden h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 hover:text-slate-950 dark:border-app-border dark:bg-app-panel dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-slate-50 md:flex"
-            aria-label="Schowaj listÄ™ pojazdĂłw"
+            aria-label="Schowaj listę pojazdów"
             @click.stop="toggleVehiclePanel"
           >
             <PanelLeftClose class="h-4 w-4" />
@@ -76,7 +76,7 @@
           <AppSelect
             v-model="selectedFleetId"
             placeholder="Flota"
-            :options="fleetSelectOptions"
+            :options="mapFleetSelectOptions"
             size="sm"
           />
 
@@ -88,41 +88,8 @@
           />
         </div>
 
-        <div class="rw-list-scroll min-h-0 flex-1 overflow-y-auto" @scroll="hideAlertTooltip">
-          <table class="w-full table-fixed text-left text-xs">
-            <thead class="sticky top-0 z-10 border-b border-slate-200 bg-app-light text-xs uppercase text-slate-500 dark:border-app-border dark:bg-app-dark dark:text-app-muted">
-              <tr>
-                <th v-if="mapSettings.columns.order" class="w-16 px-2 py-1.5 font-medium">
-                  <button type="button" class="inline-flex items-center gap-1 transition hover:text-slate-950 dark:hover:text-slate-50" @click="setVehicleSort('order')">
-                    #
-                    <component :is="sortIcon('order')" class="h-3 w-3" />
-                  </button>
-                </th>
-                <th v-if="mapSettings.columns.info" class="px-1.5 py-1.5 font-medium">
-                  <button type="button" class="inline-flex items-center gap-1 transition hover:text-slate-950 dark:hover:text-slate-50" @click="setVehicleSort('plate')">
-                    Informacje
-                    <component :is="sortIcon('plate')" class="h-3 w-3" />
-                  </button>
-                </th>
-                <th v-if="mapSettings.columns.fuel" class="w-14 px-1.5 py-1.5 font-medium">
-                  <button type="button" class="inline-flex items-center gap-1 transition hover:text-slate-950 dark:hover:text-slate-50" @click="setVehicleSort('fuel')">
-                    Paliwo
-                    <component :is="sortIcon('fuel')" class="h-3 w-3" />
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="(vehicle, index) in filteredVehicles"
-                :key="vehicle.id"
-                class="cursor-pointer border-b border-slate-200 transition hover:bg-white dark:border-app-border dark:hover:bg-app-panel"
-                :class="selectedVehicleId === vehicle.id ? 'bg-white dark:bg-app-panel' : ''"
-                @click="selectVehicle(vehicle.id)"
-              >
-                <td v-if="mapSettings.columns.order" class="px-2 py-1.5 align-middle">
-                  <div class="flex items-center gap-1.5">
-                    <span class="w-5 text-slate-500 dark:text-app-muted">{{ index + 1 }}.</span>
+        <FleetVehicleList :vehicles="filteredVehicles" :selected-id="selectedVehicleId" :columns="mapSettings.columns" :row="mapSettings.row" :show-descriptions="mapSettings.map.showVehicleDescriptions" :sort-key="vehicleSort.key" :sort-direction="vehicleSort.direction" @select="selectVehicle" @sort="setVehicleSort" @scroll="hideAlertTooltip">
+          <template #alerts="{ vehicle }">
                     <button
                       v-if="vehicleAlertItems(vehicle).length"
                       type="button"
@@ -144,49 +111,10 @@
                       <Wrench v-else-if="vehicleAlertItems(vehicle)[0]?.repairId" class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
                       <TriangleAlert v-else class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
                     </button>
-                  </div>
-                </td>
-
-                <td v-if="mapSettings.columns.info" class="px-1.5 py-1.5 align-middle">
-                  <div class="flex min-w-0 items-center gap-1.5">
-                    <component
-                      :is="vehicle.vehicleType === 'trailer' ? Container : Truck"
-                      v-if="mapSettings.row.vehicleIcon"
-                      class="h-5 w-5 shrink-0 text-slate-600 dark:text-slate-300"
-                    />
-                    <img
-                      v-if="mapSettings.row.flag"
-                      class="h-5 w-5 shrink-0 rounded-full"
-                      :src="`https://flagsapi.com/${vehicle.countryCode}/flat/64.png`"
-                      alt=""
-                      loading="lazy"
-                      referrerpolicy="no-referrer"
-                    />
-                    <div class="vehicle-row-info flex min-w-0 flex-1 items-center gap-1.5">
-                      <span class="shrink-0 whitespace-nowrap font-medium leading-none text-slate-950 dark:text-slate-50">
-                        {{ vehicle.plateNumber }}
-                      </span>
-                      <span
-                        v-if="mapSettings.map.showVehicleDescriptions && vehicle.description"
-                        class="vehicle-description min-w-0 max-w-[5.5rem] flex-1 text-[9px] leading-none text-slate-500 dark:text-app-muted sm:max-w-[8rem]"
-                        :title="vehicle.description"
-                      >
-                        {{ vehicle.description }}
-                      </span>
-                      <span v-if="mapSettings.row.driver && vehicle.vehicleType !== 'trailer'" class="min-w-0 max-w-[6.5rem] truncate text-[9px] leading-none text-slate-500 dark:text-app-muted">
-                        [{{ vehicleDriverLabel(vehicle) }}]
-                      </span>
-                    </div>
-                  </div>
-                </td>
-
-                <td v-if="mapSettings.columns.fuel" class="px-1.5 py-1.5 align-middle font-medium text-slate-700 dark:text-slate-200">
-                  {{ formatFuel(vehicle) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+          </template>
+          <template #fuel="{ vehicle }">{{ formatFuel(vehicle) }}</template>
+          <template #driver="{ vehicle }">[{{ vehicleDriverLabel(vehicle) }}]</template>
+        </FleetVehicleList>
       </div>
 
       <div v-else-if="activeMode === 'places'" class="flex min-h-0 flex-1 flex-col">
@@ -299,7 +227,7 @@
           Szukaj
         </AppButton>
 
-        <p v-if="historyFormError" class="rounded-xl border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-300">
+        <p v-if="historyFormError" class="rounded-xl border border-danger-100 bg-danger-50 px-2.5 py-2 text-[11px] font-medium text-danger-600 dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-300">
           {{ historyFormError }}
         </p>
 
@@ -318,18 +246,28 @@
               <dd class="mt-0.5 font-semibold text-slate-950 dark:text-slate-50">{{ historyDistanceLabel }}</dd>
             </div>
             <div>
-              <dt class="text-slate-500 dark:text-app-muted">Średnia prędkość</dt>
-              <dd class="mt-0.5 font-semibold text-slate-950 dark:text-slate-50">{{ historyAverageSpeedLabel }}</dd>
+              <dt class="text-slate-500 dark:text-app-muted">Zużyte paliwo</dt>
+              <dd class="mt-0.5 font-semibold text-slate-950 dark:text-slate-50">{{ historyFuelUsedLabel }}</dd>
             </div>
             <div>
-              <dt class="text-slate-500 dark:text-app-muted">Km początek</dt>
-              <dd class="mt-0.5 font-semibold text-slate-950 dark:text-slate-50">{{ historyStartMileageLabel }}</dd>
-            </div>
-            <div>
-              <dt class="text-slate-500 dark:text-app-muted">Km koniec</dt>
-              <dd class="mt-0.5 font-semibold text-slate-950 dark:text-slate-50">{{ historyEndMileageLabel }}</dd>
+              <dt class="text-slate-500 dark:text-app-muted">Średnie spalanie</dt>
+              <dd class="mt-0.5 font-semibold text-slate-950 dark:text-slate-50">{{ historyConsumptionLabel }}</dd>
             </div>
           </dl>
+          <ul v-if="historyWarnings.length" class="mt-3 space-y-2 text-[11px] text-warning-600 dark:text-warning-400">
+            <li v-for="warning in historyWarnings" :key="warning">{{ warning }}</li>
+          </ul>
+          <p v-if="!fleetStore.isRouteHistoryLoading && !positionHistory.records.value.length" class="mt-3 ui-caption text-ui-mutedText">Brak historii w lokalnej bazie dla tego zakresu.</p>
+          <div v-if="historyFuelEvents.length" class="mt-3 space-y-2 border-t border-ui-border pt-3">
+            <h3 class="ui-label">Zdarzenia paliwowe</h3>
+            <button v-for="(event, index) in historyFuelEvents" :key="index" type="button" class="block w-full rounded-md border border-ui-border p-2 text-left text-xs hover:bg-ui-hover" @click.stop="showFuelEvent(event)">
+              <span class="block font-medium">{{ fuelEventLabel(event) }}</span>
+              <span class="block text-ui-mutedText">{{ formatDateTimeLabel(event.detectedAt) }}</span>
+              <span class="block">{{ historyMetric(event.estimatedAmountLiters, 'l') }} · {{ historyMetric(event.beforeLiters, 'l') }} → {{ historyMetric(event.afterLiters, 'l') }}</span>
+              <span class="block text-ui-mutedText">{{ event.levelSource === 'SENSOR_LITERS' ? 'Czujnik litrów' : 'Procent obecnego zbiornika' }}</span>
+            </button>
+            <p class="ui-caption text-ui-mutedText">Zdarzenia szacunkowe, nie potwierdzone operacje paliwowe.</p>
+          </div>
         </section>
       </div>
 
@@ -373,13 +311,13 @@
 
         <section class="mt-4 space-y-1.5">
           <h2 class="text-xs font-semibold text-slate-950 dark:text-slate-50">Historia trasy</h2>
-          <MapSwitch v-model="mapSettings.map.historyMarkersByZoom" label="Pokazuj markery w zależności od zoomu" />
         </section>
       </div>
     </aside>
 
     <section class="relative min-h-0 min-w-0 flex-1">
       <div ref="mapElement" class="h-full w-full"></div>
+      <FuelStationMapLayer v-if="canReadFuelStations" :map="googleMap" />
 
       <div
         v-if="isPlacePlacementMode"
@@ -400,12 +338,12 @@
         aria-label="Renderowanie historii trasy"
         aria-valuemin="0"
         aria-valuemax="100"
-        :aria-valuenow="Math.round(historyRenderProgress)"
+        :aria-valuenow="Math.round(historyLoadProgress)"
       >
         <div
           class="h-full bg-blue-600 transition-[width] duration-75 ease-linear dark:bg-blue-400"
           :class="fleetStore.isRouteHistoryLoading ? 'animate-pulse' : ''"
-          :style="{ width: `${fleetStore.isRouteHistoryLoading ? 8 : historyRenderProgress}%` }"
+          :style="{ width: `${historyLoadProgress}%` }"
         ></div>
       </div>
 
@@ -464,6 +402,10 @@
             <TicketCheck class="h-4 w-4" />
           </button>
 
+          <button v-if="canReadFuelStations" type="button" class="inline-flex h-9 w-9 items-center justify-center rounded-md border shadow-sm transition" :class="fuelMenuOpen ? activeModeClasses : inactiveModeClasses" aria-label="Stacje paliw" title="Stacje paliw" :aria-expanded="fuelMenuOpen" @click="toggleFuelMenu">
+            <Fuel class="h-4 w-4" />
+          </button>
+
           <div
             class="relative flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-[10px] font-semibold tabular-nums text-slate-600 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-200"
             :title="`Odświeżenie pozycji za ${positionRefreshSeconds}s`"
@@ -486,6 +428,14 @@
             </svg>
             <span class="relative">{{ positionRefreshSeconds }}</span>
           </div>
+        </div>
+
+        <div
+          v-if="fuelMenuOpen && canReadFuelStations"
+          class="absolute left-0 top-11 max-h-[calc(100dvh-10rem)] overflow-y-auto"
+          @keydown.esc="fuelMenuOpen = false"
+        >
+          <FuelStationMapControls />
         </div>
 
         <div
@@ -622,6 +572,14 @@
             <div class="flex shrink-0 items-center gap-1">
               <button
                 type="button"
+                class="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-ui-border text-ui-icon transition hover:bg-ui-hover hover:text-ui-text md:hidden"
+                aria-label="Schowaj szczegóły pojazdu i zachowaj trasę"
+                @click.stop="hideVehicleDetailsDrawer"
+              >
+                <PanelRightClose class="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
                 class="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 hover:text-red-600 dark:border-app-border dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-red-300 md:h-7 md:w-7 md:rounded-xl"
                 aria-label="Zamknij szczegóły i wyczyść wybór pojazdu"
                 @click="closeVehicleDrawer"
@@ -673,6 +631,10 @@
                 </div>
                 <div v-if="selectedVehicle.vehicleType !== 'trailer'" class="flex items-center justify-between gap-3 px-3 py-2">
                   <dt class="text-ui-mutedText">Paliwo</dt><dd class="font-semibold text-ui-text">{{ formatFuel(selectedVehicle) }}</dd>
+                </div>
+                <div class="flex items-center justify-between gap-3 px-3 py-2">
+                  <dt class="text-ui-mutedText">Bateria</dt>
+                  <dd><VehicleBatteryLevel :level="selectedVehicle.batteryLevel" /></dd>
                 </div>
                 <div class="flex items-center justify-between gap-3 px-3 py-2">
                   <dt class="text-ui-mutedText">GPS</dt>
@@ -844,7 +806,7 @@
       @saved="handlePlaceSaved"
     />
 
-    <Teleport to="body">
+  <Teleport :to="workspacePortal">
       <div
         v-if="placeToDelete"
         class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/40 p-4"
@@ -868,11 +830,22 @@
   </div>
 </template>
 <script setup lang="ts">
+import { onActivated, onDeactivated } from 'vue'
+import { useWorkspaceActive } from '@/composables/useWorkspace'
+import { useWorkspacePortal } from '@/composables/useWorkspace'
 import { storeToRefs } from 'pinia'
 import { computed, defineComponent, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref, render, shallowRef, watch, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Check, CircleAlert, Container, Copy, Flag, Gauge, GlobeX, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightOpen, Plus, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, UserRound, Wrench, X } from 'lucide-vue-next'
+import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Check, CircleAlert, Container, Copy, Flag, Gauge, GlobeX, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, UserRound, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
+import VehicleBatteryLevel from '@/components/vehicles/VehicleBatteryLevel.vue'
+import FleetVehicleList from '@/components/map/FleetVehicleList.vue'
+import { Fuel } from 'lucide-vue-next'
+import FuelStationMapLayer from '@/components/fuel-stations/FuelStationMapLayer.vue'
+import FuelStationMapControls from '@/components/fuel-stations/FuelStationMapControls.vue'
+import { features } from '@/config/features'
+import { useFuelStationPermissions } from '@/composables/useFuelStationPermissions'
+import { useFuelStationStore } from '@/stores/fuelStationStore'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
@@ -883,8 +856,13 @@ import RepairCreateModal from '@/components/repairs/RepairCreateModal.vue'
 import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
 import PlaceDetailsModal from '@/components/places/PlaceDetailsModal.vue'
 import { usePositionHistory, type RouteLatLng } from '@/composables/usePositionHistory'
+import LocalHistoryPointPopup from '@/components/map/LocalHistoryPointPopup.vue'
+import { historyLocalValue as toLocalDateTimeValue, historyLocalInstant, historyPresetRange as historyRangeForPreset, validateHistoryRange, todayHistoryRange } from '@/utils/historyTime'
+import { historyMetric, historyPointSpeed, historyPointFuel, fuelEventLabel, localHistoryWarning, validHistoryPosition } from '@/utils/localPositionHistory'
 import { loadGoogleMaps } from '@/services/googleMapsLoader'
-import type { ApiPositionHistoryPoint } from '@/services/positionService'
+import { DARK_STYLES } from '@/services/googleMapStyles'
+import { fleetMarkerIconSvg } from '@/utils/fleetMarker'
+import type { LocalHistoryPoint as ApiPositionHistoryPoint, LocalFuelEvent } from '@/types/localPositionHistory'
 import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
 import { usePlaceStore } from '@/stores/placeStore'
@@ -932,118 +910,11 @@ const VEHICLE_FOCUS_ANIMATION_MS = 750
 const REFRESH_CIRCLE_RADIUS = 14
 const REFRESH_CIRCLE_CIRCUMFERENCE = 2 * Math.PI * REFRESH_CIRCLE_RADIUS
 const MAP_SELECTED_FLEET_KEY_PREFIX = 'routewise.map.selectedFleet'
+const REPAIRS_FLEET_ID = 'status:repairs'
 const DEFAULT_SELECTED_FLEET_ID = 'type:truck'
 const MOBILE_MAP_MEDIA_QUERY = '(max-width: 767px)'
-const ROUTE_DETAIL_POINT_INTERVAL = 10
-const HISTORY_RENDER_DURATION_MS = 550
+const ROUTE_DETAIL_POINT_INTERVAL = 3
 const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || ''
-const DARK_STYLES = [
-  {
-    elementType: 'geometry',
-    stylers: [{ color: '#242f3e' }],
-  },
-  {
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#9e9e9e' }],
-  },
-  {
-    elementType: 'labels.text.stroke',
-    stylers: [{ visibility: 'off' }],
-  },
-  {
-    featureType: 'administrative.country',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#7a5a5a' }, { weight: 1.2 }],
-  },
-  {
-    featureType: 'administrative.province',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#6a4a4a' }, { weight: 0.6 }],
-  },
-  {
-    featureType: 'administrative.locality',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#9e9e9e' }],
-  },
-  {
-    featureType: 'administrative.locality',
-    elementType: 'labels.text.stroke',
-    stylers: [{ visibility: 'off' }],
-  },
-  {
-    featureType: 'poi',
-    stylers: [{ visibility: 'off' }],
-  },
-  {
-    featureType: 'poi.park',
-    elementType: 'geometry',
-    stylers: [{ color: '#263c3f' }, { visibility: 'simplified' }],
-  },
-  {
-    featureType: 'poi.park',
-    elementType: 'labels',
-    stylers: [{ visibility: 'off' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'geometry',
-    stylers: [{ color: '#38414e' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#212a37' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#9ca5b3' }],
-  },
-  {
-    featureType: 'road',
-    elementType: 'labels.text.stroke',
-    stylers: [{ visibility: 'off' }],
-  },
-  {
-    featureType: 'road.highway',
-    elementType: 'geometry',
-    stylers: [{ color: '#4f5861' }],
-  },
-  {
-    featureType: 'road.highway',
-    elementType: 'geometry.stroke',
-    stylers: [{ color: '#2c3e50' }],
-  },
-  {
-    featureType: 'road.highway',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#b0b8c2' }],
-  },
-  {
-    featureType: 'road.highway',
-    elementType: 'labels.text.stroke',
-    stylers: [{ visibility: 'off' }],
-  },
-  {
-    featureType: 'transit',
-    stylers: [{ visibility: 'off' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'geometry',
-    stylers: [{ color: '#17263c' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#8e8e8e' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'labels.text.stroke',
-    stylers: [{ visibility: 'off' }],
-  },
-]
 
 const defaultMapSettings = {
   columns: {
@@ -1067,7 +938,6 @@ const defaultMapSettings = {
     showMarkerLabels: true,
     showMarkerDriver: false,
     showVehicleDescriptions: false,
-    historyMarkersByZoom: false,
     mapTheme: 'light' as MapTheme,
     mapType: 'roadmap' as GoogleMapType,
     trafficLayer: false,
@@ -1169,87 +1039,27 @@ function isMobileMapViewport() {
   return typeof window !== 'undefined' && window.matchMedia(MOBILE_MAP_MEDIA_QUERY).matches
 }
 
-function toLocalDateTimeValue(date: Date) {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  const hour = String(date.getHours()).padStart(2, '0')
-  const minute = String(date.getMinutes()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hour}:${minute}`
-}
-
 function initialHistoryRange() {
-  const now = new Date()
-  const start = new Date(now)
-  start.setHours(0, 0, 0, 0)
-
-  return {
-    from: toLocalDateTimeValue(start),
-    to: toLocalDateTimeValue(now),
-  }
-}
-
-function startOfDay(date: Date) {
-  const result = new Date(date)
-  result.setHours(0, 0, 0, 0)
-  return result
-}
-
-function endOfDay(date: Date) {
-  const result = new Date(date)
-  result.setHours(23, 59, 0, 0)
-  return result
-}
-
-function startOfWeek(date: Date) {
-  const result = startOfDay(date)
-  const mondayOffset = (result.getDay() + 6) % 7
-  result.setDate(result.getDate() - mondayOffset)
-  return result
-}
-
-function historyRangeForPreset(preset: HistoryPreset) {
-  const now = new Date()
-
-  if (preset === 'today') {
-    return { from: startOfDay(now), to: now }
-  }
-
-  if (preset === 'yesterday') {
-    const yesterday = new Date(now)
-    yesterday.setDate(yesterday.getDate() - 1)
-    return { from: startOfDay(yesterday), to: endOfDay(yesterday) }
-  }
-
-  if (preset === 'current-week') {
-    return { from: startOfWeek(now), to: now }
-  }
-
-  if (preset === 'previous-week') {
-    const currentWeekStart = startOfWeek(now)
-    const previousWeekStart = new Date(currentWeekStart)
-    previousWeekStart.setDate(previousWeekStart.getDate() - 7)
-    const previousWeekEnd = new Date(currentWeekStart)
-    previousWeekEnd.setMinutes(previousWeekEnd.getMinutes() - 1)
-    return { from: previousWeekStart, to: previousWeekEnd }
-  }
-
-  if (preset === 'current-month') {
-    return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: now }
-  }
-
-  return {
-    from: new Date(now.getFullYear(), now.getMonth() - 1, 1),
-    to: endOfDay(new Date(now.getFullYear(), now.getMonth(), 0)),
-  }
+  const range = historyRangeForPreset('today')
+  return {from:toLocalDateTimeValue(range.from), to:toLocalDateTimeValue(range.to)}
 }
 
 const fleetStore = useFleetStore()
 const uiStore = useUiStore()
 const authStore = useAuthStore()
+const { canRead: hasFuelStationPermission } = useFuelStationPermissions()
+const canReadFuelStations = computed(() => features.fuelStations && hasFuelStationPermission.value)
+const fuelStationStore = useFuelStationStore()
+const fuelMenuOpen = ref(false)
+function toggleFuelMenu() {
+  fuelMenuOpen.value = !fuelMenuOpen.value
+  layersMenuOpen.value = false; placesMenuOpen.value = false
+  if (fuelMenuOpen.value) void fuelStationStore.loadMapStations()
+}
 const repairStore = useRepairStore()
 const placeStore = usePlaceStore()
 const router = useRouter()
+const workspaceActive = useWorkspaceActive()
 const { repairs } = storeToRefs(repairStore)
 const {
   places,
@@ -1311,13 +1121,13 @@ let todayRouteRequestId = 0
 let routeAnimationFrameId: number | null = null
 let routeAnimationId = 0
 let vehicleFocusAnimationFrameId: number | null = null
-let todayRoutePolyline: any | null = null
+let todayRoutePolylines: any[] = []
+let fuelEventMarkers: any[] = []
+let renderedFuelEvents: readonly LocalFuelEvent[] | null = null
 let routeInfoWindow: any | null = null
 let routeInfoWindowContent: HTMLDivElement | null = null
 let routeInfoWindowRecordIndex: number | null = null
 let routeInfoWindowPinned = false
-let routeZoomListener: any | null = null
-let routeZoomRefreshFrameId: number | null = null
 let renderedRoutePositionCount = 0
 let isRouteRenderComplete = false
 let placeMapClickListener: any | null = null
@@ -1355,9 +1165,12 @@ const vehiclePanelClasses = computed(() => {
     : `${base} translate-x-0 md:w-96 md:translate-x-0`
 })
 
+const visibleVehicleTypeGroups = computed(() => fleetStore.vehicleTypeGroups.filter(group => group.vehiclesCount > 0))
+const vehiclesWithRepairsCount = computed(() => fleetStore.vehicles.filter(vehicleHasActiveRepair).length)
+
 const fleetSelectOptions = computed(() => [
   { value: 'all', label: 'Wszystkie floty' },
-  ...fleetStore.vehicleTypeGroups.map((group) => ({
+  ...visibleVehicleTypeGroups.value.map((group) => ({
     value: group.id,
     label: `${group.name} (${group.vehiclesCount})`,
   })),
@@ -1367,12 +1180,22 @@ const fleetSelectOptions = computed(() => [
   })),
 ])
 
+const mapFleetSelectOptions = computed(() => [
+  ...fleetSelectOptions.value.slice(0, 1 + visibleVehicleTypeGroups.value.length),
+  ...(vehiclesWithRepairsCount.value > 0 ? [{
+    value: REPAIRS_FLEET_ID,
+    label: `Naprawy (${vehiclesWithRepairsCount.value})`,
+  }] : []),
+  ...fleetSelectOptions.value.slice(1 + visibleVehicleTypeGroups.value.length),
+])
+
 const selectedVehicle = computed(() => (
   selectedVehicleId.value
     ? fleetStore.vehicles.find((vehicle) => vehicle.id === selectedVehicleId.value) || null
     : null
 ))
 const canReadVehiclePhotos = computed(() => authStore.hasActiveCompanyPermission('vehicle_photos.read'))
+const canReadLocalHistory = computed(() => Boolean(authStore.isAuthenticated && authStore.activeCompanyId && (authStore.hasActiveCompanyRole('COMPANY_ADMIN') || authStore.user?.sysAdmin === true || (authStore.hasActiveCompanyPermission('positions.read') && authStore.hasActiveCompanyPermission('vehicles.read')))))
 const canCreateRepairs = computed(() => authStore.canManageCompany || authStore.hasActiveCompanyPermission('repairs.create'))
 const canCreateVehicleFaults = computed(() => authStore.canManageCompany || authStore.hasActiveCompanyPermission('faults.create'))
 const vehicleDrawerStyle = computed(() => vehicleDrawerMeasuredHeight.value
@@ -1430,7 +1253,9 @@ const filteredVehicles = computed(() => {
 
   const matchedVehicles = fleetStore.vehicles.filter((vehicle) => {
     const driver = vehicleDriverLabel(vehicle).toLowerCase()
-    const matchesFleet = selectedFleetId.value === 'all' || fleetStore.isVehicleInGroup(selectedFleetId.value, vehicle.id)
+    const matchesFleet = selectedFleetId.value === REPAIRS_FLEET_ID
+      ? vehicleHasActiveRepair(vehicle)
+      : selectedFleetId.value === 'all' || fleetStore.isVehicleInGroup(selectedFleetId.value, vehicle.id)
     const matchesQuery = !query ||
       vehicle.plateNumber.toLowerCase().includes(query) ||
       vehicle.name.toLowerCase().includes(query) ||
@@ -1489,6 +1314,7 @@ const vehicleDrawerTabs = computed<Array<{ value: VehicleDrawerTab; label: strin
 ])
 
 const canSearchHistory = computed(() => (
+  canReadLocalHistory.value &&
   historyFilters.vehicleId !== 'all' &&
   Boolean(historyFilters.dateFrom) &&
   Boolean(historyFilters.dateTo) &&
@@ -1512,32 +1338,19 @@ const historyRangeLabel = computed(() => {
   return `${formatUnixTimestamp(range.from)} – ${formatUnixTimestamp(range.to)}`
 })
 
-const historyDistanceLabel = computed(() => {
-  const mileageDistance = fleetStore.currentPositionHistorySummary?.mileageDifferenceKm
-  const distance = mileageDistance ?? calculateRouteDistanceKm(positionHistory.path.value)
-  return formatMileage(distance)
+const historyDistanceLabel = computed(() => historyMetric(fleetStore.currentPositionHistorySummary?.distanceKm ?? null, 'km'))
+const historyFuelUsedLabel = computed(() => historyMetric(fleetStore.currentPositionHistorySummary?.fuelUsedLiters ?? null, 'l'))
+const historyConsumptionLabel = computed(() => historyMetric(fleetStore.currentPositionHistorySummary?.consumptionLPer100Km ?? null, 'l/100 km'))
+const historyWarnings = computed(() => {
+  const warnings = (fleetStore.currentPositionHistorySummary?.warnings || []).map(localHistoryWarning)
+  if (fleetStore.currentPositionHistorySummary?.distanceSource === 'GPS_ESTIMATE') warnings.unshift('Kilometry są oszacowaniem odległości między odczytami GPS, nie przebiegiem drogowym.')
+  if (fleetStore.currentPositionHistoryVehicleId && !fleetStore.isRouteHistoryLoading && !fleetStore.currentPositionHistoryComplete) warnings.unshift('Nie pobrano całej historii. Widoczna trasa może być niepełna.')
+  return warnings
 })
-
-const historyStartMileageLabel = computed(() => formatMileage(
-  fleetStore.currentPositionHistorySummary?.firstMileageKm ?? null,
-))
-
-const historyEndMileageLabel = computed(() => formatMileage(
-  fleetStore.currentPositionHistorySummary?.lastMileageKm ?? null,
-))
-
-const historyAverageSpeedLabel = computed(() => {
-  const speeds = positionHistory.records.value
-    .map((point) => point.speedKph)
-    .filter((speed): speed is number => speed !== null && Number.isFinite(speed) && speed >= 0)
-
-  if (!speeds.length) {
-    return '—'
-  }
-
-  const averageSpeed = speeds.reduce((total, speed) => total + speed, 0) / speeds.length
-  return `${averageSpeed.toLocaleString('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km/h`
-})
+const historyFuelEvents = computed(() => fleetStore.currentPositionHistorySummary?.fuelEvents || [])
+const historyLoadProgress = computed(() => fleetStore.isRouteHistoryLoading
+  ? Math.min(99, fleetStore.currentPositionHistorySummary?.sampleCount ? fleetStore.currentPositionHistoryLoaded * 100 / fleetStore.currentPositionHistorySummary.sampleCount : 8)
+  : historyRenderProgress.value)
 
 const fuelUnitOptions = [
   { value: 'auto', label: 'Auto' },
@@ -1622,6 +1435,10 @@ function showVehicleDetailsDrawer() {
   vehicleDetailsDrawerOpen.value = true
 }
 
+function hideVehicleDetailsDrawer() {
+  vehicleDetailsDrawerOpen.value = false
+}
+
 function clearPositionHistoryData() {
   positionHistory.clear()
   fleetStore.clearPositionHistory()
@@ -1691,13 +1508,14 @@ function vehicleDriverLabel(vehicle: Vehicle) {
 }
 
 function formatUnixTimestamp(value: string) {
-  const timestamp = Number(value)
+  const timestamp = /^\d+$/.test(value) ? Number(value) * 1000 : Date.parse(value)
 
   if (!Number.isFinite(timestamp)) {
     return '—'
   }
 
-  return new Date(timestamp * 1000).toLocaleString('pl-PL', {
+  return new Date(timestamp).toLocaleString('pl-PL', {
+    timeZone: fleetStore.currentPositionHistoryTimezone,
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -1706,42 +1524,9 @@ function formatUnixTimestamp(value: string) {
   })
 }
 
-function formatMileage(value: number | null) {
-  if (value === null || !Number.isFinite(value)) {
-    return '—'
-  }
-
-  return `${value.toLocaleString('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`
-}
-
-function calculateRouteDistanceKm(points: RouteLatLng[]) {
-  const earthRadiusKm = 6371
-  let distance = 0
-
-  for (let index = 1; index < points.length; index += 1) {
-    const previous = points[index - 1]
-    const current = points[index]
-    const latitudeDelta = (current.lat - previous.lat) * Math.PI / 180
-    const longitudeDelta = (current.lng - previous.lng) * Math.PI / 180
-    const previousLatitude = previous.lat * Math.PI / 180
-    const currentLatitude = current.lat * Math.PI / 180
-    const haversine = Math.sin(latitudeDelta / 2) ** 2 +
-      Math.cos(previousLatitude) * Math.cos(currentLatitude) * Math.sin(longitudeDelta / 2) ** 2
-    distance += earthRadiusKm * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
-  }
-
-  return distance
-}
 
 function routePointDriverLabel(point: ApiPositionHistoryPoint) {
-  const driver = point.driver0 || point.driver1
-
-  if (!driver) {
-    return '-'
-  }
-
-  const name = [driver.firstName, driver.lastName].filter(Boolean).join(' ').trim()
-  return name || String(driver.tachoid)
+  return (point.drivers || []).map(driver => driver.name || driver.externalId || '—').join(', ') || '—'
 }
 
 function routePointCoordinates(point: ApiPositionHistoryPoint) {
@@ -1751,15 +1536,15 @@ function routePointCoordinates(point: ApiPositionHistoryPoint) {
 }
 
 function routePointSpeed(point: ApiPositionHistoryPoint) {
-  return `${Math.round(point.speedKph ?? 0)} km/h`
+  return historyPointSpeed(point.speedKph)
 }
 
 function routePointFuel(point: ApiPositionHistoryPoint) {
-  return point.fuelPct === null ? '-' : `${Math.round(point.fuelPct)}%`
+  return historyPointFuel(point)
 }
 
 function routePointTimestamp(point: ApiPositionHistoryPoint) {
-  return formatDateTimeLabel(point.ts)
+  return new Date(point.ts).toLocaleString('pl-PL', {timeZone:fleetStore.currentPositionHistoryTimezone, day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'})
 }
 
 function copyRoutePointCoordinates(point: ApiPositionHistoryPoint) {
@@ -2131,7 +1916,7 @@ function vehicleAlertIconClasses(vehicle: Vehicle) {
   const severity = vehicleAlertSeverity(vehicle)
 
   if (severity === 'warning') {
-    return 'text-amber-500 dark:text-amber-300'
+    return 'text-warning-600 dark:text-amber-300'
   }
 
   if (severity === 'error') {
@@ -2145,11 +1930,11 @@ function vehicleAlertCountClasses(vehicle: Vehicle) {
   const severity = vehicleAlertSeverity(vehicle)
 
   if (severity === 'warning') {
-    return 'bg-amber-400 text-slate-950 dark:bg-amber-300 dark:text-app-dark'
+    return 'border border-warning-100 bg-warning-50 text-warning-600 dark:border-transparent dark:bg-amber-300 dark:text-app-dark'
   }
 
   if (severity === 'error') {
-    return 'bg-danger-600 text-white dark:bg-danger-400 dark:text-app-dark'
+    return 'border border-danger-100 bg-danger-50 text-danger-600 dark:border-transparent dark:bg-danger-400 dark:text-app-dark'
   }
 
   return 'bg-slate-200 text-slate-700 dark:bg-app-elevated dark:text-slate-100'
@@ -2230,16 +2015,19 @@ function hidePinnedOverlays() {
 }
 
 function toggleLayersMenu() {
+  fuelMenuOpen.value = false
   layersMenuOpen.value = !layersMenuOpen.value
   placesMenuOpen.value = false
 }
 
 function togglePlacesMenu() {
+  fuelMenuOpen.value = false
   placesMenuOpen.value = !placesMenuOpen.value
   layersMenuOpen.value = false
 }
 
 function toggleVignetteDrawer() {
+  fuelMenuOpen.value = false
   vignetteDrawerOpen.value = !vignetteDrawerOpen.value
   layersMenuOpen.value = false
   placesMenuOpen.value = false
@@ -2383,7 +2171,7 @@ function vignetteDaysClasses(daysLeft: number | null) {
   }
 
   if (daysLeft < 30) {
-    return 'text-amber-600 dark:text-amber-300'
+    return 'text-warning-600 dark:text-amber-300'
   }
 
   return 'text-slate-700 dark:text-slate-200'
@@ -2441,6 +2229,7 @@ function clearPlaceOverlays() {
 }
 
 function renderPlaceOverlays() {
+  if (!workspaceActive.value) return
   clearPlaceOverlays()
 
   if (!googleMap.value || !window.google?.maps || !mapSettings.map.showPlaces) return
@@ -2519,6 +2308,7 @@ function cancelRouteAnimation() {
 
 function closeRouteInfoWindow() {
   routeInfoWindow?.close?.()
+  if (routeInfoWindowContent) render(null, routeInfoWindowContent)
   routeInfoWindowPinned = false
   routeInfoWindowRecordIndex = null
 }
@@ -2548,15 +2338,16 @@ function clearRoutePointMarkers() {
 }
 
 function clearRoutePolyline() {
-  if (!todayRoutePolyline) {
-    return
-  }
-
-  todayRoutePolyline.setPath([])
-  todayRoutePolyline.setMap(null)
-  todayRoutePolyline.unbindAll?.()
-  window.google?.maps?.event?.clearInstanceListeners?.(todayRoutePolyline)
-  todayRoutePolyline = null
+  todayRoutePolylines.forEach(line => {
+    line.setPath([])
+    line.setMap(null)
+    line.unbindAll?.()
+    window.google?.maps?.event?.clearInstanceListeners?.(line)
+  })
+  todayRoutePolylines = []
+  fuelEventMarkers.forEach(marker => {window.google?.maps?.event?.clearInstanceListeners?.(marker); marker.setMap(null)})
+  fuelEventMarkers = []
+  renderedFuelEvents = null
 }
 
 function clearTodayRoute(invalidateRequest = true) {
@@ -2564,11 +2355,6 @@ function clearTodayRoute(invalidateRequest = true) {
 
   if (invalidateRequest) {
     todayRouteRequestId += 1
-  }
-
-  if (routeZoomRefreshFrameId !== null) {
-    window.cancelAnimationFrame(routeZoomRefreshFrameId)
-    routeZoomRefreshFrameId = null
   }
 
   clearRoutePointMarkers()
@@ -2635,29 +2421,7 @@ function markerState(vehicle: Vehicle) {
 }
 
 function markerIconSvg(vehicle: Vehicle) {
-  const state = markerState(vehicle)
-
-  if (state === 'repair') {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.121 2.121 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"></path></svg>'
-  }
-
-  if (state === 'alert') {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" x2="12" y1="8" y2="12"></line><line x1="12" x2="12.01" y1="16" y2="16"></line></svg>'
-  }
-
-  if (state === 'power') {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M12 7v5"></path><path d="M8.5 9.5a5 5 0 1 0 7 0"></path></svg>'
-  }
-
-  if (state === 'idle' || state === 'ignition-on') {
-    if (vehicle.vehicleType === 'trailer') {
-      return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle></svg>'
-    }
-
-    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="10" x2="10" y1="15" y2="9"></line><line x1="14" x2="14" y1="15" y2="9"></line></svg>'
-  }
-
-  return '<svg class="rw-fleet-marker-heading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m16 12-4-4-4 4"></path><path d="M12 16V8"></path></svg>'
+  return fleetMarkerIconSvg(markerState(vehicle), vehicle.vehicleType)
 }
 
 function vehicleHasActiveRepair(vehicle: Vehicle) {
@@ -2705,15 +2469,25 @@ function markerHtml(vehicle: Vehicle) {
 function createVehicleMarker(vehicle: Vehicle) {
   const overlay = new window.google.maps.OverlayView()
   let element: HTMLDivElement | null = null
-  let button: HTMLButtonElement | null = null
+  let content = ''
+
+  const updateContent = () => {
+    if (!element) return
+    element.className = `rw-fleet-vehicle-marker rw-fleet-vehicle-marker-${vehicle.vehicleType}`
+    element.title = vehicle.plateNumber
+    const nextContent = markerHtml(vehicle)
+    if (nextContent !== content) {
+      element.innerHTML = nextContent
+      content = nextContent
+    }
+  }
 
   overlay.onAdd = () => {
     element = document.createElement('div')
-    element.className = `rw-fleet-vehicle-marker rw-fleet-vehicle-marker-${vehicle.vehicleType}`
-    element.title = vehicle.plateNumber
-    element.innerHTML = markerHtml(vehicle)
-    button = element.querySelector<HTMLButtonElement>('.rw-fleet-marker-button')
-    button?.addEventListener('click', (event) => {
+    content = ''
+    updateContent()
+    element.addEventListener('click', (event) => {
+      if (!(event.target instanceof Element) || !event.target.closest('.rw-fleet-marker-button')) return
       event.stopPropagation()
       selectVehicle(vehicle.id)
     })
@@ -2739,21 +2513,21 @@ function createVehicleMarker(vehicle: Vehicle) {
   overlay.onRemove = () => {
     element?.remove()
     element = null
-    button = null
+    content = ''
   }
 
+  ;(overlay as any).vehicleId = vehicle.id
+  ;(overlay as any).updateVehicle = (nextVehicle: Vehicle) => {
+    vehicle = nextVehicle
+    updateContent()
+    overlay.draw()
+  }
   overlay.setMap(googleMap.value)
   return overlay
 }
 
 function isTrailerRoutePoint(point: ApiPositionHistoryPoint) {
-  if (point.vehicleId === null) {
-    return false
-  }
-
-  return fleetStore.vehicles
-    .find((vehicle) => vehicle.backendId === point.vehicleId)
-    ?.vehicleType === 'trailer'
+  return selectedVehicle.value?.vehicleType === 'trailer'
 }
 
 let routeInfoCopyIconHtml = ''
@@ -2791,7 +2565,7 @@ function routeInfoWindowHtml(point: ApiPositionHistoryPoint, pinned: boolean) {
   const driverRow = showVehicleData
     ? `<div class="rw-route-info-row"><span>Kierowca</span><strong>${escapeHtml(routePointDriverLabel(point))}</strong></div>`
     : ''
-  const fuelRow = showVehicleData
+  const fuelRow = showVehicleData && routePointFuel(point)
     ? `<div class="rw-route-info-row"><span>Paliwo</span><strong>${escapeHtml(routePointFuel(point))}</strong></div>`
     : ''
   const closeButton = pinned
@@ -2886,6 +2660,7 @@ function showRoutePointInfo(recordIndex: number, position: RouteLatLng, pinned =
 
   routeInfoWindowRecordIndex = recordIndex
   routeInfoWindowPinned = pinned
+  render(null, routeInfoWindowContent)
   routeInfoWindowContent.innerHTML = routeInfoWindowHtml(point, pinned)
   routeInfoWindow.setPosition(position)
   routeInfoWindow.open({ map: googleMap.value, shouldFocus: false })
@@ -2988,33 +2763,35 @@ function createRoutePointMarker(position: RouteLatLng, recordIndex: number, kind
 }
 
 function renderMarkers() {
+  if (!workspaceActive.value) return
   if (!googleMap.value || !window.google?.maps) {
     return
   }
 
-  clearMarkers()
-
-  googleMarkers.value = markRaw(mapMarkerVehicles.value.map((vehicle) => createVehicleMarker(vehicle)))
+  const existing = new Map(googleMarkers.value.map(marker => [marker.vehicleId, marker]))
+  googleMarkers.value = markRaw(mapMarkerVehicles.value.map((vehicle) => {
+    const marker = existing.get(vehicle.id)
+    if (marker) {
+      existing.delete(vehicle.id)
+      marker.updateVehicle(vehicle)
+      return marker
+    }
+    return createVehicleMarker(vehicle)
+  }))
+  existing.forEach(marker => {
+    window.google?.maps?.event?.clearInstanceListeners?.(marker)
+    marker.setMap(null)
+  })
 }
 
 function routeMarkerInterval() {
-  const totalRecordCount = positionHistory.records.value.length
+  const totalRecordCount = Math.max(fleetStore.currentPositionHistorySummary?.sampleCount || 0, positionHistory.records.value.length)
 
   if (totalRecordCount < 100) {
     return 1
   }
 
-  if (!mapSettings.map.historyMarkersByZoom) {
-    return ROUTE_DETAIL_POINT_INTERVAL
-  }
-
-  const zoom = googleMap.value?.getZoom?.() ?? 10
-
-  if (zoom <= 6) return 50
-  if (zoom <= 8) return 30
-  if (zoom <= 10) return 20
-  if (zoom <= 13) return 10
-  return 5
+  return ROUTE_DETAIL_POINT_INTERVAL
 }
 
 function syncRoutePointMarkers(
@@ -3032,7 +2809,7 @@ function syncRoutePointMarkers(
   for (let pathIndex = 0; pathIndex < availablePositionCount; pathIndex += 1) {
     const recordIndex = positionHistory.pathRecordIndexes.value[pathIndex]
     const isStart = pathIndex === 0
-    const isEnd = isComplete && pathIndex === availablePositionCount - 1
+    const isEnd = isComplete && fleetStore.currentPositionHistoryComplete && pathIndex === availablePositionCount - 1
 
     if (!isStart && !isEnd && recordIndex % markerInterval !== 0) {
       continue
@@ -3056,7 +2833,7 @@ function syncRoutePointMarkers(
   const nextKeys = new Set(markerDescriptors.map(({ recordIndex, kind }) => markerKey(recordIndex, kind)))
 
   todayRoutePointMarkers.forEach((marker, key) => {
-    if (nextKeys.has(key)) {
+    if (nextKeys.has(key) || (fleetStore.currentPositionHistoryMode === 'today' && fleetStore.isRouteHistoryLoading)) {
       return
     }
 
@@ -3085,111 +2862,98 @@ function syncRoutePointMarkers(
 }
 
 function syncRoutePolyline(renderedPositionCount: number) {
-  const fullPath = positionHistory.path.value
-
-  if (!fullPath.length || !googleMap.value || !window.google?.maps) {
-    return
+  if (!googleMap.value || !window.google?.maps) return
+  const points = positionHistory.path.value
+  const count = Math.min(renderedPositionCount, points.length)
+  const starts = positionHistory.segmentStarts.value
+  for (let segment = 0; segment < starts.length && starts[segment]! < count; segment++) {
+    const start = starts[segment]!
+    const end = Math.min(starts[segment + 1] ?? count, count)
+    let line = todayRoutePolylines[segment]
+    if (!line) {
+      line = new window.google.maps.Polyline({map:googleMap.value, clickable:false, geodesic:false, strokeColor:'#7093ff', strokeOpacity:0.9, strokeWeight:6, zIndex:5})
+      todayRoutePolylines.push(line)
+    }
+    const path = line.getPath()
+    for (let index = start + path.getLength(); index < end; index++) {
+      const point = points[index]!
+      path.push(new window.google.maps.LatLng(point.lat, point.lng))
+    }
   }
-
-  const visiblePath = renderedPositionCount >= fullPath.length
-    ? fullPath
-    : fullPath.slice(0, renderedPositionCount)
-
-  if (!todayRoutePolyline) {
-    todayRoutePolyline = markRaw(new window.google.maps.Polyline({
-      map: googleMap.value,
-      path: visiblePath,
-      clickable: false,
-      geodesic: false,
-      strokeColor: '#7093ff',
-      strokeOpacity: 0.9,
-      strokeWeight: 6,
-      zIndex: 5,
-    }))
-    return
-  }
-
-  todayRoutePolyline.setPath(visiblePath)
+  syncFuelEventMarkers()
 }
 
 function syncTodayRouteRender() {
   renderedRoutePositionCount = positionHistory.path.value.length
-  isRouteRenderComplete = true
+  isRouteRenderComplete = fleetStore.currentPositionHistoryComplete
   syncRoutePolyline(renderedRoutePositionCount)
   syncRoutePointMarkers()
-  historyRenderProgress.value = 100
+  historyRenderProgress.value = isRouteRenderComplete ? 100 : 0
 }
 
 function animateHistoryRouteRender() {
-  cancelRouteAnimation()
-  const routePositionCount = positionHistory.path.value.length
-
-  if (!routePositionCount) {
-    historyRenderProgress.value = 0
-    return
-  }
-
-  if (routePositionCount === 1) {
-    syncTodayRouteRender()
-    return
-  }
-
+  if (routeAnimationFrameId !== null) return
   const animationId = routeAnimationId
-  let animationStartedAt: number | null = null
-  let previousRenderedCount = 0
   isHistoryRendering.value = true
-  historyRenderProgress.value = 0
-  renderedRoutePositionCount = 1
-  isRouteRenderComplete = false
-  syncRoutePointMarkers(1, false)
-
-  const renderNextBatch = (timestamp: number) => {
-    if (animationId !== routeAnimationId || activeMode.value !== 'history') {
-      return
-    }
-
-    animationStartedAt ??= timestamp
-    const progress = Math.min(1, (timestamp - animationStartedAt) / HISTORY_RENDER_DURATION_MS)
-    renderedRoutePositionCount = Math.min(
-      routePositionCount,
-      Math.max(2, Math.ceil(routePositionCount * progress)),
-    )
-    historyRenderProgress.value = progress * 100
-
-    if (renderedRoutePositionCount !== previousRenderedCount) {
-      syncRoutePolyline(renderedRoutePositionCount)
-      previousRenderedCount = renderedRoutePositionCount
-    }
-
-    if (progress >= 1) {
-      isRouteRenderComplete = true
-      syncRoutePointMarkers(renderedRoutePositionCount, true)
-      historyRenderProgress.value = 100
-      isHistoryRendering.value = false
-      routeAnimationFrameId = null
-      return
-    }
-
-    routeAnimationFrameId = window.requestAnimationFrame(renderNextBatch)
+  const renderNextBatch = () => {
+    routeAnimationFrameId = null
+    if (animationId !== routeAnimationId || activeMode.value !== 'history') return
+    const count = positionHistory.path.value.length
+    renderedRoutePositionCount = Math.min(count, renderedRoutePositionCount + 250)
+    isRouteRenderComplete = fleetStore.currentPositionHistoryComplete && renderedRoutePositionCount === count
+    syncRoutePolyline(renderedRoutePositionCount)
+    syncRoutePointMarkers(renderedRoutePositionCount, isRouteRenderComplete)
+    historyRenderProgress.value = count ? renderedRoutePositionCount * 100 / count : 100
+    if (renderedRoutePositionCount < count) routeAnimationFrameId = window.requestAnimationFrame(renderNextBatch)
+    else isHistoryRendering.value = false
   }
-
   routeAnimationFrameId = window.requestAnimationFrame(renderNextBatch)
 }
 
-function scheduleRouteMarkersForZoom() {
-  if (!mapSettings.map.historyMarkersByZoom || !positionHistory.path.value.length) {
-    return
-  }
-
-  if (routeZoomRefreshFrameId !== null) {
-    window.cancelAnimationFrame(routeZoomRefreshFrameId)
-  }
-
-  routeZoomRefreshFrameId = window.requestAnimationFrame(() => {
-    routeZoomRefreshFrameId = null
-    syncRoutePointMarkers()
-  })
+function showFuelEvent(event: LocalFuelEvent) {
+  if (!validHistoryPosition({lat:event.lat, lon:event.lng}) || !googleMap.value) return
+  ensureRouteInfoWindow()
+  if (!routeInfoWindowContent || !routeInfoWindow) return
+  closeRouteInfoWindow()
+  routeInfoWindowPinned = true
+  const position = {lat:event.lat!, lng:event.lng!}
+  render(h('div', [
+    h('button', {type:'button', class:'rw-route-info-action float-right', 'aria-label':'Zamknij szczegóły zdarzenia', onClick:closeRouteInfoWindow}, [h(X, {size:16})]),
+    h(LocalHistoryPointPopup, {event, position, timezone:fleetStore.currentPositionHistoryTimezone}),
+  ]), routeInfoWindowContent)
+  routeInfoWindow.setPosition(position)
+  routeInfoWindow.open({map:googleMap.value, shouldFocus:false})
 }
+
+function syncFuelEventMarkers() {
+  const events = fleetStore.currentPositionHistorySummary?.fuelEvents
+  if (events === renderedFuelEvents || !window.google?.maps || !googleMap.value) return
+  const existing = new Map(fuelEventMarkers.map(marker => [marker.fuelEventKey, marker]))
+  const nextMarkers: any[] = []
+  renderedFuelEvents = events || null
+  for (const event of events || []) {
+    if (!validHistoryPosition({lat:event.lat, lon:event.lng})) continue
+    const key = JSON.stringify(event)
+    const previous = existing.get(key)
+    if (previous) {
+      existing.delete(key)
+      nextMarkers.push(previous)
+      continue
+    }
+    const container = document.createElement('div')
+    render(h(event.type === 'POSSIBLE_REFUEL' ? Fuel : TriangleAlert, {size:20, color:event.type === 'POSSIBLE_REFUEL' ? '#16a34a' : '#eab308', strokeWidth:2.4}), container)
+    const svg = container.innerHTML
+    render(null, container)
+    const marker = new window.google.maps.Marker({map:googleMap.value, position:{lat:event.lat, lng:event.lng}, title:fuelEventLabel(event), zIndex:15,
+      icon:{url:'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(svg), scaledSize:new window.google.maps.Size(22,22), anchor:new window.google.maps.Point(11,11)}})
+    marker.addListener('click', (click: any) => {click?.domEvent?.stopPropagation?.(); showFuelEvent(event)})
+    ;(marker as any).fuelEventKey = key
+    nextMarkers.push(marker)
+  }
+  existing.forEach(marker => {window.google.maps.event.clearInstanceListeners(marker); marker.setMap(null)})
+  fuelEventMarkers = nextMarkers
+}
+
 
 function routeHistoryErrorCode(error: unknown) {
   const status = (error as { response?: { status?: number } })?.response?.status
@@ -3207,7 +2971,7 @@ function routeHistoryErrorMessage(error: unknown) {
     return data.message
   }
 
-  return `Kod błędu: ${routeHistoryErrorCode(error)}`
+  return error instanceof Error ? error.message : `Kod błędu: ${routeHistoryErrorCode(error)}`
 }
 
 function showRouteHistoryErrorToast(error: unknown) {
@@ -3220,103 +2984,60 @@ function showRouteHistoryErrorToast(error: unknown) {
 
 async function searchPositionHistory() {
   historyFormError.value = ''
-  const vehicle = fleetStore.vehicles.find((item) => item.id === historyFilters.vehicleId)
-  const from = new Date(historyFilters.dateFrom)
-  const to = new Date(historyFilters.dateTo)
-
-  if (!vehicle) {
-    historyFormError.value = 'Wybierz pojazd.'
+  const vehicle = fleetStore.vehicles.find(item => item.id === historyFilters.vehicleId)
+  if (!vehicle || !canReadLocalHistory.value) return
+  let from: Date, to: Date
+  try {
+    const presetRange = historyFilters.preset ? historyRangeForPreset(historyFilters.preset) : null
+    from = presetRange?.from || historyLocalInstant(historyFilters.dateFrom)
+    to = presetRange?.to || historyLocalInstant(historyFilters.dateTo)
+    validateHistoryRange(from, to)
+  } catch (error) {
+    historyFormError.value = error instanceof Error ? error.message : 'Wybierz poprawny zakres dat.'
     return
   }
-
-  if (!vehicle.assignedDeviceId) {
-    historyFormError.value = 'Pojazd nie ma przypisanego urządzenia GPS.'
-    return
-  }
-
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
-    historyFormError.value = 'Wybierz poprawny zakres dat.'
-    return
-  }
-
-  if (from.getTime() > to.getTime()) {
-    historyFormError.value = 'Data „Od” nie może być późniejsza niż data „Do”.'
-    return
-  }
-
-  const requestId = todayRouteRequestId + 1
-  todayRouteRequestId = requestId
-  clearTodayRoute(false)
-  positionHistory.clear()
+  clearTodayRoute()
+  clearPositionHistoryData()
+  const requestId = todayRouteRequestId
   selectedVehicleId.value = vehicle.id
   vehicleDetailsDrawerOpen.value = false
-
   try {
-    const points = await fleetStore.fetchPositionHistory(vehicle, from, to, { silent: true })
-
-    if (
-      activeMode.value === 'history' &&
-      requestId === todayRouteRequestId &&
-      selectedVehicleId.value === vehicle.id &&
-      fleetStore.currentPositionHistoryVehicleId === vehicle.id
-    ) {
-      positionHistory.replace(points)
-      collapseVehiclePanelOnMobile()
-      focusPositionHistory()
+    await fleetStore.fetchPositionHistory(vehicle, from, to, {silent:true, onPage(points) {
+      if (requestId !== todayRouteRequestId || activeMode.value !== 'history' || selectedVehicleId.value !== vehicle.id) return
+      positionHistory.append(points)
       animateHistoryRouteRender()
-    }
+    }})
+    if (requestId !== todayRouteRequestId || activeMode.value !== 'history' || selectedVehicleId.value !== vehicle.id) return
+    collapseVehiclePanelOnMobile()
+    animateHistoryRouteRender()
+    focusPositionHistory()
   } catch (error) {
     if (requestId === todayRouteRequestId) {
-      clearTodayRoute(false)
-      clearPositionHistoryData()
+      historyFormError.value = routeHistoryErrorMessage(error)
       showRouteHistoryErrorToast(error)
     }
   }
 }
 
-async function renderTodayRoute(options: { append?: boolean } = {}) {
-  const shouldAppend = options.append === true
+async function renderTodayRoute(options: {append?:boolean} = {}) {
+  if (!workspaceActive.value || activeMode.value === 'history') return
   const vehicle = selectedVehicle.value
-  const vehicleId = vehicle?.id || null
-  const requestId = shouldAppend ? todayRouteRequestId : todayRouteRequestId + 1
-
-  if (!shouldAppend) {
-    todayRouteRequestId = requestId
-    clearTodayRoute(false)
-    positionHistory.clear()
-  }
-
-  if (!googleMap.value || !window.google?.maps || !mapSettings.map.todayRoute || !vehicle?.assignedDeviceId) {
-    if (!shouldAppend) {
-      clearPositionHistoryData()
-    }
-    return
-  }
-
-  try {
-    const points = shouldAppend
-      ? await fleetStore.appendTodayRouteHistory(vehicle, positionHistory.lastTimestamp(), { silent: true })
-      : await fleetStore.fetchTodayRouteHistory(vehicle, { silent: true })
-
-    if (requestId !== todayRouteRequestId || selectedVehicleId.value !== vehicleId || fleetStore.currentPositionHistoryVehicleId !== vehicleId) {
-      return
-    }
-
-    if (shouldAppend) {
-      positionHistory.append(points)
-    } else {
-      positionHistory.replace(points)
-    }
-
+  const shouldAppend = options.append === true && fleetStore.currentPositionHistoryMode === 'today' && fleetStore.currentPositionHistoryVehicleId === vehicle?.id && Date.parse(fleetStore.currentPositionHistoryRange?.from || '') === Date.parse(todayHistoryRange().from)
+  if (shouldAppend && fleetStore.isRouteHistoryLoading) return
+  if (!shouldAppend) {clearTodayRoute(); clearPositionHistoryData()}
+  if (!googleMap.value || !window.google?.maps || !mapSettings.map.todayRoute || !vehicle || !canReadLocalHistory.value) return
+  const requestId = todayRouteRequestId
+  const onPage = (points: ApiPositionHistoryPoint[]) => {
+    if (requestId !== todayRouteRequestId || selectedVehicleId.value !== vehicle.id) return
+    positionHistory.append(points)
     syncTodayRouteRender()
+  }
+  try {
+    if (shouldAppend) await fleetStore.appendTodayRouteHistory(vehicle, positionHistory.lastTimestamp(), {silent:true, onPage})
+    else await fleetStore.fetchTodayRouteHistory(vehicle, {silent:true, onPage})
+    if (requestId === todayRouteRequestId && selectedVehicleId.value === vehicle.id) syncTodayRouteRender()
   } catch (error) {
-    if (requestId === todayRouteRequestId) {
-      if (!shouldAppend) {
-        clearTodayRoute(false)
-        clearPositionHistoryData()
-      }
-      showRouteHistoryErrorToast(error)
-    }
+    if (requestId === todayRouteRequestId) showRouteHistoryErrorToast(error)
   }
 }
 
@@ -3478,7 +3199,6 @@ async function initializeGoogleMap() {
       openCreatePlaceAt(event.latLng.lat(), event.latLng.lng())
     })
     googleMap.value.addListener('dragstart', cancelVehicleFocusAnimation)
-    routeZoomListener = googleMap.value.addListener('zoom_changed', scheduleRouteMarkersForZoom)
     applyGoogleMapOptions()
     applyPlacePlacementCursor()
 
@@ -3492,7 +3212,9 @@ async function initializeGoogleMap() {
 }
 
 async function refreshLastPositions() {
+  if (!workspaceActive.value) return
   await fleetStore.fetchLastPositions({ silent: true })
+  if (!workspaceActive.value) return
   renderMarkers()
 
   if (fleetStore.currentPositionHistoryMode === 'today') {
@@ -3505,6 +3227,7 @@ async function refreshLastPositions() {
 }
 
 function startPositionRefresh() {
+  if (!workspaceActive.value) return
   if (positionRefreshTimer.value !== null) {
     window.clearInterval(positionRefreshTimer.value)
   }
@@ -3529,7 +3252,7 @@ function startPositionRefresh() {
 watch(filteredVehicles, (vehicles) => {
   renderMarkers()
 
-  if (selectedVehicleId.value && !vehicles.some((vehicle) => vehicle.id === selectedVehicleId.value)) {
+  if (activeMode.value !== 'history' && selectedVehicleId.value && !vehicles.some((vehicle) => vehicle.id === selectedVehicleId.value)) {
     selectedVehicleId.value = null
     vehicleDetailsDrawerOpen.value = false
   }
@@ -3633,10 +3356,17 @@ watch([places, () => mapSettings.map.showPlaces], () => {
   renderPlaceOverlays()
 }, { deep: true })
 
+watch(mapFleetSelectOptions, (options, previousOptions) => {
+  const selected = selectedFleetId.value
+  if (previousOptions.some(option => option.value === selected) && !options.some(option => option.value === selected)) {
+    selectedFleetId.value = 'all'
+  }
+})
+
 watch(selectedFleetId, (fleetId) => {
   localStorage.setItem(selectedFleetStorageKey(), fleetId)
 
-  if (fleetId !== 'all') {
+  if (fleetId !== 'all' && fleetId !== REPAIRS_FLEET_ID) {
     void fleetStore.fetchVehicleGroup(fleetId)
   }
 }, { immediate: true })
@@ -3645,6 +3375,19 @@ watch(() => historyFilters.fleetId, (fleetId) => {
   if (fleetId !== 'all') {
     void fleetStore.fetchVehicleGroup(fleetId)
   }
+})
+
+watch([() => historyFilters.vehicleId, () => historyFilters.dateFrom, () => historyFilters.dateTo], () => {
+  if (activeMode.value === 'history' && fleetStore.currentPositionHistoryVehicleId) {
+    clearTodayRoute()
+    clearPositionHistoryData()
+    historyFormError.value = ''
+  }
+})
+
+watch([() => authStore.activeCompanyId, canReadLocalHistory], () => {
+  clearTodayRoute()
+  clearPositionHistoryData()
 })
 
 watch(() => historyFilters.preset, (preset) => {
@@ -3671,12 +3414,17 @@ watch(() => mapSettings.map.todayRoute, () => {
   }
 })
 
-watch(() => mapSettings.map.historyMarkersByZoom, () => {
-  if (positionHistory.path.value.length) {
-    syncRoutePointMarkers()
-  }
+function stopWorkspaceRefresh() {
+  if (positionRefreshTimer.value !== null) window.clearInterval(positionRefreshTimer.value)
+  if (positionRefreshCountdownTimer.value !== null) window.clearInterval(positionRefreshCountdownTimer.value)
+  positionRefreshTimer.value = null; positionRefreshCountdownTimer.value = null
+}
+watch(workspaceActive, active => { if (active) startPositionRefresh(); else stopWorkspaceRefresh() })
+onActivated(() => {
+  startPositionRefresh()
+  void nextTick(() => { if (googleMap.value) { window.google?.maps?.event?.trigger?.(googleMap.value, 'resize'); renderMarkers(); renderPlaceOverlays() } })
 })
-
+onDeactivated(() => { stopWorkspaceRefresh(); cancelVehicleFocusAnimation(); cancelAlertTooltipHide() })
 onMounted(() => {
   void initializeGoogleMap()
   void placeStore.loadPlaces({ silent: true }).catch(() => undefined)
@@ -3704,8 +3452,6 @@ onBeforeUnmount(() => {
   clearPlaceOverlays()
   clearTodayRoute()
   positionHistory.clear()
-  routeZoomListener?.remove?.()
-  routeZoomListener = null
   placeMapClickListener?.remove?.()
   placeMapClickListener = null
   disposeRouteInfoWindow()
@@ -3716,6 +3462,7 @@ onBeforeUnmount(() => {
   googleMap.value = null
   fleetStore.clearPositionHistory()
 })
+const workspacePortal = useWorkspacePortal()
 </script>
 
 <style>
@@ -3733,47 +3480,6 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
-.rw-fleet-vehicle-marker {
-  position: absolute;
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  width: max-content;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  color: rgb(var(--rw-app-text));
-  cursor: default;
-  pointer-events: none;
-  transform: translate(-50%, -10.5px);
-}
-
-.rw-fleet-vehicle-marker-trailer {
-  z-index: 30;
-}
-
-.rw-fleet-vehicle-marker-truck {
-  z-index: 31;
-}
-
-.rw-fleet-marker-button {
-  display: grid;
-  height: 21px;
-  width: 21px;
-  place-items: center;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  padding: 0;
-  pointer-events: auto;
-}
-
-.rw-fleet-marker-button:hover .rw-fleet-marker-icon {
-  filter: drop-shadow(0 6px 10px rgba(15, 23, 42, 0.18));
-}
 
 .rw-route-point-marker {
   position: absolute;
@@ -3942,112 +3648,5 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-.rw-fleet-marker-icon {
-  display: grid;
-  height: 21px;
-  width: 21px;
-  place-items: center;
-  border-radius: 9999px;
-  background: rgb(var(--rw-app-panel));
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
-}
-
-.rw-fleet-marker-icon svg {
-  height: 18px;
-  width: 18px;
-}
-
-.rw-fleet-marker-heading {
-  transform: rotate(var(--rw-marker-heading));
-  transform-origin: center;
-}
-
-.rw-fleet-marker-idle {
-  color: #6b7280;
-}
-
-.rw-fleet-marker-ignition-on {
-  color: rgb(var(--rw-success-500));
-}
-
-.rw-fleet-marker-repair {
-  border: 2px solid currentColor;
-  background: rgb(var(--rw-info-50));
-  color: rgb(var(--rw-info-600));
-}
-
-.rw-fleet-marker-repair svg {
-  height: 13px;
-  width: 13px;
-}
-
-.dark .rw-fleet-marker-repair {
-  background: rgb(var(--rw-app-panel));
-  color: rgb(var(--rw-info-400));
-}
-
-.rw-fleet-marker-moving-low {
-  color: #16a34a;
-}
-
-.rw-fleet-marker-moving-medium {
-  color: #ca8a04;
-}
-
-.rw-fleet-marker-moving-high,
-.rw-fleet-marker-power,
-.rw-fleet-marker-alert {
-  color: #dc2626;
-}
-
-.rw-fleet-marker-plate {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 4px;
-  max-width: 180px;
-  border: 1px solid rgb(var(--rw-app-border));
-  border-radius: 10px;
-  background: rgb(var(--rw-app-panel));
-  padding: 2px 6px;
-  color: rgb(var(--rw-app-text));
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 1;
-  pointer-events: none;
-  white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
-}
-
-.rw-fleet-marker-plate-number,
-.rw-fleet-marker-description,
-.rw-fleet-marker-driver {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.rw-fleet-marker-plate-number {
-  flex-shrink: 0;
-}
-
-.rw-fleet-marker-description {
-  min-width: 0;
-  max-width: 90px;
-  color: rgb(var(--rw-app-muted));
-  font-size: 8px;
-  font-weight: 500;
-}
-
-.rw-fleet-marker-driver {
-  color: rgb(var(--rw-app-muted));
-  font-size: 8px;
-  font-weight: 600;
-  min-width: 0;
-}
-
-.dark .rw-fleet-marker-icon {
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
-}
 
 </style>

@@ -156,6 +156,7 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceActive } from '@/composables/useWorkspace'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ArrowDown, ArrowUp, ArrowUpDown, Pencil } from 'lucide-vue-next'
@@ -447,9 +448,12 @@ function stopTimers() {
 
 function startTimers() {
   stopTimers()
+  if (!workspaceActive.value) return
   clockTimer = window.setInterval(() => { clockNow.value = Date.now() }, 1000)
   refreshTimer = window.setInterval(() => { void loadZoneData(true) }, 45_000)
 }
+const workspaceActive = useWorkspaceActive()
+watch(workspaceActive, active => { if (active && props.open) startTimers(); else stopTimers() })
 
 function vehicleTypeLabel(value: string | null) {
   const normalized = normalizeVehicleType(value)
@@ -487,7 +491,7 @@ function sortIcon(key: SortKey) {
 }
 
 function formatDateTime(value: string | null) {
-  return value ? new Date(value).toLocaleString('pl-PL') : '—'
+  return value ? new Date(value).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'
 }
 
 function formatDuration(value: number) {

@@ -1,0 +1,73 @@
+.rw-fleet-vehicle-marker {
+  position: absolute;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: max-content;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: rgb(var(--rw-app-text));
+  cursor: default;
+  pointer-events: none;
+  transform: translate(-50%, -10.5px);
+}
+.rw-fleet-vehicle-marker-trailer { z-index: 30; }
+.rw-fleet-vehicle-marker-truck { z-index: 31; }
+.rw-fleet-marker-button {
+  display: grid;
+  height: 21px;
+  width: 21px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  pointer-events: auto;
+}
+.rw-fleet-marker-button:hover .rw-fleet-marker-icon { filter: drop-shadow(0 6px 10px rgba(15, 23, 42, 0.18)); }
+.rw-fleet-marker-icon {
+  display: grid;
+  height: 21px;
+  width: 21px;
+  place-items: center;
+  border-radius: 9999px;
+  background: rgb(var(--rw-app-panel));
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18);
+}
+.rw-fleet-marker-icon svg { height: 18px; width: 18px; }
+.rw-fleet-marker-heading { transform: rotate(var(--rw-marker-heading)); transform-origin: center; }
+.rw-fleet-marker-idle { color: #6b7280; }
+.rw-fleet-marker-ignition-on { color: rgb(var(--rw-success-500)); }
+.rw-fleet-marker-repair { border: 2px solid currentColor; background: rgb(var(--rw-info-50)); color: rgb(var(--rw-info-600)); }
+.rw-fleet-marker-repair svg { height: 13px; width: 13px; }
+.dark .rw-fleet-marker-repair { background: rgb(var(--rw-app-panel)); color: rgb(var(--rw-info-400)); }
+.rw-fleet-marker-moving-low { color: #16a34a; }
+.rw-fleet-marker-moving-medium { color: #ca8a04; }
+.rw-fleet-marker-moving-high, .rw-fleet-marker-power, .rw-fleet-marker-alert { color: #dc2626; }
+.rw-fleet-marker-plate {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 4px;
+  max-width: 180px;
+  border: 1px solid rgb(var(--rw-app-border));
+  border-radius: 10px;
+  background: rgb(var(--rw-app-panel));
+  padding: 2px 6px;
+  color: rgb(var(--rw-app-text));
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+.rw-fleet-marker-plate-number, .rw-fleet-marker-description, .rw-fleet-marker-driver { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.rw-fleet-marker-plate-number { flex-shrink: 0; }
+.rw-fleet-marker-description { min-width: 0; max-width: 90px; color: rgb(var(--rw-app-muted)); font-size: 8px; font-weight: 500; }
+.rw-fleet-marker-driver { color: rgb(var(--rw-app-muted)); font-size: 8px; font-weight: 600; min-width: 0; }
+.dark .rw-fleet-marker-icon { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28); }

@@ -1,11 +1,8 @@
 <template>
-  <div class="space-y-3">
-    <header class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <div class="space-y-3 md:flex md:h-full md:min-h-0 md:flex-col md:gap-3 md:space-y-0 md:overflow-hidden">
+    <header class="flex shrink-0 flex-col items-start gap-3">
       <div class="flex items-center gap-3">
-        <AppIconLink
-          :to="{ name: 'vehicles' }"
-          label="Wróć do listy pojazdów"
-        >
+        <AppIconLink class="md:hidden" :to="{ name: 'vehicles' }" label="Wróć do listy pojazdów" size="sm">
           <ArrowLeft class="h-4 w-4" />
         </AppIconLink>
         <div>
@@ -16,10 +13,7 @@
         </div>
       </div>
 
-      <AppButton v-if="vehicle" size="sm" variant="secondary" @click="openServiceHistory">
-        <History class="h-4 w-4" />
-        Historia serwisowa
-      </AppButton>
+      <AppTabs v-if="vehicle" v-model="activeTab" :items="visibleVehicleTabs" size="sm" variant="underline" aria-label="Sekcje pojazdu" />
 
     </header>
 
@@ -32,155 +26,167 @@
     </div>
 
     <div
-      v-else
-      class="grid min-w-0 gap-3"
-      :class="isEditModalOpen
-        ? 'xl:grid-cols-[32rem_minmax(0,1fr)] xl:items-start'
-        : 'xl:grid-cols-[22rem_minmax(0,1fr)] xl:items-stretch'"
+      v-else-if="activeTab === 'information'"
+      class="vehicle-information-layout min-w-0 md:min-h-0 md:flex-1"
     >
-        <AppCard class="h-full min-w-0" title="Informacje" :icon="Info" compact content-class="!p-0">
+        <AppCard class="vehicle-information-card flex min-h-0 min-w-0 flex-col" title="Informacje" :icon="Info" compact content-class="!p-0 min-h-0 flex-1 overflow-y-auto">
           <template #actions>
-            <AppButton
-              v-if="!isEditModalOpen"
-              size="sm"
-              variant="secondary"
-              :disabled="!canUpdateVehicles"
-              :title="!canUpdateVehicles ? 'Brak uprawnienia: vehicles.update' : undefined"
-              @click="openEditModal"
-            >
-              <SquarePen class="h-4 w-4" />
-              Edytuj
-            </AppButton>
-            <div v-else class="flex items-center gap-2">
-              <AppButton size="sm" variant="ghost" :disabled="isUpdatingVehicle" @click="closeEditModal">
-                <X class="h-4 w-4" />
-                Anuluj
-              </AppButton>
-              <AppButton form="vehicle-inline-edit-form" type="submit" size="sm" :loading="isUpdatingVehicle">
-                <Check class="h-4 w-4" />
-                Zapisz
-              </AppButton>
+            <div class="flex h-8 w-[4.5rem] items-center justify-end gap-2">
+              <template v-if="isEditModalOpen">
+                <AppIconButton label="Anuluj edycję informacji" size="sm" variant="ghost" :disabled="isUpdatingVehicle" @click="closeEditModal"><X class="h-4 w-4" /></AppIconButton>
+                <AppIconButton label="Zapisz informacje" form="vehicle-inline-edit-form" type="submit" size="sm" :loading="isUpdatingVehicle"><Check class="h-4 w-4" /></AppIconButton>
+              </template>
+              <span v-else ref="informationMenuAnchor" class="inline-flex">
+                <AppIconButton label="Opcje informacji" size="sm" variant="ghost" aria-haspopup="menu" :aria-expanded="isInformationMenuOpen" @click="isInformationMenuOpen = !isInformationMenuOpen"><Ellipsis class="h-4 w-4" /></AppIconButton>
+              </span>
             </div>
+            <AppDropdown :open="isInformationMenuOpen" :anchor="informationMenuAnchor" role="menu" :match-width="false" content-class="min-w-36 p-1" @close="isInformationMenuOpen = false">
+              <AppDropdownItem role="menuitem" :disabled="!canUpdateVehicles" @click="openEditModal"><SquarePen class="h-4 w-4" />Edytuj</AppDropdownItem>
+            </AppDropdown>
           </template>
 
-          <div class="border-b border-ui-divider bg-ui-muted px-4 py-3">
-            <div class="flex min-w-0 items-center justify-between gap-3">
-              <div class="flex min-w-0 items-center gap-2.5">
-                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface text-ui-mutedText">
-                  <Truck class="h-4 w-4" />
-                </span>
-                <div class="min-w-0">
-                  <p class="ui-caption">Pojazd</p>
-                  <p class="truncate text-sm font-semibold text-ui-text">{{ vehicle.licensePlate }}</p>
-                </div>
-              </div>
-              <AppBadge :variant="vehicle.status === 'ACTIVE' ? 'success' : 'neutral'">{{ statusLabel(vehicle.status) }}</AppBadge>
-            </div>
-          </div>
-
-          <div v-if="!isEditModalOpen" class="divide-y divide-ui-divider px-4">
-            <InfoRow label="Numer rejestracyjny" :value="vehicle.licensePlate" />
-            <InfoRow label="Typ pojazdu" :value="vehicleTypeLabel(vehicle.type)" />
-            <InfoRow label="Marka" :value="vehicle.make" />
-            <InfoRow label="VIN" :value="vehicle.vin" />
-            <InfoRow label="Pierwsza rejestracja" :value="formatDate(vehicle.firstRegistration)" />
-            <InfoRow label="Rok produkcji" :value="formatValue(vehicle.productionYear)" />
-            <InfoRow label="Klasa Euro" :value="vehicle.euroClass" />
-            <InfoRow label="Własność" :value="ownershipLabel(vehicle.ownership)" />
-            <InfoRow label="Własność do" :value="formatDate(vehicle.ownershipUntil)" />
-            <InfoRow label="Zbiornik paliwa" :value="fuelTankLabel(vehicle.fuelTank)" />
-            <InfoRow label="Ostatnia pozycja" :value="formatDateTime(vehicle.lastPositionAt)" />
-            <div class="grid min-w-0 grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] items-start gap-3 py-3">
-              <p class="ui-caption">Opis pojazdu</p>
-              <p class="whitespace-pre-wrap break-words text-right text-[13px] font-semibold leading-5 text-ui-text">
-                {{ vehicle.description || '—' }}
-              </p>
-            </div>
-          </div>
-
-          <form v-else id="vehicle-inline-edit-form" class="grid gap-3 px-4 py-3 sm:grid-cols-2" @submit.prevent="submitVehicleEdit">
-            <AppInput v-model="editForm.licensePlate" label="Numer rejestracyjny" size="sm" required />
-            <AppSelect v-model="editForm.type" label="Typ pojazdu" :options="vehicleTypeFormOptions" size="sm" />
-            <AppInput v-model="editForm.make" label="Marka" size="sm" />
-            <AppInput v-model="editForm.vin" label="VIN" size="sm" />
-            <AppInput v-model="editForm.productionYear" label="Rok produkcji" type="number" size="sm" />
-            <AppDatePicker v-model="editForm.firstRegistration" label="Pierwsza rejestracja" size="sm" />
-            <AppInput v-model="editForm.euroClass" label="Klasa Euro" size="sm" />
-            <AppSelect v-model="editForm.ownership" label="Własność" :options="vehicleOwnershipFormOptions" size="sm" />
-            <AppDatePicker v-model="editForm.ownershipUntil" label="Własność do" size="sm" />
-            <AppDatePicker v-model="editForm.technicalInspection" label="Przegląd techniczny" size="sm" />
-            <AppDatePicker v-model="editForm.tachographInspection" label="Legalizacja tachografu" size="sm" />
-            <AppDatePicker v-model="editForm.vignetteUk" label="Winieta UK" size="sm" />
-            <AppInput v-model="editForm.fuelTank" label="Zbiornik paliwa" type="number" size="sm" />
-            <AppSelect v-model="editForm.status" label="Status" :options="vehicleStatusFormOptions" size="sm" />
-            <AppTextarea
-              v-model="editForm.description"
-              class="sm:col-span-2"
-              label="Opis pojazdu"
-              placeholder="Wpisz dodatkowe informacje o pojeździe"
-              :maxlength="1000"
-              :rows="4"
-              size="sm"
-              show-counter
-            />
+          <form id="vehicle-inline-edit-form" @submit.prevent="submitVehicleEdit">
+            <table class="vehicle-information-table w-full table-fixed border-collapse" aria-label="Informacje o pojeździe">
+              <tbody>
+                <InfoRow label="Numer rejestracyjny" :value="vehicle.licensePlate" :editing="isEditModalOpen">
+                  <input v-model="editForm.licensePlate" class="vehicle-inline-control" aria-label="Numer rejestracyjny" :disabled="isUpdatingVehicle" required />
+                </InfoRow>
+                <InfoRow label="VIN" :value="vehicle.vin" :editing="isEditModalOpen">
+                  <input v-model="editForm.vin" class="vehicle-inline-control" aria-label="VIN" :disabled="isUpdatingVehicle" />
+                </InfoRow>
+                <InfoRow label="Pierwsza rejestracja" :value="formatDate(vehicle.firstRegistration)" :editing="isEditModalOpen">
+                  <AppDatePicker v-model="editForm.firstRegistration" inline aria-label="Pierwsza rejestracja" :disabled="isUpdatingVehicle" />
+                </InfoRow>
+                <InfoRow label="Typ pojazdu" :value="vehicleTypeLabel(vehicle.type)" :editing="isEditModalOpen">
+                  <template #display><span class="inline-flex items-center gap-1.5"><VehicleTypeIcon :type="vehicle.type" class="h-4 w-4" />{{ vehicleTypeLabel(vehicle.type) }}</span></template>
+                  <AppSelect v-model="editForm.type" inline aria-label="Typ pojazdu" :options="vehicleTypeFormOptions" :disabled="isUpdatingVehicle" />
+                </InfoRow>
+                <InfoRow label="Marka" :value="vehicle.make" :editing="isEditModalOpen">
+                  <input v-model="editForm.make" class="vehicle-inline-control" aria-label="Marka" :disabled="isUpdatingVehicle" />
+                </InfoRow>
+                <InfoRow label="Rok produkcji" :value="formatValue(vehicle.productionYear)" :editing="isEditModalOpen">
+                  <input v-model="editForm.productionYear" class="vehicle-inline-control" type="number" aria-label="Rok produkcji" :disabled="isUpdatingVehicle" />
+                </InfoRow>
+                <InfoRow v-if="vehicle.type !== 'TRAILER'" label="Zbiornik paliwa" :value="fuelTankLabel(vehicle.fuelTank)" :editing="isEditModalOpen">
+                  <input v-model="editForm.fuelTank" class="vehicle-inline-control" type="number" aria-label="Zbiornik paliwa" :disabled="isUpdatingVehicle || editForm.type === 'TRAILER'" />
+                </InfoRow>
+                <InfoRow label="Ostatnia pozycja" :value="formatDateTime(vehicle.lastPositionAt)" />
+                <InfoRow label="Status" :value="statusLabel(vehicle.status)" :editing="isEditModalOpen">
+                  <AppSelect v-model="editForm.status" inline aria-label="Status" :options="vehicleStatusFormOptions" :disabled="isUpdatingVehicle" />
+                </InfoRow>
+                <InfoRow label="Opis pojazdu" :value="vehicle.description" :editing="isEditModalOpen" multiline>
+                  <textarea v-model="editForm.description" class="vehicle-inline-control !resize-none" aria-label="Opis pojazdu" :maxlength="1000" :disabled="isUpdatingVehicle" />
+                </InfoRow>
+              </tbody>
+            </table>
           </form>
         </AppCard>
 
-        <div class="flex min-h-0 min-w-0 flex-col gap-3">
-          <div class="grid gap-3 lg:grid-cols-2">
-          <AppCard class="h-full min-w-0" title="Przeglądy i winiety" :icon="CalendarCheck" compact content-class="!p-3">
-            <div class="space-y-1.5">
-              <InspectionRow label="Przegląd techniczny" :date="vehicle.technicalInspection" />
-              <InspectionRow label="Legalizacja tachografu" :date="vehicle.tachographInspection" />
-              <InspectionRow label="Winieta UK" :date="vehicle.vignetteUk" />
-            </div>
-          </AppCard>
-
-          <AppCard class="h-full min-w-0" title="Urządzenie" :icon="Cpu" compact content-class="!p-3">
-            <div class="flex items-start justify-between gap-4 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted p-2.5">
-              <div>
-                <p class="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">Przypisane urządzenie</p>
-                <p class="mt-1 text-lg font-semibold text-slate-950 dark:text-slate-50">
-                  {{ assignedDeviceLabel }}
-                </p>
+        <div class="vehicle-information-sidebar grid min-h-0 min-w-0 gap-3" :class="vehicle.type === 'TRAILER' ? 'vehicle-information-sidebar--trailer' : ''">
+          <AppCard class="flex min-h-0 min-w-0 flex-col" :title="vehicle.type === 'TRAILER' ? 'Przegląd techniczny' : 'Przeglądy i winiety'" :icon="CalendarCheck" compact content-class="!p-3 min-h-0 flex-1 overflow-y-auto">
+            <template #actions>
+              <div class="flex h-8 w-[4.5rem] items-center justify-end gap-2">
+                <template v-if="isEditingInspections">
+                  <AppIconButton label="Anuluj edycję przeglądów i winiet" size="sm" variant="ghost" :disabled="isUpdatingInspections" @click="closeInspectionEdit"><X class="h-4 w-4" /></AppIconButton>
+                  <AppIconButton label="Zapisz przeglądy i winiety" form="vehicle-inspection-edit-form" type="submit" size="sm" :loading="isUpdatingInspections"><Check class="h-4 w-4" /></AppIconButton>
+                </template>
+                <span v-else ref="inspectionMenuAnchor" class="inline-flex">
+                  <AppIconButton label="Opcje przeglądów i winiet" size="sm" variant="ghost" aria-haspopup="menu" :aria-expanded="isInspectionMenuOpen" @click="isInspectionMenuOpen = !isInspectionMenuOpen"><Ellipsis class="h-4 w-4" /></AppIconButton>
+                </span>
               </div>
-              <Cpu class="h-5 w-5 text-slate-400" />
-            </div>
-
-            <div class="mt-3 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
-              <DeviceSelect
-                v-model="deviceIdInput"
-                placeholder="Wybierz urządzenie"
-                size="sm"
-                :reload-key="devicesReloadKey"
-                :disabled="!canAssignDevices"
-              />
-              <AppButton
-                size="sm"
-                variant="secondary"
-                :loading="isAssigningDevice"
-                :disabled="!canAssignDevices || !deviceIdInput.trim()"
-                :title="!canAssignDevices ? 'Brak uprawnienia: devices.assign' : undefined"
-                @click="assignDevice"
-              >
-                Przypisz
-              </AppButton>
-              <AppButton
-                size="sm"
-                variant="secondary"
-                :disabled="!canAssignDevices || !vehicle.assignedDeviceId"
-                :title="!canAssignDevices ? 'Brak uprawnienia: devices.assign' : undefined"
-                @click="openUnassignDeviceModal"
-              >
-                Odepnij
-              </AppButton>
-            </div>
+              <AppDropdown :open="isInspectionMenuOpen" :anchor="inspectionMenuAnchor" role="menu" :match-width="false" content-class="min-w-36 p-1" @close="isInspectionMenuOpen = false">
+                <AppDropdownItem role="menuitem" :disabled="!canUpdateVehicles" @click="openInspectionEdit"><SquarePen class="h-4 w-4" />Edytuj</AppDropdownItem>
+              </AppDropdown>
+            </template>
+            <form id="vehicle-inspection-edit-form" class="space-y-1.5" @submit.prevent="submitInspectionEdit">
+              <InspectionRow v-for="field in visibleInspectionFields" :key="field.key" v-model="inspectionEditForm[field.key]" :label="field.label" :date="vehicle[field.key]" :editing="isEditingInspections" :disabled="isUpdatingInspections" />
+            </form>
           </AppCard>
-          </div>
 
-      <div class="min-w-0 space-y-3">
-        <AppCard title="Dokumenty pojazdu" :icon="Files" compact>
-          <div class="grid gap-2 sm:grid-cols-2">
+          <div class="vehicle-device-telemetry grid min-h-0 min-w-0 grid-cols-2 self-start gap-3">
+            <AppCard class="flex min-h-0 min-w-0 flex-col" title="Urządzenie" :icon="Cpu" compact content-class="!p-2 flex min-h-16 flex-1 items-center justify-center text-center">
+              <template v-if="vehicle.assignedDeviceId" #actions>
+                <span ref="deviceMenuAnchor" class="inline-flex">
+                  <AppIconButton label="Opcje urządzenia" size="sm" variant="ghost" aria-haspopup="menu" :aria-expanded="isDeviceMenuOpen" @click="isDeviceMenuOpen = !isDeviceMenuOpen">
+                    <Ellipsis class="h-4 w-4" />
+                  </AppIconButton>
+                </span>
+                <AppDropdown :open="isDeviceMenuOpen" :anchor="deviceMenuAnchor" role="menu" :match-width="false" content-class="min-w-44 p-1" @close="isDeviceMenuOpen = false">
+                  <AppDropdownItem role="menuitem" :disabled="!canAssignDevices" @click="openAssignDeviceModal"><Plus class="h-4 w-4" />Przypisz urządzenie</AppDropdownItem>
+                  <AppDropdownItem role="menuitem" :disabled="!canAssignDevices" @click="openUnassignDeviceModal"><Unplug class="h-4 w-4" />Odepnij urządzenie</AppDropdownItem>
+                </AppDropdown>
+              </template>
+              <div v-if="vehicle.assignedDeviceId" class="flex min-w-0 flex-col items-center justify-center text-center">
+                <div class="min-w-0">
+                  <RouterLink v-if="canReadDevices" :to="{ name: 'device-detail', params: { id: vehicle.assignedDeviceId } }" class="break-words text-sm font-semibold text-ui-text underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus">{{ vehicle.assignedDeviceName || 'Urządzenie GPS' }}</RouterLink>
+                  <p v-else class="break-words text-sm font-semibold text-ui-text">{{ vehicle.assignedDeviceName || 'Urządzenie GPS' }}</p>
+                  <p class="mt-1 ui-caption">#{{ vehicle.assignedDeviceId }}</p>
+                </div>
+              </div>
+              <AppButton v-else variant="secondary" class="min-h-16 w-full !h-auto flex-col !border-dashed py-2" :disabled="!canAssignDevices" :title="!canAssignDevices ? 'Brak uprawnienia: devices.assign' : undefined" @click="openAssignDeviceModal">
+                <Plus class="h-5 w-5" />Przypisz urządzenie
+              </AppButton>
+            </AppCard>
+            <AppCard class="flex min-h-0 min-w-0 flex-col" title="Bateria" :icon="Battery" compact content-class="!p-2 flex min-h-16 flex-1 items-center justify-center">
+              <VehicleBatteryLevel :level="vehicleBatteryLevel" class="!text-lg" icon-class="!h-5 !w-5" />
+            </AppCard>
+          </div>
+        </div>
+        <AppCard class="vehicle-location-card flex min-h-0 min-w-0 flex-col" title="Lokalizacja pojazdu" :icon="MapPin" compact content-class="!p-0 min-h-0 flex-1 relative">
+          <VehicleLocationPreview :vehicle="vehicle" />
+        </AppCard>
+    </div>
+
+    <div v-else-if="activeTab === 'service'" class="vehicle-service-layout min-w-0 md:min-h-0 md:flex-1" :class="showPlannedVehicleSections && vehicle.type === 'TRAILER' && wheelTelemetry ? 'vehicle-service-layout--trailer' : ''">
+        <AppCard v-if="showPlannedVehicleSections && vehicle.type === 'TRAILER' && wheelTelemetry" class="vehicle-axles-card flex min-h-0 min-w-0 flex-col" title="Osie, opony i okładziny" :icon="Truck" compact content-class="min-h-0 flex-1 !p-3">
+          <template #actions>
+            <div class="flex items-center gap-2">
+              <AppBadge :variant="wheelTelemetry.source === 'mock' ? 'neutral' : 'info'">{{ wheelTelemetry.source === 'mock' ? 'Mockup' : 'Odczyty API' }}</AppBadge>
+              <AppIconButton v-if="wheelTelemetry.source === 'mock'" label="Odśwież dane demonstracyjne" :disabled="maintenanceStore.loadingByVehicleId[vehicleId]" @click="maintenanceStore.refreshMockReadings(vehicleId)"><RefreshCw class="h-4 w-4" :class="maintenanceStore.loadingByVehicleId[vehicleId] ? 'animate-spin' : ''" /></AppIconButton>
+            </div>
+          </template>
+          <p v-if="maintenanceStore.errorsByVehicleId[vehicleId]" class="mb-3 ui-error" role="alert">{{ maintenanceStore.errorsByVehicleId[vehicleId] }}</p>
+          <TrailerAxleDiagram :wheels="wheelTelemetry.wheels" :selected-wheel-id="maintenanceStore.selectedWheelByVehicleId[vehicleId] || '1-left'" @select-wheel="maintenanceStore.selectWheel(vehicleId, $event)" />
+        </AppCard>
+      <div class="vehicle-service-sidebar flex min-h-0 min-w-0 flex-col gap-3">
+        <VehicleServiceIntervals v-if="showPlannedVehicleSections && serviceSchedule" class="vehicle-service-intervals shrink-0" :schedule="serviceSchedule" />
+      <AppCard class="vehicle-repair-history flex min-h-0 min-w-0 flex-1 flex-col" compact content-class="!p-0 flex min-h-0 flex-1 flex-col">
+        <div class="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-ui-divider p-3">
+          <h2 class="ui-section-title inline-flex items-center gap-2"><History class="h-4 w-4 text-ui-icon" />Historia napraw</h2>
+          <div class="flex flex-wrap items-center gap-2">
+            <AppButton v-if="canReadRepairs" size="sm" variant="secondary" @click="openServiceHistory"><CalendarCheck class="h-4 w-4" />Kalendarz</AppButton>
+            <AppButton v-if="canAddFault" size="sm" @click="isRepairCreateOpen = true"><Plus class="h-4 w-4" />Dodaj usterkę</AppButton>
+          </div>
+        </div>
+        <p v-if="!canReadRepairs" class="p-4 ui-body-sm text-ui-mutedText">Nie masz dostępu do historii napraw.</p>
+        <p v-else-if="isRepairsLoading && !repairHistory.length" class="p-4 ui-body-sm text-ui-mutedText" role="status">Pobieranie historii napraw...</p>
+        <div v-else-if="repairHistoryError" class="space-y-2 p-4" role="alert"><p class="ui-error">{{ repairHistoryError }}</p><AppButton size="sm" variant="secondary" @click="loadRepairHistory">Spróbuj ponownie</AppButton></div>
+        <p v-else-if="!repairHistory.length" class="p-4 ui-body-sm text-ui-mutedText">Brak napraw tego pojazdu.</p>
+        <div v-else class="min-h-0 overflow-y-auto divide-y divide-ui-divider">
+          <article v-for="repair in repairHistory" :key="repairKey(repair)" class="min-w-0">
+            <button type="button" class="flex w-full items-center gap-3 p-3 text-left transition hover:bg-ui-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ui-focus" :aria-expanded="isRepairExpanded(repair)" @click="toggleRepairHistory(repair)">
+              <span class="min-w-0 flex-1"><span class="block text-sm font-semibold text-ui-text">{{ repairTitle(repair) }}</span><span class="mt-1 block break-words ui-caption">{{ repairDate(repair) }} · {{ repairPlace(repair) }}</span></span>
+              <AppBadge :variant="repairStatusVariant(repair)">{{ repairStatus(repair) }}</AppBadge>
+              <ChevronDown class="h-4 w-4 shrink-0 text-ui-icon transition" :class="isRepairExpanded(repair) ? 'rotate-180' : ''" />
+            </button>
+            <div v-if="isRepairExpanded(repair)" class="space-y-3 border-t border-ui-divider bg-ui-muted p-3">
+              <ul v-if="canReadFaults && repairFaults(repairDetail(repair)).length" class="space-y-2">
+                <li v-for="fault in repairFaults(repairDetail(repair))" :key="repairFaultKey(fault)" class="flex items-start gap-2 text-sm text-ui-text">
+                  <CircleCheck v-if="repairFaultStatusLabel(fault) === 'Zrobiona'" class="mt-0.5 h-4 w-4 shrink-0 text-success-600 dark:text-success-400" /><Circle v-else class="mt-0.5 h-4 w-4 shrink-0 text-ui-icon" /><span class="min-w-0 break-words">{{ repairFaultDescription(fault) }}</span>
+                </li>
+              </ul>
+              <p v-else-if="canReadFaults" class="ui-caption">Brak usterek.</p>
+              <RouterLink v-if="repair.id" :to="{ name: 'repair-detail', params: { id: repair.id } }" class="inline-flex h-8 items-center gap-2 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface px-3 text-xs font-semibold text-ui-text hover:bg-ui-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"><ExternalLink class="h-3.5 w-3.5" />Przejdź do szczegółów</RouterLink>
+            </div>
+          </article>
+        </div>
+      </AppCard>
+      </div>
+    </div>
+
+    <div v-else class="vehicle-documents-layout grid min-w-0 gap-3 md:min-h-0 md:flex-1 lg:items-stretch" :class="showPlannedVehicleSections ? 'lg:grid-cols-2' : ''">
+        <AppCard v-if="showPlannedVehicleSections" class="flex min-h-0 min-w-0 flex-col" title="Dokumenty pojazdu" :icon="Files" compact content-class="min-h-0 flex-1 overflow-y-auto">
+          <div class="grid gap-2">
             <div
               v-for="document in mockedDocuments"
               :key="document"
@@ -195,12 +201,11 @@
           </div>
         </AppCard>
 
-        <AppCard v-if="canReadVehiclePhotos" title="Zdjęcia pojazdu" :icon="Images" compact>
+        <AppCard v-if="canReadVehiclePhotos" class="flex min-h-0 min-w-0 flex-col" title="Zdjęcia pojazdu" :icon="Images" compact content-class="min-h-0 flex-1 overflow-y-auto">
           <VehiclePhotoGallery :vehicle-id="vehicle.id" />
         </AppCard>
-        </div>
-      </div>
-        </div>
+    </div>
+    <RepairCreateModal :open="isRepairCreateOpen" :initial-vehicle-id="vehicle?.id" lock-vehicle quick-report @close="isRepairCreateOpen = false" @created="loadRepairHistory" @open-repair="openCreatedRepair" />
     <AppModal
       :open="isServiceHistoryOpen"
       title="Historia serwisowa"
@@ -389,6 +394,16 @@
       </div>
     </AppModal>
 
+    <AppModal :open="isAssignDeviceModalOpen" title="Przypisz urządzenie" :description="`Wyszukaj urządzenie do przypisania do ${vehicle?.licensePlate || 'pojazdu'}.`" size="sm" :busy="isAssigningDevice" @close="closeAssignDeviceModal">
+      <form id="assign-vehicle-device-form" @submit.prevent="assignDevice">
+        <DeviceSelect v-if="isAssignDeviceModalOpen" v-model="deviceIdInput" label="Urządzenie" placeholder="Szukaj po nazwie lub ID urządzenia" :reload-key="devicesReloadKey" :disabled="!canAssignDevices || isAssigningDevice" />
+      </form>
+      <template #footer>
+        <AppButton variant="secondary" :disabled="isAssigningDevice" @click="closeAssignDeviceModal">Anuluj</AppButton>
+        <AppButton type="submit" form="assign-vehicle-device-form" :loading="isAssigningDevice" :disabled="!canAssignDevices || !deviceIdInput.trim()">Przypisz urządzenie</AppButton>
+      </template>
+    </AppModal>
+
     <AppConfirmModal
       :open="isUnassignDeviceModalOpen"
       title="Odpiąć urządzenie?"
@@ -403,32 +418,41 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceDirty, useWorkspaceTitle, useWorkspaceViewState } from '@/composables/useWorkspace'
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type PropType } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRoute } from 'vue-router'
-import { ArrowLeft, CalendarCheck, Check, ChevronDown, ChevronLeft, ChevronRight, Cpu, ExternalLink, FileText, Files, History, Images, Info, SquarePen, Truck, X } from 'lucide-vue-next'
+import { useRoute, useRouter } from 'vue-router'
+import { ArrowLeft, Battery, CalendarCheck, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleCheck, Cpu, Ellipsis, ExternalLink, FileText, Files, History, Images, Info, MapPin, Plus, RefreshCw, SquarePen, Truck, Unplug, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
-import AppIconLink from '@/components/ui/AppIconLink.vue'
+import AppDropdown from '@/components/ui/AppDropdown.vue'
+import AppDropdownItem from '@/components/ui/AppDropdownItem.vue'
+import AppTabs, { type AppTabItem } from '@/components/ui/AppTabs.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
-import AppDatePicker from '@/components/ui/AppDatePicker.vue'
-import AppInput from '@/components/ui/AppInput.vue'
+import AppIconLink from '@/components/ui/AppIconLink.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppPopover from '@/components/ui/AppPopover.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
-import AppTextarea from '@/components/ui/AppTextarea.vue'
+import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import DeviceSelect from '@/components/selects/DeviceSelect.vue'
 import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
+import VehicleLocationPreview from '@/components/vehicles/VehicleLocationPreview.vue'
+import VehicleBatteryLevel from '@/components/vehicles/VehicleBatteryLevel.vue'
+import VehicleTypeIcon from '@/components/vehicles/VehicleTypeIcon.vue'
+import TrailerAxleDiagram from '@/components/vehicles/TrailerAxleDiagram.vue'
+import VehicleServiceIntervals from '@/components/vehicles/VehicleServiceIntervals.vue'
+import RepairCreateModal from '@/components/repairs/RepairCreateModal.vue'
 import { vehicleService, type VehiclePayload } from '@/services/vehicleService'
 import { useAuthStore } from '@/stores/authStore'
 import { useDeviceStore } from '@/stores/deviceStore'
 import { useFleetStore } from '@/stores/fleetStore'
 import { useRepairStore, type VehicleRepairHistoryItem } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
+import { useVehicleMaintenanceStore } from '@/stores/vehicleMaintenanceStore'
 import type { ApiVehicle } from '@/types/fleet'
-import type { RepairComment, RepairFault } from '@/types/repair'
+import type { Repair, RepairComment, RepairFault } from '@/types/repair'
 
 type VehicleForm = ReturnType<typeof createEmptyVehicleForm>
 type RepairHistoryLike = VehicleRepairHistoryItem
@@ -465,11 +489,24 @@ type RepairHistoryFault = RepairFault | string | {
 }
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const deviceStore = useDeviceStore()
 const fleetStore = useFleetStore()
 const repairStore = useRepairStore()
 const uiStore = useUiStore()
+const maintenanceStore = useVehicleMaintenanceStore()
+const activeTab = ref('information')
+// Keep planned mock sections available for later without showing them in the vehicle view.
+const showPlannedVehicleSections = false
+const vehicleTabs: AppTabItem[] = [
+  { value: 'information', label: 'Informacje', icon: Info },
+  { value: 'service', label: 'Serwis', icon: Wrench },
+  { value: 'documents', label: showPlannedVehicleSections ? 'Dokumenty i zdjęcia' : 'Zdjęcia', icon: showPlannedVehicleSections ? Files : Images },
+]
+useWorkspaceViewState({ activeVehicleTab: activeTab })
+const isRepairCreateOpen = ref(false)
+const repairHistoryError = ref('')
 const {
   vehicleRepairHistory,
   repairDetailsById,
@@ -477,7 +514,25 @@ const {
   isVehicleRepairHistoryLoading: isRepairsLoading,
 } = storeToRefs(repairStore)
 const isEditModalOpen = ref(false)
+const isInformationMenuOpen = ref(false)
+const informationMenuAnchor = ref<HTMLElement | null>(null)
+const isInspectionMenuOpen = ref(false)
+const inspectionMenuAnchor = ref<HTMLElement | null>(null)
+const isEditingInspections = ref(false)
+const isUpdatingInspections = ref(false)
+const inspectionFields = [
+  { key: 'technicalInspection', label: 'Przegląd techniczny' },
+  { key: 'tachographInspection', label: 'Legalizacja tachografu' },
+  { key: 'vignetteUk', label: 'Winieta UK' },
+] as const
+const visibleInspectionFields = computed(() => inspectionFields.filter(field => vehicle.value?.type !== 'TRAILER' || field.key === 'technicalInspection'))
+type InspectionField = typeof inspectionFields[number]['key']
+const inspectionEditForm = reactive<Record<InspectionField, string>>({ technicalInspection: '', tachographInspection: '', vignetteUk: '' })
+const originalInspectionForm = ref({ ...inspectionEditForm })
 const isUnassignDeviceModalOpen = ref(false)
+const isAssignDeviceModalOpen = ref(false)
+const isDeviceMenuOpen = ref(false)
+const deviceMenuAnchor = ref<HTMLElement | null>(null)
 const isUpdatingVehicle = ref(false)
 const isAssigningDevice = ref(false)
 const isUnassigningDevice = ref(false)
@@ -495,6 +550,13 @@ const serviceCalendarWeekdays = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd']
 
 const vehicleId = computed(() => String(route.params.id || ''))
 const vehicle = computed(() => fleetStore.apiVehicles.find((item) => String(item.id) === vehicleId.value) || null)
+const vehicleBatteryLevel = computed(() => fleetStore.vehicles.find(item => item.backendId === vehicle.value?.id)?.batteryLevel ?? vehicle.value?.batteryLevel ?? null)
+const wheelTelemetry = computed(() => maintenanceStore.telemetryByVehicleId[vehicleId.value])
+const serviceSchedule = computed(() => maintenanceStore.schedulesByVehicleId[vehicleId.value])
+watch(() => [vehicleId.value, vehicle.value?.type] as const, ([id, type]) => {
+  if (id && type) maintenanceStore.ensureMock(id, type === 'TRAILER')
+}, { immediate: true })
+useWorkspaceTitle(computed(() => vehicle.value?.licensePlate ? `Pojazd - ${vehicle.value.licensePlate}` : null))
 const assignedDeviceLabel = computed(() => {
   if (!vehicle.value?.assignedDeviceId) return 'Brak'
   return vehicle.value.assignedDeviceName
@@ -621,7 +683,15 @@ function createServiceCalendarSegments(monthDate: Date, days: ServiceCalendarDay
 }
 const canUpdateVehicles = computed(() => hasPermission('vehicles.update'))
 const canAssignDevices = computed(() => hasPermission('devices.assign'))
+const canReadDevices = computed(() => hasPermission('devices.read'))
 const canReadVehiclePhotos = computed(() => authStore.hasActiveCompanyPermission('vehicle_photos.read'))
+const visibleVehicleTabs = computed(() => vehicleTabs.filter(tab => tab.value !== 'documents' || showPlannedVehicleSections || canReadVehiclePhotos.value))
+watch(visibleVehicleTabs, tabs => {
+  if (!tabs.some(tab => tab.value === activeTab.value)) activeTab.value = 'information'
+}, { immediate: true })
+const canReadRepairs = computed(() => hasPermission('repairs.read'))
+const canReadFaults = computed(() => hasPermission('faults.read'))
+const canAddFault = computed(() => hasPermission('repairs.create') && hasPermission('faults.create'))
 
 const mockedDocuments = [
   'Dowód rejestracyjny',
@@ -635,13 +705,6 @@ const vehicleTypeFormOptions: AppSelectOption[] = [
   { label: 'Naczepa', value: 'TRAILER' },
 ]
 
-const vehicleOwnershipFormOptions: AppSelectOption[] = [
-  { label: 'Własny', value: 'OWN' },
-  { label: 'Leasing', value: 'LEASE' },
-  { label: 'Wynajem', value: 'RENT' },
-  { label: 'Brak', value: 'NONE' },
-]
-
 const vehicleStatusFormOptions: AppSelectOption[] = [
   { label: 'Aktywny', value: 'ACTIVE' },
   { label: 'Nieaktywny', value: 'INACTIVE' },
@@ -649,46 +712,50 @@ const vehicleStatusFormOptions: AppSelectOption[] = [
 
 const InfoRow = defineComponent({
   props: {
-    label: {
-      type: String,
-      required: true,
-    },
-    value: {
-      type: [String, Number] as PropType<string | number | null | undefined>,
-      default: null,
-    },
+    label: { type: String, required: true },
+    value: { type: [String, Number] as PropType<string | number | null | undefined>, default: null },
+    editing: Boolean,
+    multiline: Boolean,
   },
-  setup(props) {
-    return () => h('div', { class: 'grid min-w-0 grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] items-center gap-3 py-3' }, [
-      h('p', { class: 'ui-caption' }, props.label),
-      h('p', { class: 'min-w-0 break-words text-right text-[13px] font-semibold text-ui-text' }, formatValue(props.value)),
+  setup(props, { slots }) {
+    return () => h('tr', { class: 'border-b border-ui-border last:border-b-0' }, [
+      h('td', { class: 'w-[44%] border-r border-ui-border px-3 py-1 align-top ui-caption' }, [
+        h('div', { class: 'py-2 leading-5' }, props.label),
+      ]),
+      h('td', { class: 'px-2 py-1 align-top text-left text-[13px] font-semibold leading-5 text-ui-text' }, [
+        h('div', { class: 'relative min-w-0' }, [
+          // Keep the display text in the flow so editors cannot change row geometry.
+          h('div', { class: ['min-h-9 whitespace-pre-wrap break-words border border-transparent px-2 py-[7px]', props.multiline ? 'min-h-[5.5rem]' : '', props.editing ? 'invisible' : ''], 'aria-hidden': props.editing || undefined }, slots.display?.() ?? formatValue(props.value)),
+          props.editing ? h('div', { class: 'absolute inset-0' }, slots.default?.()) : null,
+        ]),
+      ]),
     ])
   },
 })
 
 const InspectionRow = defineComponent({
   props: {
-    label: {
-      type: String,
-      required: true,
-    },
-    date: {
-      type: String as PropType<string | null>,
-      default: null,
-    },
+    label: { type: String, required: true },
+    date: { type: String as PropType<string | null>, default: null },
+    modelValue: { type: String, default: '' },
+    editing: Boolean,
+    disabled: Boolean,
   },
-  setup(props) {
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
     return () => {
       const days = daysUntil(props.date)
       const variant: 'neutral' | 'success' | 'warning' | 'error' =
         days === null ? 'neutral' : days < 15 ? 'error' : days < 30 ? 'warning' : 'success'
-
-      return h('div', { class: 'flex items-center justify-between gap-3 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted px-2.5 py-2' }, [
-        h('div', [
-          h('p', { class: 'text-xs font-semibold text-ui-text' }, props.label),
-          h('p', { class: 'mt-0.5 ui-caption' }, formatDate(props.date)),
+      return h('div', { class: 'min-w-0 space-y-1 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted px-2.5 py-1.5' }, [
+        h('p', { class: 'text-xs font-semibold text-ui-text' }, props.label),
+        h('div', { class: 'flex min-w-0 items-center justify-between gap-2' }, [
+          h(AppBadge, { variant }, () => daysLabel(days)),
+          h('div', { class: 'relative h-8 w-[9.5rem] min-w-0 shrink' }, [
+            h('p', { class: ['flex h-full items-center justify-end px-2 ui-caption tabular-nums', props.editing ? 'invisible' : ''], 'aria-hidden': props.editing || undefined }, formatDate(props.date)),
+            props.editing ? h(AppDatePicker, { inline: true, ariaLabel: props.label, modelValue: props.modelValue, disabled: props.disabled, 'onUpdate:modelValue': (value: string) => emit('update:modelValue', value) }) : null,
+          ]),
         ]),
-        h(AppBadge, { variant }, () => daysLabel(days)),
       ])
     }
   },
@@ -702,9 +769,6 @@ function createEmptyVehicleForm() {
     vin: '',
     firstRegistration: '',
     productionYear: '',
-    euroClass: '',
-    ownership: 'OWN',
-    ownershipUntil: '',
     technicalInspection: '',
     tachographInspection: '',
     vignetteUk: '',
@@ -724,9 +788,6 @@ function resetFormFromVehicle(form: VehicleForm, source: ApiVehicle) {
     vin: source.vin || '',
     firstRegistration: dateInputValue(source.firstRegistration),
     productionYear: source.productionYear ? String(source.productionYear) : '',
-    euroClass: source.euroClass || '',
-    ownership: source.ownership || 'OWN',
-    ownershipUntil: dateInputValue(source.ownershipUntil),
     technicalInspection: dateInputValue(source.technicalInspection),
     tachographInspection: dateInputValue(source.tachographInspection),
     vignetteUk: dateInputValue(source.vignetteUk),
@@ -762,9 +823,6 @@ function payloadFromForm(form: VehicleForm, preserveEmptyDescription = false): V
     vin: nullableText(form.vin),
     firstRegistration: nullableText(form.firstRegistration),
     productionYear: nullableNumber(form.productionYear),
-    euroClass: nullableText(form.euroClass),
-    ownership: form.ownership || null,
-    ownershipUntil: nullableText(form.ownershipUntil),
     technicalInspection: nullableText(form.technicalInspection),
     tachographInspection: nullableText(form.tachographInspection),
     vignetteUk: nullableText(form.vignetteUk),
@@ -813,7 +871,7 @@ function formatDate(value: string | null | undefined) {
     return value
   }
 
-  return date.toLocaleDateString('pl-PL')
+  return date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -876,17 +934,6 @@ function vehicleTypeLabel(type: string | null) {
   }
 
   return type || '-'
-}
-
-function ownershipLabel(value: string | null) {
-  const labels: Record<string, string> = {
-    OWN: 'Własny',
-    LEASE: 'Leasing',
-    RENT: 'Wynajem',
-    NONE: 'Brak',
-  }
-
-  return value ? labels[value] || value : '-'
 }
 
 function statusLabel(value: string | null) {
@@ -1080,6 +1127,7 @@ async function openServiceHistory() {
 }
 
 function openEditModal() {
+  isInformationMenuOpen.value = false
   if (!vehicle.value || !canUpdateVehicles.value) {
     return
   }
@@ -1095,7 +1143,54 @@ function closeEditModal() {
   }
 }
 
+function openInspectionEdit() {
+  isInspectionMenuOpen.value = false
+  if (!vehicle.value || !canUpdateVehicles.value) return
+  for (const { key } of visibleInspectionFields.value) inspectionEditForm[key] = dateInputValue(vehicle.value[key])
+  originalInspectionForm.value = { ...inspectionEditForm }
+  isEditingInspections.value = true
+}
+
+function closeInspectionEdit() {
+  if (!isUpdatingInspections.value) isEditingInspections.value = false
+}
+
+async function submitInspectionEdit() {
+  if (!isEditingInspections.value || isUpdatingInspections.value || !vehicle.value || !canUpdateVehicles.value) return
+  const payload: VehiclePayload = {}
+  for (const { key } of visibleInspectionFields.value) {
+    if (inspectionEditForm[key] !== originalInspectionForm.value[key]) payload[key] = nullableText(inspectionEditForm[key])
+  }
+  if (!Object.keys(payload).length) {
+    isEditingInspections.value = false
+    return
+  }
+  isUpdatingInspections.value = true
+  try {
+    const updatedVehicle = await vehicleService.updateVehicle(vehicle.value.id, payload)
+    fleetStore.upsertApiVehicle(updatedVehicle)
+    isEditingInspections.value = false
+    uiStore.addToast({ type: 'success', title: 'Zapisano przeglądy i winiety', message: 'Terminy pojazdu zostały zaktualizowane.' })
+  } catch {
+    // API interceptor pokazuje szczegóły błędu; formularz pozostaje otwarty.
+  } finally {
+    isUpdatingInspections.value = false
+  }
+}
+
+function openAssignDeviceModal() {
+  isDeviceMenuOpen.value = false
+  if (!vehicle.value || !canAssignDevices.value) return
+  deviceIdInput.value = ''
+  isAssignDeviceModalOpen.value = true
+}
+
+function closeAssignDeviceModal() {
+  if (!isAssigningDevice.value) isAssignDeviceModalOpen.value = false
+}
+
 function openUnassignDeviceModal() {
+  isDeviceMenuOpen.value = false
   if (canAssignDevices.value && vehicle.value?.assignedDeviceId) {
     isUnassignDeviceModalOpen.value = true
   }
@@ -1108,7 +1203,7 @@ function closeUnassignDeviceModal() {
 }
 
 async function submitVehicleEdit() {
-  if (!vehicle.value || !canUpdateVehicles.value || !editForm.licensePlate.trim()) {
+  if (!isEditModalOpen.value || isUpdatingVehicle.value || !vehicle.value || !canUpdateVehicles.value || !editForm.licensePlate.trim()) {
     return
   }
 
@@ -1158,6 +1253,7 @@ async function assignDevice() {
       message: `Przypisano urządzenie do ${plateNumber}.`,
     })
     deviceIdInput.value = ''
+    isAssignDeviceModalOpen.value = false
   } catch {
     // API interceptor pokazuje szczegóły błędu.
   } finally {
@@ -1198,7 +1294,7 @@ function repairKey(repair: RepairHistoryLike) {
 }
 
 function repairTimestamp(repair: RepairHistoryLike) {
-  const value = repair.plannedArrivalAt || repair.startedAt || repair.createdAt || repair.updatedAt || null
+  const value = repair.createdAt || repair.plannedArrivalAt || repair.startedAt || repair.updatedAt || null
 
   if (!value) {
     return 0
@@ -1406,19 +1502,27 @@ function repairCommentAuthor(comment: RepairComment) {
 }
 
 async function loadRepairHistory() {
-  if (!vehicleId.value) {
+  if (!vehicleId.value || !canReadRepairs.value) {
     return
   }
-
+  const requestedVehicleId = vehicleId.value
+  repairHistoryError.value = ''
   try {
-    await repairStore.loadVehicleRepairHistory(vehicleId.value)
+    await repairStore.loadVehicleRepairHistory(requestedVehicleId, { silent: true })
   } catch {
+    if (requestedVehicleId !== vehicleId.value) return
+    repairHistoryError.value = 'Historia serwisowa pojazdu jest chwilowo niedostępna.'
     uiStore.addToast({
       type: 'error',
       title: 'Nie udało się pobrać historii',
       message: 'Historia serwisowa pojazdu jest chwilowo niedostępna.',
     })
   }
+}
+
+function openCreatedRepair(repair: Repair) {
+  isRepairCreateOpen.value = false
+  void router.push({ name: 'repair-detail', params: { id: repair.id } })
 }
 
 onMounted(async () => {
@@ -1430,7 +1534,16 @@ onMounted(async () => {
 })
 
 watch(vehicleId, () => {
+  isEditModalOpen.value = false
+  isInformationMenuOpen.value = false
+  isInspectionMenuOpen.value = false
+  isEditingInspections.value = false
   deviceIdInput.value = ''
+  isAssignDeviceModalOpen.value = false
+  isUnassignDeviceModalOpen.value = false
+  isDeviceMenuOpen.value = false
+  isRepairCreateOpen.value = false
+  repairHistoryError.value = ''
   expandedRepairIds.value = new Set()
   void loadRepairHistory()
 })
@@ -1442,9 +1555,62 @@ watch(isServiceHistoryOpen, (open) => {
 onBeforeUnmount(() => {
   if (serviceRepairFocusTimer !== null) window.clearTimeout(serviceRepairFocusTimer)
 })
+useWorkspaceDirty(computed(() => isEditModalOpen.value || isEditingInspections.value))
 </script>
 
 <style scoped>
+:deep(.vehicle-inline-control) {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid rgb(var(--rw-border));
+  border-radius: var(--rw-radius-control);
+  background: rgb(var(--rw-surface));
+  padding: 7px 8px;
+  color: inherit;
+  font: inherit;
+  line-height: 20px;
+  text-align: left;
+  outline: none;
+}
+:deep(.vehicle-inline-control:focus) { border-color: rgb(var(--rw-focus-ring)); box-shadow: inset 0 0 0 1px rgb(var(--rw-focus-ring)); }
+:deep(.vehicle-inline-control:disabled) { opacity: .6; }
+
+.vehicle-information-layout, .vehicle-service-layout { display: grid; gap: .75rem; }
+.vehicle-information-sidebar { grid-template-columns: minmax(0, 1fr); }
+.vehicle-device-telemetry :deep(.ui-card-header) { min-height: 3rem; align-items: center; gap: .375rem; padding: .5rem; }
+.vehicle-device-telemetry :deep(.ui-icon-button) { width: 1.5rem !important; height: 1.5rem !important; }
+.vehicle-device-telemetry :deep(.ui-card-header > div:first-child) { min-width: 0; }
+.vehicle-device-telemetry :deep(.ui-section-title) { gap: .375rem; font-size: .875rem; }
+@media (min-width: 640px) {
+  .vehicle-information-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vehicle-information-sidebar--trailer > :first-child { grid-column: 1; grid-row: 1; }
+  .vehicle-information-sidebar--trailer > .vehicle-device-telemetry { grid-column: 1; grid-row: 2; }
+  .vehicle-location-card { width: calc((100% - .75rem) / 2); justify-self: start; }
+}
+.vehicle-location-card { min-height: 14rem; }
+@media (min-width: 1024px) {
+  .vehicle-information-layout { grid-template-columns: minmax(19rem, .85fr) minmax(0, 1.65fr); grid-template-rows: minmax(13rem, auto) minmax(14rem, 1fr); overflow-y: auto; }
+  .vehicle-information-card { grid-column: 1; grid-row: 1 / 3; }
+  .vehicle-information-sidebar { grid-column: 2; grid-row: 1; grid-template-rows: minmax(0, 1fr); }
+  .vehicle-information-sidebar--trailer { grid-template-rows: auto auto; align-content: start; }
+  .vehicle-location-card { grid-column: 2; grid-row: 2; min-height: 14rem; }
+  .vehicle-location-card :deep(.vehicle-location-preview) { min-height: 0; }
+  .vehicle-service-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+  .vehicle-service-layout--trailer { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+  .vehicle-service-sidebar { height: 100%; overflow: hidden; }
+  .vehicle-service-intervals { max-height: 55%; overflow-y: auto; }
+  .vehicle-documents-layout { grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+}
+@media (max-width: 1023px) {
+  .vehicle-information-layout, .vehicle-service-layout, .vehicle-documents-layout { overflow-y: auto; }
+  .vehicle-information-card { flex-shrink: 0; }
+  .vehicle-repair-history { flex: none; }
+}
 :global(.service-calendar-overlay-range) {
   display: block;
   min-width: 0;

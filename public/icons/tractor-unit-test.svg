@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="144" viewBox="0 0 256 144" fill="none">
+  <title>Minimalistyczny europejski ciągnik siodłowy, przód po lewej</title>
+  <g fill="#111111">
+    <path fill-rule="evenodd" d="M16 112V76L22 43Q25 32 39 32H88V96H140L149 88H230L238 99V112H234C232 87 196 87 194 112H190C188 87 152 87 150 112H78C76 86 36 86 34 112H16ZM29 46H56Q60 46 60 50V71Q60 75 56 75H24L29 46Z"/>
+    <path d="M48 26Q62 11 88 12V26H48Z"/>
+  </g>
+  <g stroke="#111111" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M95 34V86L91 91M160 83H185" stroke-width="5"/>
+    <circle cx="56" cy="116" r="12" stroke-width="9"/>
+    <circle cx="170" cy="116" r="12" stroke-width="9"/>
+    <circle cx="214" cy="116" r="12" stroke-width="9"/>
+  </g>
+</svg>

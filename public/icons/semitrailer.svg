@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="144" viewBox="0 0 256 144" fill="none">
+  <title>Naczepa z trzema kołami, przód po lewej</title>
+  <g stroke="#111111" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M28 24H228A8 8 0 0 1 236 32V100H148L124 84H20V32A8 8 0 0 1 28 24Z"/>
+    <path d="M60 84V124M50 124H70"/>
+  </g>
+  <g stroke="#111111" stroke-width="10">
+    <circle cx="158" cy="116" r="12"/>
+    <circle cx="192" cy="116" r="12"/>
+    <circle cx="226" cy="116" r="12"/>
+  </g>
+</svg>

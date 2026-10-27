@@ -10,7 +10,7 @@
             <p class="ui-card-title">Routewise</p>
           </div>
         </div>
-        <ThemeToggle />
+        <ThemeToggle v-if="features.themeSwitching" />
       </div>
 
       <div class="grid flex-1 place-items-center py-12">
@@ -23,5 +23,6 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import { Route } from 'lucide-vue-next'
+import { features } from '@/config/features'
 import ThemeToggle from '@/components/ui/ThemeToggle.vue'
 </script>

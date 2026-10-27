@@ -33,7 +33,7 @@
 
       <AppSelect
         v-model="pageSizeValue"
-        class="page-size-select w-20 shrink-0"
+        class="page-size-select !w-20 shrink-0"
         :options="pageSizeOptions"
         size="sm"
         title="Liczba wyników na stronę"

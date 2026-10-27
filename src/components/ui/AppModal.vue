@@ -1,5 +1,5 @@
 <template>
-  <Teleport to="body">
+  <Teleport :to="workspacePortal">
     <Transition name="modal-fade">
       <div v-if="open" class="fixed inset-0 z-[320] flex items-center justify-center p-3 sm:p-5" @mousedown.self="requestBackdropClose">
         <div class="ui-modal-overlay" aria-hidden="true" @mousedown="requestBackdropClose"></div>
@@ -40,6 +40,8 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceActive, useWorkspacePortal } from '@/composables/useWorkspace'
+const workspaceActive = useWorkspaceActive()
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { X } from 'lucide-vue-next'
 import AppIconButton from './AppIconButton.vue'
@@ -124,6 +126,7 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 watch(() => props.open, async (open) => {
+  if (!workspaceActive.value) return
   if (open) {
     previouslyFocused = document.activeElement as HTMLElement | null
     await nextTick()
@@ -137,7 +140,8 @@ watch(() => props.open, async (open) => {
   previouslyFocused = null
 })
 
-onBeforeUnmount(() => previouslyFocused?.focus?.())
+onBeforeUnmount(() => { if (workspaceActive.value) previouslyFocused?.focus?.() })
+const workspacePortal = useWorkspacePortal()
 </script>
 
 <style scoped>

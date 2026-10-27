@@ -1,6 +1,6 @@
 <template>
-  <div class="space-y-5 xl:flex xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:flex-col xl:space-y-0 xl:gap-4 xl:overflow-hidden">
-    <header class="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+  <div class="space-y-5 md:flex md:h-full md:min-h-0 md:flex-col md:space-y-0 md:gap-4 md:overflow-hidden">
+    <header class="flex min-w-0 shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
       <AppInput
         v-model="searchQuery"
         class="w-full sm:w-72"
@@ -20,13 +20,13 @@
       />
     </header>
 
-    <AppCard compact class="xl:min-h-0 xl:flex-1 xl:overflow-hidden" content-class="xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+    <AppCard compact class="md:min-h-0 md:flex-1 md:overflow-hidden" content-class="md:flex md:h-full md:min-h-0 md:flex-col">
       <div class="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3 ui-caption">
         <span>{{ filteredDrivers.length }} z {{ driverStore.drivers.length }} kierowców</span>
         <span v-if="driverStore.isLoading">Pobieranie danych...</span>
       </div>
 
-      <div class="overflow-x-auto xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
+      <div class="overflow-x-auto md:min-h-0 md:flex-1 md:overflow-y-auto">
         <table class="ui-table min-w-[940px]">
           <thead class="ui-table-head">
             <tr>
@@ -184,6 +184,7 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceViewState, useWorkspaceDirty } from '@/composables/useWorkspace'
 import { computed, onMounted, reactive, ref, watch, type Component } from 'vue'
 import { ArrowDown, ArrowUp, ArrowUpDown, Check, SquarePen, Trash2, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
@@ -374,4 +375,6 @@ onMounted(() => {
     driverStore.loadSelectDrivers({ silent: true }),
   ])
 })
+useWorkspaceViewState({ searchQuery, statusFilters, sortKey, sortDirection, currentPage, pageSize }, { statusFilters: ['ACTIVE', 'INACTIVE'] })
+useWorkspaceDirty(computed(() => editingDriverId.value !== null))
 </script>

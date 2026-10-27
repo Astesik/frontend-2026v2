@@ -1,11 +1,11 @@
 <template>
-  <form class="min-w-0 space-y-3" @submit.prevent="save">
-    <div class="flex flex-wrap justify-end gap-2">
+  <form class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2" @submit.prevent="save">
+    <div class="flex flex-wrap justify-end gap-2 sm:col-span-2">
       <AppButton size="sm" variant="secondary" :disabled="store.isMutating" @click="emit('cancel')"><X class="h-4 w-4" />Anuluj</AppButton>
       <AppButton size="sm" type="submit" :loading="store.isMutating" :disabled="!canUpdate || store.dictionariesLoading || !form.truckId || Boolean(store.conflict)"><Check class="h-4 w-4" />Zapisz</AppButton>
     </div>
-    <p v-if="error" class="ui-error" role="alert">{{ error }}</p>
-    <div v-if="store.conflict" class="rounded-[6px] border border-warning-400/40 bg-warning-400/10 p-3 text-warning-600 dark:text-warning-400">
+    <p v-if="error" class="ui-error sm:col-span-2" role="alert">{{ error }}</p>
+    <div v-if="store.conflict" class="rounded-[6px] border border-warning-400/40 bg-warning-400/10 p-3 text-warning-600 dark:text-warning-400 sm:col-span-2">
       <p class="text-xs">Wpis zmieniła inna osoba. Twój formularz nie został nadpisany. Wczytaj aktualny wpis przed ponowną edycją.</p>
       <AppButton size="sm" variant="secondary" class="mt-2" @click="reloadConflict">Wczytaj aktualne dane</AppButton>
     </div>
@@ -14,7 +14,7 @@
     <AppSearchSelect v-model="form.returnDriver" label="Kierowca zjazdu" size="sm" :options="driverOptions('returnDriver')" :disabled="!canReadDrivers || store.dictionariesLoading || store.isMutating" />
     <AppSearchSelect v-model="form.departureDriver" label="Kierowca wyjazdu" size="sm" :options="driverOptions('departureDriver')" :disabled="!canReadDrivers || store.dictionariesLoading || store.isMutating" />
     <AppDatePicker v-model="form.tripStartedOn" label="Rozpoczęcie trasy" :disabled="store.isMutating" />
-    <AppTextarea v-model="form.notes" label="Uwagi" :rows="3" :maxlength="4000" show-counter :disabled="store.isMutating" />
+    <AppTextarea v-model="form.notes" label="Uwagi" :rows="3" :maxlength="4000" show-counter :disabled="store.isMutating" class="sm:col-span-2" />
   </form>
 </template>
 <script setup lang="ts">

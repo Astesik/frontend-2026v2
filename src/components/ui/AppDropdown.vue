@@ -1,5 +1,5 @@
 <template>
-  <Teleport to="body">
+  <Teleport :to="workspacePortal">
     <Transition name="dropdown-fade">
       <div
         v-if="open"
@@ -21,6 +21,8 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceActive, useWorkspacePortal } from '@/composables/useWorkspace'
+const workspaceActive = useWorkspaceActive()
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
@@ -60,6 +62,7 @@ function emitClose() {
 }
 
 function updatePosition() {
+  if (!workspaceActive.value) return
   if (!props.open || !props.anchor) return
 
   const rect = props.anchor.getBoundingClientRect()
@@ -93,6 +96,7 @@ function updatePosition() {
 }
 
 function onPointerDown(event: PointerEvent) {
+  if (!workspaceActive.value) return
   const target = event.target as Node
 
   const floatingLayer = target instanceof Element ? target.closest('[data-ui-floating-layer]') : null
@@ -103,6 +107,7 @@ function onPointerDown(event: PointerEvent) {
 }
 
 function onKeydown(event: KeyboardEvent) {
+  if (!workspaceActive.value) return
   if (props.open && event.key === 'Escape') {
     event.preventDefault()
     emitClose()
@@ -139,6 +144,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', updatePosition)
   window.removeEventListener('scroll', updatePosition, true)
 })
+const workspacePortal = useWorkspacePortal()
 </script>
 
 <style scoped>

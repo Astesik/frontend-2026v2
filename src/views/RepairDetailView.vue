@@ -1,8 +1,9 @@
 <template>
-  <div class="space-y-3">
-    <header class="flex items-center gap-3">
+  <div class="space-y-3 md:flex md:h-full md:min-h-0 md:flex-col md:gap-3 md:space-y-0 md:overflow-hidden">
+    <header class="flex shrink-0 items-center gap-3">
       <div class="flex items-center gap-3">
         <AppIconLink
+          class="md:hidden"
           :to="{ name: 'repairs' }"
           label="Wróć do napraw"
         >
@@ -26,20 +27,17 @@
       Nie znaleziono naprawy.
     </div>
 
-    <div v-else class="grid min-w-0 gap-3 xl:grid-cols-[22rem_minmax(0,1fr)] xl:items-start">
+    <div v-else class="grid min-w-0 gap-3 md:min-h-0 md:flex-1 md:overflow-y-auto xl:grid-cols-[22rem_minmax(0,1fr)] xl:items-start">
         <AppCard class="order-1 min-w-0 xl:sticky xl:top-0" title="Informacje" :icon="Info" compact content-class="!p-0">
           <template #actions>
-            <AppButton
-              v-if="!infoEditMode"
-              size="sm"
-              variant="secondary"
-              :disabled="!canUpdateRepairs"
-              :title="!canUpdateRepairs ? 'Brak uprawnienia: repairs.update' : undefined"
-              @click="openInfoEdit"
-            >
-              <SquarePen class="h-4 w-4" />
-              Edytuj
-            </AppButton>
+            <template v-if="!infoEditMode">
+              <span ref="informationMenuAnchor" class="inline-flex">
+                <AppIconButton label="Opcje informacji" size="sm" variant="ghost" aria-haspopup="menu" :aria-expanded="isInformationMenuOpen" @click="isInformationMenuOpen = !isInformationMenuOpen"><Ellipsis class="h-4 w-4" /></AppIconButton>
+              </span>
+              <AppDropdown :open="isInformationMenuOpen" :anchor="informationMenuAnchor" role="menu" :match-width="false" content-class="min-w-36 p-1" @close="isInformationMenuOpen = false">
+                <AppDropdownItem role="menuitem" :disabled="!canUpdateRepairs || isMutating" @click="openInfoEdit"><SquarePen class="h-4 w-4" />Edytuj</AppDropdownItem>
+              </AppDropdown>
+            </template>
             <div v-else class="flex flex-wrap justify-end gap-2">
               <AppButton size="sm" variant="ghost" @click="cancelInfoEdit">
                 <X class="h-4 w-4" />
@@ -306,7 +304,7 @@
 
                 <div
                   v-if="isFaultExpanded(fault.id)"
-                  class="col-span-full row-start-3 grid gap-2 border-t border-slate-100 bg-slate-50/80 p-2 md:row-auto dark:border-app-border dark:bg-app-dark/80 lg:grid-cols-[minmax(16rem,0.78fr)_minmax(0,1fr)]"
+                  class="col-span-full row-start-3 grid gap-2 border-t border-slate-100 bg-slate-50/80 p-2 md:row-auto dark:border-app-border dark:bg-app-dark/80"
                   @click.stop
                   @keydown.stop
                 >
@@ -370,109 +368,6 @@
                   </p>
                 </section>
 
-                <section class="flex min-w-0 flex-col rounded-xl border border-slate-100 bg-white p-2 dark:border-app-border dark:bg-app-panel">
-                  <button
-                    type="button"
-                    class="flex w-full items-center justify-between gap-2 rounded-xl px-1 py-1 text-left transition hover:bg-slate-50 dark:hover:bg-app-elevated"
-                    :aria-expanded="isFaultCommentsExpanded(fault.id)"
-                    @click.stop="toggleFaultComments(fault)"
-                  >
-                    <div class="flex min-w-0 items-center gap-2">
-                      <MessageSquare class="h-4 w-4 shrink-0 text-slate-400" />
-                      <span class="truncate text-xs font-semibold text-slate-950 dark:text-slate-50">Komentarze</span>
-                    </div>
-                    <span class="flex shrink-0 items-center gap-2">
-                      <span class="inline-flex h-6 min-w-6 items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-1.5 text-[11px] font-semibold text-slate-600 dark:border-app-border dark:bg-app-elevated dark:text-slate-200">
-                        {{ fault.comments?.length || 0 }}
-                      </span>
-                      <ChevronDown class="h-4 w-4 text-slate-400 transition" :class="isFaultCommentsExpanded(fault.id) ? 'rotate-180' : ''" />
-                    </span>
-                  </button>
-
-                  <template v-if="isFaultCommentsExpanded(fault.id)">
-                  <div class="mt-2 max-h-[7.75rem] min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-                    <article v-for="comment in fault.comments || []" :key="comment.id">
-                      <div class="flex items-center justify-between gap-2 px-1">
-                        <p class="truncate text-[10px] font-semibold text-slate-500 dark:text-slate-400">{{ comment.username || `Użytkownik #${comment.userId}` }}</p>
-                        <div class="flex shrink-0 items-center gap-1">
-                          <time class="text-[10px] text-slate-400 dark:text-app-muted">{{ formatDateTime(comment.createdAt) }}</time>
-                          <button
-                            v-if="canEditComment(comment)"
-                            type="button"
-                            class="inline-flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
-                            aria-label="Edytuj komentarz"
-                            @click.stop="startCommentEdit(comment)"
-                          >
-                            <SquarePen class="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            v-if="canDeleteComment(comment)"
-                            type="button"
-                            class="inline-flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
-                            aria-label="Usuń komentarz"
-                            @click.stop="commentToDelete = { faultId: fault.id, comment }"
-                          >
-                            <Trash2 class="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                      <div v-if="isCommentEditing(comment.id)" class="mt-1 flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1 dark:border-app-border dark:bg-app-dark">
-                        <input
-                          v-model="commentEditDrafts[comment.id]"
-                          type="text"
-                          class="min-w-0 flex-1 bg-transparent px-2 text-xs text-slate-950 outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-app-muted"
-                          @click.stop
-                          @keydown.enter.prevent="saveCommentEdit(fault.id, comment)"
-                        />
-                        <button
-                          type="button"
-                          class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
-                          aria-label="Anuluj edycję komentarza"
-                          @click.stop="cancelCommentEdit(comment.id)"
-                        >
-                          <X class="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-app-dark dark:hover:bg-white"
-                          aria-label="Zapisz komentarz"
-                          @click.stop="saveCommentEdit(fault.id, comment)"
-                        >
-                          <Check class="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <p v-else class="mt-1 w-fit max-w-[95%] rounded-xl rounded-tl-sm bg-slate-100 px-2.5 py-1.5 text-xs text-slate-800 dark:bg-app-elevated dark:text-slate-100">
-                        {{ comment.text }}
-                      </p>
-                    </article>
-                    <p v-if="!fault.comments?.length" class="py-3 text-center text-[11px] text-slate-500 dark:text-slate-400">
-                      Brak komentarzy.
-                    </p>
-                  </div>
-
-                  <div class="sticky bottom-0 mt-2 flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 dark:border-app-border dark:bg-app-dark">
-                    <input
-                      v-model="faultCommentDrafts[fault.id]"
-                      type="text"
-                      class="min-w-0 flex-1 bg-transparent px-2 text-xs text-slate-950 outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-app-muted"
-                      placeholder="Dodaj komentarz"
-                      :disabled="!canAddComments"
-                      @click.stop
-                      @keydown.enter.prevent="addFaultComment(fault.id)"
-                    />
-                    <button
-                      type="button"
-                      class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-100 dark:text-app-dark dark:hover:bg-white"
-                      :disabled="!canAddComments"
-                      :title="!canAddComments ? 'Brak uprawnienia: comments.add' : undefined"
-                      aria-label="Dodaj komentarz"
-                      @click.stop="addFaultComment(fault.id)"
-                    >
-                      <Send class="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  </template>
-                </section>
                 </div>
 
                 <div class="col-span-full row-start-2 flex self-center justify-end gap-1 md:col-span-auto md:col-start-3 md:row-start-1 md:justify-end">
@@ -486,17 +381,13 @@
                     <ChevronDown class="h-4 w-4 transition" :class="isFaultExpanded(fault.id) ? 'rotate-180' : ''" />
                     <span class="hidden sm:inline">{{ isFaultExpanded(fault.id) ? 'Zwiń' : 'Rozwiń' }}</span>
                   </button>
-                  <button
-                    v-if="!isFaultEditing(fault.id) && canEditFaults"
-                    type="button"
-                    class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
-                    aria-label="Edytuj usterkę"
-                    :disabled="isMutating || !canEditFaults"
-                    @click.stop="startFaultEdit(fault)"
-                  >
-                    <SquarePen class="h-4 w-4" />
-                    <span class="hidden sm:inline">Edytuj</span>
-                  </button>
+                  <template v-if="!isFaultEditing(fault.id)">
+                    <AppIconButton label="Opcje usterki" size="sm" variant="ghost" aria-haspopup="menu" :aria-expanded="faultMenuId === fault.id" @click.stop="toggleFaultMenu(fault.id, $event)"><Ellipsis class="h-4 w-4" /></AppIconButton>
+                    <AppDropdown :open="faultMenuId === fault.id" :anchor="faultMenuAnchor" role="menu" :match-width="false" content-class="min-w-40 p-1" @close="faultMenuId = null">
+                      <AppDropdownItem role="menuitem" :disabled="isMutating || !canEditFaults" @click.stop="faultMenuId = null; startFaultEdit(fault)"><SquarePen class="h-4 w-4" />Edytuj</AppDropdownItem>
+                      <AppDropdownItem role="menuitem" class="text-danger-600 dark:text-danger-400" :disabled="isMutating || !canDeleteFault(fault)" @click.stop="faultMenuId = null; faultToDelete = fault"><Trash2 class="h-4 w-4" />Usuń</AppDropdownItem>
+                    </AppDropdown>
+                  </template>
                   <button
                     v-if="isFaultEditing(fault.id)"
                     type="button"
@@ -520,6 +411,7 @@
                     <span class="hidden sm:inline">Zapisz</span>
                   </button>
                   <button
+                    v-if="isFaultEditing(fault.id)"
                     type="button"
                     class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
                     aria-label="Usuń usterkę"
@@ -533,107 +425,6 @@
                 </div>
               </div>
 
-              <div v-if="false" class="border-t border-slate-100 bg-slate-50/70 p-3 dark:border-app-border dark:bg-app-dark/70">
-                <div class="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.8fr)]">
-                  <section class="min-w-0 rounded-2xl border border-slate-100 bg-white p-3 dark:border-app-border dark:bg-app-panel">
-                    <header class="mb-3 flex items-center justify-between gap-2">
-                      <div class="flex min-w-0 items-center gap-2">
-                        <MessageSquare class="h-4 w-4 shrink-0 text-slate-400" />
-                        <h3 class="truncate text-sm font-semibold text-slate-950 dark:text-slate-50">Komentarze</h3>
-                      </div>
-                      <AppBadge>{{ fault.comments?.length || 0 }}</AppBadge>
-                    </header>
-
-                    <div class="max-h-40 space-y-2 overflow-y-auto pr-1">
-                      <article v-for="comment in fault.comments || []" :key="comment.id">
-                        <div class="flex items-center justify-between gap-2 px-1">
-                          <p class="truncate text-[11px] font-semibold text-slate-500 dark:text-slate-400">{{ comment.username || `Użytkownik #${comment.userId}` }}</p>
-                          <time class="shrink-0 text-[10px] text-slate-400 dark:text-app-muted">{{ formatDateTime(comment.createdAt) }}</time>
-                        </div>
-                        <p class="mt-1 w-fit max-w-[90%] rounded-2xl rounded-tl-md bg-slate-100 px-3 py-2 text-sm text-slate-800 dark:bg-app-elevated dark:text-slate-100">
-                          {{ comment.text }}
-                        </p>
-                      </article>
-                      <p v-if="!fault.comments?.length" class="py-3 text-center text-xs text-slate-500 dark:text-slate-400">
-                        Brak komentarzy do tej usterki.
-                      </p>
-                    </div>
-
-                    <div class="mt-3 flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 dark:border-app-border dark:bg-app-dark">
-                      <input
-                        v-model="faultCommentDrafts[fault.id]"
-                        type="text"
-                        class="min-w-0 flex-1 bg-transparent px-2 text-sm text-slate-950 outline-none placeholder:text-slate-400 dark:text-slate-50 dark:placeholder:text-app-muted"
-                        placeholder="Dodaj komentarz"
-                        @keydown.enter.prevent="addFaultComment(fault.id)"
-                      />
-                      <button
-                        type="button"
-                        class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-white transition hover:bg-slate-800 dark:bg-slate-100 dark:text-app-dark dark:hover:bg-white"
-                        aria-label="Dodaj komentarz"
-                        @click="addFaultComment(fault.id)"
-                      >
-                        <Send class="h-4 w-4" />
-                      </button>
-                    </div>
-                  </section>
-
-                  <section class="min-w-0 rounded-2xl border border-slate-100 bg-white p-3 dark:border-app-border dark:bg-app-panel">
-                    <header class="mb-3 flex items-center gap-2">
-                      <ImagePlus class="h-4 w-4 text-slate-400" />
-                      <h3 class="text-sm font-semibold text-slate-950 dark:text-slate-50">Zdjęcia usterki</h3>
-                    </header>
-
-                    <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-                      <button
-                        type="button"
-                        class="flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-200 text-center text-xs font-medium text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:text-slate-400 dark:hover:bg-app-elevated"
-                        :disabled="isPhotoMutating"
-                        @click.stop="openFaultPhotoPicker(fault.id)"
-                      >
-                        <LoaderCircle v-if="isPhotoMutating" class="h-5 w-5 animate-spin" />
-                        <ImagePlus v-else class="h-5 w-5" />
-                        {{ isPhotoMutating ? 'Wysyłanie' : 'Dodaj' }}
-                      </button>
-
-                      <article
-                        v-for="photo in fault.photos || []"
-                        :key="photo.id"
-                        class="group relative aspect-square overflow-hidden rounded-2xl border border-slate-100 bg-slate-100 dark:border-app-border dark:bg-app-elevated"
-                      >
-                        <button
-                          v-if="photoObjectUrls[photo.id]"
-                          type="button"
-                          class="block h-full w-full cursor-zoom-in"
-                          :aria-label="`Powiększ zdjęcie ${photo.originalFilename}`"
-                          @click="photoPreview = { ...photo, faultId: fault.id }"
-                        >
-                          <img :src="photoObjectUrls[photo.id]" :alt="photo.originalFilename" class="h-full w-full object-cover" />
-                        </button>
-                        <div v-else class="grid h-full place-items-center text-slate-400 dark:text-app-muted">
-                          <ImageOff v-if="photoLoadFailures[photo.id]" class="h-5 w-5" />
-                          <LoaderCircle v-else class="h-5 w-5 animate-spin" />
-                        </div>
-                        <button
-                          type="button"
-                          class="absolute right-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-950/70 text-white transition hover:bg-slate-950"
-                          :disabled="isPhotoMutating"
-                          aria-label="Usuń zdjęcie"
-                          @click="photoToDelete = { ...photo, faultId: fault.id }"
-                        >
-                          <X class="h-3.5 w-3.5" />
-                        </button>
-                      </article>
-                    </div>
-                    <p v-if="!fault.photos?.length" class="mt-2 text-xs text-slate-500 dark:text-slate-400">
-                      Brak zdjęć do tej usterki.
-                    </p>
-                    <p v-if="faultPhotoErrors[fault.id]" class="mt-2 text-xs font-medium text-danger-600 dark:text-danger-400">
-                      {{ faultPhotoErrors[fault.id] }}
-                    </p>
-                  </section>
-                </div>
-              </div>
             </article>
 
             <div v-if="!repair.faults.length" class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
@@ -754,7 +545,7 @@
       @change="handleNewFaultPhotoSelection"
     />
 
-    <Teleport to="body">
+  <Teleport :to="workspacePortal">
       <div
         v-if="photoPickerMenu"
         class="fixed inset-0 z-[360] flex items-end justify-center bg-transparent p-3 md:hidden"
@@ -794,7 +585,7 @@
       </div>
     </Teleport>
 
-    <Teleport to="body">
+  <Teleport :to="workspacePortal">
       <div
         v-if="photoPreview && photoObjectUrls[photoPreview.id]"
         class="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/85 p-3 backdrop-blur-sm sm:p-6"
@@ -840,17 +631,6 @@
       @confirm="confirmDeletePhoto"
     />
 
-    <AppConfirmModal
-      :open="Boolean(commentToDelete)"
-      title="Usunąć komentarz?"
-      description="Czy na pewno chcesz usunąć ten komentarz?"
-      confirm-label="Usuń"
-      confirm-variant="danger"
-      :busy="isMutating"
-      :confirm-disabled="Boolean(commentToDelete && !canDeleteComment(commentToDelete.comment))"
-      @close="commentToDelete = null"
-      @confirm="confirmDeleteComment"
-    />
 
     <AppConfirmModal
       :open="Boolean(repairStatusAction && repair)"
@@ -911,16 +691,22 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceActive, useWorkspaceDirty, useWorkspaceTitle } from '@/composables/useWorkspace'
+const workspaceActive = useWorkspaceActive()
+import { useWorkspacePortal } from '@/composables/useWorkspace'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, CalendarCheck, CalendarClock, Camera, Check, ChevronDown, Circle, CircleCheck, FileText, ImageOff, ImagePlus, Info, LoaderCircle, MapPin, MessageSquare, Plus, Send, SquarePen, Trash2, Truck, UserRound, Wrench, X } from 'lucide-vue-next'
+import { ArrowLeft, CalendarCheck, CalendarClock, Camera, Check, ChevronDown, Ellipsis, Circle, CircleCheck, FileText, ImageOff, ImagePlus, Info, LoaderCircle, MapPin, Plus, SquarePen, Trash2, Truck, UserRound, Wrench, X } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppDropdown from '@/components/ui/AppDropdown.vue'
+import AppDropdownItem from '@/components/ui/AppDropdownItem.vue'
+import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppIconLink from '@/components/ui/AppIconLink.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppSearchSelect, { type AppSearchSelectOption } from '@/components/ui/AppSearchSelect.vue'
@@ -929,7 +715,7 @@ import { repairService } from '@/services/repairService'
 import { useAuthStore } from '@/stores/authStore'
 import { useRepairStore } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
-import type { Repair, RepairFault, RepairFaultComment, RepairFaultPhoto, RepairPhoto, RepairStatus } from '@/types/repair'
+import type { Repair, RepairFault, RepairFaultPhoto, RepairPhoto, RepairStatus } from '@/types/repair'
 
 interface NewFaultPhotoDraft {
   id: string
@@ -947,22 +733,30 @@ const authStore = useAuthStore()
 const uiStore = useUiStore()
 const repairStore = useRepairStore()
 const {
-  currentRepair: repair,
+  repairDetailsById,
   places,
-  isDetailLoading: isLoading,
   isMutating,
   isPhotoMutating,
 } = storeToRefs(repairStore)
 const repairToDelete = ref<Repair | null>(null)
+const isLoading = ref(false)
 const repairStatusAction = ref<'close' | 'open' | null>(null)
 const faultToComplete = ref<RepairFault | null>(null)
 const faultToReopen = ref<RepairFault | null>(null)
 const faultToDelete = ref<RepairFault | null>(null)
 const faultsEditMode = ref(false)
 const editingFaultId = ref<number | null>(null)
-const editingCommentId = ref<number | null>(null)
+
 const isAddFaultModalOpen = ref(false)
 const infoEditMode = ref(false)
+const informationMenuAnchor = ref<HTMLElement | null>(null)
+const isInformationMenuOpen = ref(false)
+const faultMenuAnchor = ref<HTMLElement | null>(null)
+const faultMenuId = ref<number | null>(null)
+function toggleFaultMenu(faultId: number, event: MouseEvent) {
+  faultMenuAnchor.value = event.currentTarget as HTMLElement
+  faultMenuId.value = faultMenuId.value === faultId ? null : faultId
+}
 const photoInput = ref<HTMLInputElement | null>(null)
 const faultPhotoInput = ref<HTMLInputElement | null>(null)
 const faultCameraInput = ref<HTMLInputElement | null>(null)
@@ -972,7 +766,7 @@ const selectedFaultPhotoInputId = ref<number | null>(null)
 const photoPickerMenu = ref<PhotoPickerMenu | null>(null)
 const photoToDelete = ref<RepairFaultPhoto | null>(null)
 const photoPreview = ref<RepairFaultPhoto | null>(null)
-const commentToDelete = ref<{ faultId: number; comment: RepairFaultComment } | null>(null)
+
 const photoValidationError = ref('')
 const photoObjectUrls = reactive<Record<number, string>>({})
 const photoLoadFailures = reactive<Record<number, boolean>>({})
@@ -982,10 +776,9 @@ const newDetailFault = reactive({ description: '' })
 const newFaultPhotoDrafts = ref<NewFaultPhotoDraft[]>([])
 const newFaultPhotoError = ref('')
 const faultEditRows = reactive<Record<number, { description: string }>>({})
-const commentEditDrafts = reactive<Record<number, string>>({})
+
 const expandedFaultIds = ref<Set<number>>(new Set())
-const expandedFaultCommentIds = ref<Set<number>>(new Set())
-const faultCommentDrafts = reactive<Record<number, string>>({})
+
 const faultPhotoErrors = reactive<Record<number, string>>({})
 const editForm = reactive({
   status: 'planned' as RepairStatus,
@@ -994,6 +787,11 @@ const editForm = reactive({
   departureAt: '',
 })
 const repairId = computed(() => String(route.params.id || ''))
+const repair = computed(() => repairDetailsById.value[repairId.value] || null)
+useWorkspaceTitle(computed(() => {
+  const plate = repair.value?.vehicle?.licensePlate || repair.value?.vehicleLicensePlate
+  return plate ? `Naprawa - ${plate}` : null
+}))
 const allFaultPhotos = computed(() => (repair.value?.faults || []).flatMap((fault) => fault.photos || []))
 const currentUserId = computed(() => Number(authStore.user?.id ?? authStore.user?.userId ?? authStore.user?.uid))
 const canUpdateRepairs = computed(() => hasPermission('repairs.update'))
@@ -1003,9 +801,8 @@ const canCreateFaults = computed(() => hasPermission('faults.create'))
 const canEditFaults = computed(() => hasPermission('faults.edit_any'))
 const canChangeFaultStatus = computed(() => hasPermission('faults.change_status'))
 const canDeleteAnyFaults = computed(() => hasPermission('faults.delete_any'))
-const canAddComments = computed(() => hasPermission('comments.add'))
-const canEditAnyComments = computed(() => hasPermission('comments.edit_any'))
-const canDeleteAnyComments = computed(() => hasPermission('comments.delete_any'))
+
+
 const canAddFaultPhotos = computed(() => hasPermission('fault_photos.add'))
 const canDeleteAnyFaultPhotos = computed(() => hasPermission('fault_photos.delete_any'))
 
@@ -1135,13 +932,7 @@ function canDeleteFault(fault: RepairFault | null | undefined) {
   return Boolean(fault) && (canDeleteAnyFaults.value || isCurrentUser(fault?.createdBy?.id))
 }
 
-function canEditComment(comment: RepairFaultComment) {
-  return canEditAnyComments.value || isCurrentUser(comment.userId)
-}
 
-function canDeleteComment(comment: RepairFaultComment) {
-  return canDeleteAnyComments.value || isCurrentUser(comment.userId)
-}
 
 function canDeleteFaultPhoto(photo: RepairFaultPhoto | null | undefined) {
   return Boolean(photo) && (canDeleteAnyFaultPhotos.value || isCurrentUser(photo?.uploadedBy?.id))
@@ -1294,6 +1085,7 @@ async function confirmDeletePhoto() {
 }
 
 function handlePreviewKeydown(event: KeyboardEvent) {
+  if (!workspaceActive.value) return
   if (event.key === 'Escape' && photoPreview.value) {
     photoPreview.value = null
   }
@@ -1370,6 +1162,7 @@ function resetEditForm(value: Repair) {
 }
 
 function openInfoEdit() {
+  isInformationMenuOpen.value = false
   if (!repair.value || !canUpdateRepairs.value) {
     return
   }
@@ -1419,9 +1212,6 @@ function shouldAutoExpandFault(fault: RepairFault) {
   return fault.status !== 'DONE' && faultHasPhotos(fault)
 }
 
-function faultHasComments(fault: RepairFault) {
-  return (fault.comments || []).length > 0
-}
 
 function syncFaultExpandedRows(faults: RepairFault[], applyDefaults = false) {
   const activeIds = new Set(faults.map((fault) => fault.id))
@@ -1438,22 +1228,6 @@ function syncFaultExpandedRows(faults: RepairFault[], applyDefaults = false) {
   expandedFaultIds.value = nextIds
 }
 
-function syncFaultCommentExpandedRows(faults: RepairFault[], applyDefaults = false) {
-  const activeIds = new Set(faults.map((fault) => fault.id))
-  const nextIds = new Set(Array.from(expandedFaultCommentIds.value).filter((id) => activeIds.has(id)))
-
-  if (applyDefaults) {
-    faults.forEach((fault) => {
-      if (faultHasComments(fault)) {
-        nextIds.add(fault.id)
-      } else {
-        nextIds.delete(fault.id)
-      }
-    })
-  }
-
-  expandedFaultCommentIds.value = nextIds
-}
 
 function isFaultEditing(faultId: number) {
   return editingFaultId.value === faultId
@@ -1691,30 +1465,10 @@ function isFaultExpanded(faultId: number) {
   return expandedFaultIds.value.has(faultId)
 }
 
-function isFaultCommentsExpanded(faultId: number) {
-  return expandedFaultCommentIds.value.has(faultId)
-}
 
-function isCommentEditing(commentId: number) {
-  return editingCommentId.value === commentId
-}
 
-function startCommentEdit(comment: RepairFaultComment) {
-  if (!canEditComment(comment)) {
-    return
-  }
 
-  commentEditDrafts[comment.id] = comment.text
-  editingCommentId.value = comment.id
-}
 
-function cancelCommentEdit(commentId: number) {
-  if (editingCommentId.value === commentId) {
-    editingCommentId.value = null
-  }
-
-  delete commentEditDrafts[commentId]
-}
 
 function toggleFaultDetails(faultId: number) {
   const nextIds = new Set(expandedFaultIds.value)
@@ -1724,102 +1478,15 @@ function toggleFaultDetails(faultId: number) {
     nextIds.delete(faultId)
   } else {
     nextIds.add(faultId)
-    if (repair.value && canReadFaults.value) {
-      void repairStore.loadRepairFaultComments(repair.value.id, faultId, { silent: true }).catch(() => undefined)
-    }
   }
 
   expandedFaultIds.value = nextIds
 }
 
-function toggleFaultComments(fault: RepairFault) {
-  const nextIds = new Set(expandedFaultCommentIds.value)
-  const willExpand = !nextIds.has(fault.id)
 
-  if (!willExpand) {
-    nextIds.delete(fault.id)
-  } else {
-    nextIds.add(fault.id)
-    if (repair.value && canReadFaults.value) {
-      void repairStore.loadRepairFaultComments(repair.value.id, fault.id, { silent: true }).catch(() => undefined)
-    }
-  }
 
-  expandedFaultCommentIds.value = nextIds
-}
 
-async function addFaultComment(faultId: number) {
-  if (!repair.value || !canAddComments.value) return
 
-  const content = faultCommentDrafts[faultId]?.trim()
-
-  if (!content) return
-
-  try {
-    await repairStore.addRepairFaultComment(repair.value.id, faultId, content)
-    faultCommentDrafts[faultId] = ''
-    expandedFaultCommentIds.value = new Set([...expandedFaultCommentIds.value, faultId])
-    uiStore.addToast({
-      type: 'success',
-      title: 'Komentarz dodany',
-      message: 'Dodano komentarz do usterki.',
-    })
-  } catch {
-    showMutationError('Nie udało się dodać komentarza', 'Spróbuj ponownie za chwilę.')
-  }
-}
-
-async function saveCommentEdit(faultId: number, comment: RepairFaultComment) {
-  if (!repair.value || !canEditComment(comment)) {
-    return
-  }
-
-  const content = commentEditDrafts[comment.id]?.trim()
-
-  if (!content) {
-    uiStore.addToast({
-      type: 'warning',
-      title: 'Brak treści',
-      message: 'Komentarz nie może być pusty.',
-    })
-    return
-  }
-
-  try {
-    await repairStore.updateRepairFaultComment(repair.value.id, faultId, comment.id, content)
-    cancelCommentEdit(comment.id)
-    uiStore.addToast({
-      type: 'success',
-      title: 'Komentarz zapisany',
-      message: 'Zaktualizowano komentarz.',
-    })
-  } catch {
-    showMutationError('Nie udało się zapisać komentarza', 'Spróbuj ponownie za chwilę.')
-  }
-}
-
-async function confirmDeleteComment() {
-  if (!repair.value || !commentToDelete.value || !canDeleteComment(commentToDelete.value.comment)) {
-    return
-  }
-
-  try {
-    await repairStore.deleteRepairFaultComment(
-      repair.value.id,
-      commentToDelete.value.faultId,
-      commentToDelete.value.comment.id,
-    )
-    cancelCommentEdit(commentToDelete.value.comment.id)
-    commentToDelete.value = null
-    uiStore.addToast({
-      type: 'success',
-      title: 'Komentarz usunięty',
-      message: 'Usunięto komentarz z usterki.',
-    })
-  } catch {
-    showMutationError('Nie udało się usunąć komentarza', 'Spróbuj ponownie za chwilę.')
-  }
-}
 
 async function handleFaultPhotoSelection(faultId: number, event: Event) {
   const input = event.target as HTMLInputElement
@@ -1860,9 +1527,7 @@ async function handleFaultPhotoSelection(faultId: number, event: Event) {
 function clearFaultLocalData(faultId: number) {
   const fault = repair.value?.faults.find((item) => item.id === faultId)
   ;(fault?.photos || []).forEach((photo) => revokePhotoObjectUrl(photo.id))
-  ;(fault?.comments || []).forEach((comment) => delete commentEditDrafts[comment.id])
   delete faultPhotoErrors[faultId]
-  delete faultCommentDrafts[faultId]
 
   if (editingFaultId.value === faultId) {
     editingFaultId.value = null
@@ -1874,11 +1539,6 @@ function clearFaultLocalData(faultId: number) {
     expandedFaultIds.value = nextIds
   }
 
-  if (expandedFaultCommentIds.value.has(faultId)) {
-    const nextIds = new Set(expandedFaultCommentIds.value)
-    nextIds.delete(faultId)
-    expandedFaultCommentIds.value = nextIds
-  }
 }
 
 function openFaultsEdit() {
@@ -1915,6 +1575,7 @@ async function loadRepair() {
     return
   }
 
+  isLoading.value = true
   try {
     const details = await repairStore.loadRepairDetail(repairId.value)
 
@@ -1927,15 +1588,16 @@ async function loadRepair() {
       resetEditForm(currentDetails)
       syncFaultEditRows(currentDetails.faults || [])
       syncFaultExpandedRows(currentDetails.faults || [], true)
-      syncFaultCommentExpandedRows(currentDetails.faults || [], true)
     }
   } catch {
     showMutationError('Nie udało się pobrać naprawy', 'Spróbuj odświeżyć stronę.')
+  } finally {
+    isLoading.value = false
   }
 }
 
 async function refreshRepair() {
-  const details = await repairStore.refreshCurrentRepair({ silent: true })
+  const details = await repairStore.loadRepairDetail(repairId.value, { silent: true })
 
   if (details) {
     if (canReadFaults.value) {
@@ -1946,7 +1608,6 @@ async function refreshRepair() {
     resetEditForm(currentDetails)
     syncFaultEditRows(currentDetails.faults || [])
     syncFaultExpandedRows(currentDetails.faults || [])
-    syncFaultCommentExpandedRows(currentDetails.faults || [])
   }
 }
 
@@ -2271,6 +1932,8 @@ onBeforeUnmount(() => {
   revokeAllPhotoObjectUrls()
   repairStore.clearCurrentRepair()
 })
+const workspacePortal = useWorkspacePortal()
+useWorkspaceDirty(computed(() => infoEditMode.value || editingFaultId.value !== null || newDetailFault.description.trim().length > 0 || newFaultPhotoDrafts.value.length > 0))
 </script>
 
 <style scoped>

@@ -303,6 +303,7 @@
 </template>
 
 <script setup lang="ts">
+import { onActivated } from 'vue'
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
   Calculator,
@@ -1001,6 +1002,7 @@ watch(selectedRouteIndex, () => {
   }
 })
 
+onActivated(() => resizeMap())
 onMounted(() => {
   if (!fleetStore.apiVehicles.length) {
     void fleetStore.loadFleetData({ silent: true })

@@ -1,6 +1,6 @@
 <template>
-  <div class="space-y-5 xl:flex xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:flex-col xl:space-y-0 xl:gap-4 xl:overflow-hidden">
-    <header class="flex flex-col gap-4">
+  <div class="space-y-5 md:flex md:h-full md:min-h-0 md:flex-col md:space-y-0 md:gap-4 md:overflow-hidden">
+    <header class="flex shrink-0 flex-col gap-4">
       <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
         <AppInput
           v-model="searchQuery"
@@ -40,13 +40,13 @@
       </div>
     </header>
 
-    <AppCard compact class="xl:min-h-0 xl:flex-1 xl:overflow-hidden" content-class="xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+    <AppCard compact class="md:min-h-0 md:flex-1 md:overflow-hidden" content-class="md:flex md:h-full md:min-h-0 md:flex-col">
       <div class="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3 ui-caption">
         <span>{{ filteredVehicles.length }} z {{ fleetStore.apiVehicles.length }} pojazdów</span>
         <span v-if="fleetStore.isVehiclesLoading">Pobieranie danych...</span>
       </div>
 
-      <div class="overflow-x-auto xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
+      <div class="overflow-x-auto md:min-h-0 md:flex-1 md:overflow-y-auto">
         <table class="ui-table min-w-[980px]">
           <thead class="ui-table-head">
             <tr>
@@ -92,7 +92,7 @@
                 <span class="ml-2 text-xs font-medium text-ui-mutedText">#{{ vehicle.id }}</span>
               </td>
               <td class="py-1.5 pr-3">
-                <AppBadge fixed-width="sm" :variant="vehicleTypeVariant(vehicle.type)">{{ vehicleTypeLabel(vehicle.type) }}</AppBadge>
+                <AppBadge fixed-width="sm" class="gap-1" :variant="vehicleTypeVariant(vehicle.type)"><VehicleTypeIcon :type="vehicle.type" class="h-3.5 w-3.5 shrink-0" />{{ vehicleTypeLabel(vehicle.type) }}</AppBadge>
               </td>
               <td class="py-1.5 pr-3 text-ui-text-secondary">{{ vehicle.make || '-' }}</td>
               <td class="py-1.5 pr-3 text-ui-text-secondary">{{ vehicle.productionYear || '-' }}</td>
@@ -133,9 +133,6 @@
             <AppInput v-model="createForm.vin" label="VIN" />
             <AppInput v-model="createForm.productionYear" label="Rok produkcji" type="number" />
             <AppDatePicker v-model="createForm.firstRegistration" label="Pierwsza rejestracja" />
-            <AppInput v-model="createForm.euroClass" label="Klasa Euro" />
-            <AppSelect v-model="createForm.ownership" label="Własność" :options="vehicleOwnershipFormOptions" />
-            <AppDatePicker v-model="createForm.ownershipUntil" label="Własność do" />
             <AppDatePicker v-model="createForm.technicalInspection" label="Przegląd techniczny" />
             <AppDatePicker v-model="createForm.tachographInspection" label="Legalizacja tachografu" />
             <AppDatePicker v-model="createForm.vignetteUk" label="Winieta UK" />
@@ -162,6 +159,7 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceViewState, useWorkspaceDirty } from '@/composables/useWorkspace'
 import { computed, defineComponent, h, onMounted, reactive, ref, watch, type PropType } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowDown, ArrowUp, ArrowUpDown, Plus, SquarePen } from 'lucide-vue-next'
@@ -175,6 +173,7 @@ import AppMultiSelect from '@/components/ui/AppMultiSelect.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import AppTextarea from '@/components/ui/AppTextarea.vue'
+import VehicleTypeIcon from '@/components/vehicles/VehicleTypeIcon.vue'
 import AppTooltip from '@/components/ui/AppTooltip.vue'
 import { vehicleService, type VehiclePayload } from '@/services/vehicleService'
 import { useAuthStore } from '@/stores/authStore'
@@ -228,13 +227,6 @@ const statusFilterOptions: AppSelectOption[] = [
 const vehicleTypeFormOptions: AppSelectOption[] = [
   { label: 'Ciągnik', value: 'TRUCK' },
   { label: 'Naczepa', value: 'TRAILER' },
-]
-
-const vehicleOwnershipFormOptions: AppSelectOption[] = [
-  { label: 'Własny', value: 'OWN' },
-  { label: 'Leasing', value: 'LEASE' },
-  { label: 'Wynajem', value: 'RENT' },
-  { label: 'Brak', value: 'NONE' },
 ]
 
 const vehicleStatusFormOptions: AppSelectOption[] = [
@@ -352,10 +344,11 @@ const DateCell = defineComponent({
         AppTooltip,
         { text: deadlineTooltipText(days) },
         {
-          default: () => h('span', {
-            class: ['cursor-help font-medium', deadlineDateClasses(days)],
+          default: () => h(AppBadge, {
+            variant: deadlineDateVariant(days),
+            class: 'cursor-help tabular-nums',
             tabindex: 0,
-          }, formatDate(props.date)),
+          }, () => formatDate(props.date)),
         },
       )
     }
@@ -389,7 +382,7 @@ function formatDate(value: string | null) {
     return value
   }
 
-  return date.toLocaleDateString('pl-PL')
+  return date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 function daysUntil(value: string | null | undefined) {
@@ -410,20 +403,20 @@ function daysUntil(value: string | null | undefined) {
   return Math.ceil((dueDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
 }
 
-function deadlineDateClasses(days: number | null) {
+function deadlineDateVariant(days: number | null) {
   if (days === null) {
-    return 'text-slate-700 dark:text-slate-200'
+    return 'neutral'
   }
 
   if (days < 15) {
-    return 'text-danger-600 dark:text-danger-400'
+    return 'error'
   }
 
   if (days < 30) {
-    return 'text-amber-500 dark:text-amber-300'
+    return 'warning'
   }
 
-  return 'text-slate-700 dark:text-slate-200'
+  return 'neutral'
 }
 
 function deadlineTooltipText(days: number | null) {
@@ -489,9 +482,6 @@ function createEmptyVehicleForm() {
     vin: '',
     firstRegistration: '',
     productionYear: '',
-    euroClass: '',
-    ownership: 'OWN',
-    ownershipUntil: '',
     technicalInspection: '',
     tachographInspection: '',
     vignetteUk: '',
@@ -531,9 +521,6 @@ function createPayloadFromForm(): VehiclePayload {
     vin: nullableText(createForm.vin),
     firstRegistration: nullableText(createForm.firstRegistration),
     productionYear: nullableNumber(createForm.productionYear),
-    euroClass: nullableText(createForm.euroClass),
-    ownership: createForm.ownership || null,
-    ownershipUntil: nullableText(createForm.ownershipUntil),
     technicalInspection: nullableText(createForm.technicalInspection),
     tachographInspection: nullableText(createForm.tachographInspection),
     vignetteUk: nullableText(createForm.vignetteUk),
@@ -592,4 +579,6 @@ onMounted(() => {
     void fleetStore.fetchVehicles()
   }
 })
+useWorkspaceViewState({ searchQuery, statusFilters, typeFilters, sortKey, sortDirection, currentPage, pageSize }, { statusFilters: ['ACTIVE'], typeFilters: ['TRUCK', 'TRAILER', 'CAR'] })
+useWorkspaceDirty(computed(() => isCreateModalOpen.value))
 </script>

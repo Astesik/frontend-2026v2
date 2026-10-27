@@ -5,7 +5,7 @@
   <span v-else-if="column === 'departureDriver'">{{ entry.departureDriver?.name || entry.departureDriver?.externalId || '—' }}</span>
   <span v-else-if="column === 'started'">{{ entry.tripStartedOn ? formatDisplayDate(entry.tripStartedOn) : '—' }}</span>
   <span v-else-if="column === 'days'" class="tabular-nums">{{ entry.daysOnRoad ?? '—' }}</span>
-  <span v-else-if="column === 'notes'" class="block max-w-full truncate text-ui-text lg:w-[22rem]" :title="entry.notes || undefined">{{ entry.notes || '—' }}</span>
+  <span v-else-if="column === 'notes'" class="line-clamp-2 max-w-full whitespace-pre-wrap break-words text-ui-text lg:line-clamp-none lg:block lg:w-[22rem] lg:truncate lg:whitespace-nowrap" :title="entry.notes || undefined">{{ entry.notes || '—' }}</span>
   <span v-else-if="column === 'fuel'" class="tabular-nums" :title="`Odczyt: ${formatStatisticsDate(entry.truck.currentFuel.observedAt, timezone)}`">{{ formatStatisticsMetric(entry.truck.currentFuel.percent, '%', 0) }} · {{ formatStatisticsMetric(entry.truck.currentFuel.liters, 'l', 0) }}</span>
   <span v-else :class="returnDeadlineColor(returnDeadlineDays(deadline, timezone))" :title="returnDeadlineLabel(returnDeadlineDays(deadline, timezone))">{{ deadline ? formatDisplayDate(deadline) : '—' }}<span v-if="deadline" class="ml-1 text-[11px]">({{ returnDeadlineLabel(returnDeadlineDays(deadline, timezone)) }})</span></span>
 </template>

@@ -1,5 +1,5 @@
 <template>
-  <Teleport to="body">
+  <Teleport :to="workspacePortal">
     <Transition name="drawer">
       <div v-if="open" class="fixed inset-0 z-[260] flex justify-end" @mousedown.self="requestClose">
         <div class="absolute inset-0 bg-ui-overlay/45 backdrop-blur-[1px]" aria-hidden="true" @mousedown="requestClose"></div>
@@ -44,6 +44,8 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceActive, useWorkspacePortal } from '@/composables/useWorkspace'
+const workspaceActive = useWorkspaceActive()
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { X } from 'lucide-vue-next'
 import AppIconButton from './AppIconButton.vue'
@@ -111,6 +113,7 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 watch(() => props.open, async (open) => {
+  if (!workspaceActive.value) return
   if (open) {
     previouslyFocused = document.activeElement as HTMLElement | null
     await nextTick()
@@ -123,7 +126,8 @@ watch(() => props.open, async (open) => {
   }
 })
 
-onBeforeUnmount(() => previouslyFocused?.focus?.())
+onBeforeUnmount(() => { if (workspaceActive.value) previouslyFocused?.focus?.() })
+const workspacePortal = useWorkspacePortal()
 </script>
 
 <style scoped>

@@ -1,10 +1,10 @@
 <template>
-  <div class="min-w-0 space-y-5 lg:flex lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:flex-col lg:gap-5 lg:space-y-0">
-    <header>
+  <div class="min-w-0 space-y-5 md:flex md:h-full md:min-h-0 md:flex-col md:gap-5 md:space-y-0">
+    <header class="shrink-0">
       <h1 class="ui-page-title">Strona główna</h1>
     </header>
 
-    <section class="grid gap-3 sm:grid-cols-3">
+    <section class="grid shrink-0 gap-3 sm:grid-cols-3">
       <AppCard v-for="metric in metrics" :key="metric.label" compact>
         <div class="flex items-start justify-between gap-3">
           <div>
@@ -16,7 +16,7 @@
       </AppCard>
     </section>
 
-    <AppCard :title="`Statystyki dzienne - ${statistics.vehicles.length} pojazdów`" :icon="ChartNoAxesCombined" compact class="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-hidden" content-class="lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
+    <AppCard :title="`Statystyki dzienne - ${statistics.vehicles.length} pojazdów`" :icon="ChartNoAxesCombined" compact class="md:flex md:min-h-0 md:flex-1 md:flex-col md:overflow-hidden" content-class="md:flex md:min-h-0 md:flex-1 md:flex-col">
       <template #actions>
         <AppIconButton label="Odśwież statystyki" :loading="statistics.isLoading" :disabled="!canReadStatistics" @click="refresh">
           <RefreshCw class="h-4 w-4" />
@@ -30,7 +30,7 @@
       </div>
       <template v-else-if="statistics.data">
         <p v-if="statistics.error" class="mb-3 ui-body-sm text-warning-600 dark:text-warning-400" role="alert">Nie udało się odświeżyć danych. Wyświetlane są ostatnio pobrane wyniki.</p>
-        <DailyVehicleStatisticsTable :key="statistics.companyId || ''" class="lg:min-h-0 lg:flex-1" :vehicles="statistics.vehicles" :timezone="statistics.data.timezone" :can-read-vehicles="canReadVehicles" />
+        <DailyVehicleStatisticsTable :key="statistics.companyId || ''" class="md:min-h-0 md:flex-1" :vehicles="statistics.vehicles" :timezone="statistics.data.timezone" :can-read-vehicles="canReadVehicles" />
       </template>
     </AppCard>
 
@@ -38,6 +38,7 @@
 </template>
 
 <script setup lang="ts">
+import { onActivated, onDeactivated } from 'vue'
 import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { ChartNoAxesCombined, Fuel, Gauge, LoaderCircle, RefreshCw, Route } from 'lucide-vue-next'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -69,6 +70,7 @@ const metrics = computed(() => {
 let timer: ReturnType<typeof setTimeout> | null = null
 let mounted = false
 let viewGeneration = 0
+let lastRefreshAt = 0
 
 function stopTimer() {
   if (timer != null) clearTimeout(timer)
@@ -77,9 +79,10 @@ function stopTimer() {
 
 async function refresh() {
   stopTimer()
-  if (!canReadStatistics.value || !authStore.activeCompanyId || document.hidden) return
+  if (!mounted || !canReadStatistics.value || !authStore.activeCompanyId || document.hidden) return
   const currentGeneration = viewGeneration
   await statistics.load(authStore.activeCompanyId)
+  if (statistics.data && !statistics.error) lastRefreshAt = Date.now()
   if (mounted && currentGeneration === viewGeneration && canReadStatistics.value && !document.hidden) {
     stopTimer()
     timer = setTimeout(() => { void refresh() }, 30_000)
@@ -88,13 +91,19 @@ async function refresh() {
 
 function visibilityChanged() {
   stopTimer()
-  if (!document.hidden) void refresh()
+  if (!document.hidden && mounted) resumeRefresh()
+}
+function resumeRefresh() {
+  const remaining = lastRefreshAt + 30_000 - Date.now()
+  if (remaining <= 0) void refresh()
+  else { stopTimer(); timer = setTimeout(() => { void refresh() }, remaining) }
 }
 
 watch([() => authStore.activeCompanyId, canReadStatistics], () => {
   viewGeneration += 1
   stopTimer()
   statistics.resetApiState()
+  lastRefreshAt = 0
   if (mounted) void refresh()
 })
 
@@ -103,6 +112,8 @@ onMounted(() => {
   document.addEventListener('visibilitychange', visibilityChanged)
   void refresh()
 })
+onActivated(() => { if (!mounted) { mounted = true; resumeRefresh() } })
+onDeactivated(() => { mounted = false; viewGeneration++; stopTimer() })
 onBeforeUnmount(() => {
   mounted = false
   viewGeneration += 1

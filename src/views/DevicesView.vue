@@ -1,6 +1,6 @@
 <template>
-  <div class="space-y-5 xl:flex xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:flex-col xl:space-y-0 xl:gap-4 xl:overflow-hidden">
-    <header class="flex flex-col gap-4">
+  <div class="space-y-5 md:flex md:h-full md:min-h-0 md:flex-col md:space-y-0 md:gap-4 md:overflow-hidden">
+    <header class="flex shrink-0 flex-col gap-4">
       <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
         <AppInput
           v-model="searchQuery"
@@ -31,13 +31,13 @@
       </div>
     </header>
 
-    <AppCard compact class="xl:min-h-0 xl:flex-1 xl:overflow-hidden" content-class="xl:flex xl:h-full xl:min-h-0 xl:flex-col">
+    <AppCard compact class="md:min-h-0 md:flex-1 md:overflow-hidden" content-class="md:flex md:h-full md:min-h-0 md:flex-col">
       <div class="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3 ui-caption">
         <span>{{ filteredDevices.length }} z {{ deviceStore.devices.length }} urządzeń</span>
         <span v-if="deviceStore.isLoading">Pobieranie danych...</span>
       </div>
 
-      <div class="overflow-x-auto xl:min-h-0 xl:flex-1 xl:overflow-y-auto">
+      <div class="overflow-x-auto md:min-h-0 md:flex-1 md:overflow-y-auto">
         <table class="ui-table min-w-[1120px]">
           <thead class="ui-table-head">
             <tr>
@@ -107,6 +107,7 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceViewState } from '@/composables/useWorkspace'
 import { computed, onMounted, ref, watch, type Component } from 'vue'
 import { RouterLink } from 'vue-router'
 import { ArrowDown, ArrowUp, ArrowUpDown, SquarePen } from 'lucide-vue-next'
@@ -240,7 +241,7 @@ function providerLabel(provider: DeviceProvider) {
 function formatDateTime(value: string | null) {
   if (!value) return '-'
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 function lastPositionClasses(value: string | null) {
@@ -255,4 +256,5 @@ function lastPositionClasses(value: string | null) {
 onMounted(() => {
   void deviceStore.loadDevices()
 })
+useWorkspaceViewState({ searchQuery, providerFilters, assignmentFilters, sortKey, sortDirection, currentPage, pageSize }, { providerFilters: ['LOCAL', 'GPS_ONLINE', 'FLESPI', 'ABERG'], assignmentFilters: ['assigned', 'unassigned'] })
 </script>

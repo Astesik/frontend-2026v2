@@ -1,5 +1,5 @@
 <template>
-  <AppFormField :id="inputId" :label="label" :hint="hint" :error="error" :required="required" :compact="size === 'sm'">
+  <AppFormField v-bind="$attrs" :id="inputId" :label="label" :hint="hint" :error="error" :required="required" :compact="size === 'sm'" :class="inline ? 'ui-inline-field' : ''">
     <template #default="{ describedBy }">
       <div class="relative">
         <button
@@ -9,23 +9,25 @@
           :disabled="disabled"
           class="ui-field-control flex items-center gap-2 text-left"
           :class="[
-            size === 'sm' ? 'ui-field-sm' : 'ui-field-md',
-            modelValue && !disabled ? 'pr-10' : '',
+            inline ? 'ui-inline-field-control' : size === 'sm' ? 'ui-field-sm' : 'ui-field-md',
+            modelValue && !disabled && !inline ? 'pr-10' : '',
             isOpen ? '!border-ui-input-focus !bg-ui-input-hover ring-2 ring-ui-focus/60' : '',
             error ? '!border-danger-500' : '',
           ]"
           :aria-expanded="isOpen"
+          :aria-label="ariaLabel"
           aria-haspopup="dialog"
           :aria-describedby="describedBy"
           @click="toggleOpen"
           @keydown.escape.prevent="isOpen = false"
           @keydown.enter.prevent="isOpen = !isOpen"
         >
-          <CalendarDays class="h-4 w-4 shrink-0 text-ui-icon" />
+          <CalendarDays v-if="!inline" class="h-4 w-4 shrink-0 text-ui-icon" />
           <span class="min-w-0 flex-1 truncate" :class="modelValue ? 'text-ui-text' : 'text-ui-mutedText'">{{ displayValue }}</span>
+          <CalendarDays v-if="inline" class="h-4 w-4 shrink-0 text-ui-icon" />
         </button>
         <AppIconButton
-          v-if="modelValue && !disabled"
+          v-if="modelValue && !disabled && !inline"
           label="Wyczyść datę"
           size="sm"
           variant="ghost"
@@ -48,6 +50,7 @@
 </template>
 
 <script setup lang="ts">
+defineOptions({ inheritAttrs: false })
 import { computed, ref } from 'vue'
 import { CalendarDays, X } from 'lucide-vue-next'
 import AppButton from './AppButton.vue'
@@ -59,6 +62,8 @@ import { formatDisplayDate, toDateValue } from '@/utils/date'
 
 const props = withDefaults(defineProps<{
   modelValue: string
+  inline?: boolean
+  ariaLabel?: string
   label?: string
   hint?: string
   error?: string
@@ -67,6 +72,8 @@ const props = withDefaults(defineProps<{
   required?: boolean
   size?: 'sm' | 'md'
 }>(), {
+  inline: false,
+  ariaLabel: undefined,
   label: undefined,
   hint: undefined,
   error: undefined,

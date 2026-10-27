@@ -1,5 +1,5 @@
 <template>
-  <div class="min-w-0 space-y-3 lg:flex lg:h-[calc(100dvh-3rem)] lg:min-h-0 lg:flex-col lg:gap-3 lg:space-y-0">
+  <div class="min-w-0 space-y-3 md:flex md:h-full md:min-h-0 md:flex-col md:gap-3 md:space-y-0">
     <header class="flex shrink-0 flex-wrap items-center justify-between gap-3">
       <h1 class="ui-page-title">Zjazdy i wyjazdy</h1>
       <div class="flex items-center gap-2"><AppRefreshCountdown v-if="canRead" :remaining="remaining" :seconds="30" :loading="store.isLoading" /><AppButton v-if="canCreate" size="sm" :disabled="store.isMutating || store.isLoading || editorLoading || editingId !== null" @click="openCreate"><Plus class="h-4 w-4" />Dodaj pojazd</AppButton></div>
@@ -7,20 +7,20 @@
     <div v-if="canRead" class="flex shrink-0 flex-wrap items-center gap-2">
       <AppInput v-model="store.searchQuery" class="w-full sm:w-72" size="sm" placeholder="Szukaj pojazdu, kierowcy lub uwag" aria-label="Szukaj wpisu" :disabled="editorLoading || editingId !== null" clearable />
       <VehicleReturnColumns />
-      <div class="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:justify-end">
+      <div class="grid w-full min-w-0 grid-cols-[2rem_minmax(0,1fr)_2rem] items-center gap-1.5 sm:flex sm:w-auto sm:flex-1 sm:flex-wrap sm:justify-end">
         <AppIconButton label="Poprzedni tydzień" size="sm" :disabled="store.isMutating" @click="moveWeek(-1)"><ChevronLeft class="h-4 w-4" /></AppIconButton>
-        <div class="w-64 max-w-[calc(100vw-7rem)] shrink-0"><AppSearchSelect v-model="store.selectedWeekStart" size="sm" :options="weekOptions" :disabled="store.isMutating" aria-label="Wybierz tydzień" /></div>
+        <div class="min-w-0 sm:w-64"><AppSearchSelect v-model="store.selectedWeekStart" size="sm" :options="weekOptions" :disabled="store.isMutating" aria-label="Wybierz tydzień" /></div>
         <AppIconButton label="Następny tydzień" size="sm" :disabled="store.isMutating || store.selectedWeekStart >= latestWeek" @click="moveWeek(1)"><ChevronRight class="h-4 w-4" /></AppIconButton>
-        <AppButton size="sm" variant="secondary" :disabled="store.isMutating" @click="store.selectedWeekStart = returnWeekStart()">Bieżący tydzień</AppButton>
+        <AppButton size="sm" variant="secondary" class="col-span-3 justify-self-end" :disabled="store.isMutating" @click="store.selectedWeekStart = returnWeekStart()">Bieżący tydzień</AppButton>
       </div>
     </div>
     <p v-if="!canRead" class="ui-surface p-8 text-center ui-body-sm text-ui-mutedText">Nie masz dostępu do zjazdów i wyjazdów w aktywnej firmie.</p>
-    <section v-else class="ui-surface min-w-0 overflow-hidden lg:min-h-0 lg:flex-1">
+    <section v-else class="ui-surface min-w-0 overflow-hidden md:min-h-0 md:flex-1 md:overflow-y-auto lg:overflow-hidden">
       <div v-if="store.isLoading && !store.week" class="flex items-center justify-center gap-2 p-10 ui-body-sm text-ui-mutedText" role="status"><LoaderCircle class="h-4 w-4 animate-spin" />Pobieranie wpisów...</div>
       <div v-else-if="store.error && !store.week" class="p-8 text-center"><p class="ui-error" role="alert">{{ store.error }}</p><AppButton size="sm" variant="secondary" class="mt-3" @click="store.loadWeek()">Spróbuj ponownie</AppButton></div>
       <template v-else>
         <div v-if="store.error" class="border-b border-ui-divider p-3 ui-error" role="alert">{{ store.error }}</div>
-        <div class="hidden h-full overflow-auto lg:block">
+        <div ref="tableViewport" class="hidden h-full overflow-auto lg:block">
           <table class="ui-table" :style="{minWidth: `${tableMinimumWidth}px`}">
             <thead class="ui-table-head sticky top-0 z-10"><tr>
               <th class="w-10 px-3 py-2 text-left">Lp.</th>
@@ -40,27 +40,27 @@
                   <AppIconButton v-if="canDelete" label="Usuń wpis" size="sm" variant="danger" :disabled="store.isMutating || editorLoading || editingId !== null" @click="deleteEntry = entry"><Trash2 class="h-4 w-4" /></AppIconButton>
                 </div></td>
               </tr>
-              <tr v-if="expanded.includes(entry.id)" class="border-b border-ui-divider bg-ui-muted"><td :colspan="store.visibleColumns.length + 2"><VehicleReturnEntryDetails :entry="entry" :timezone="timezone" :can-read-repairs="canReadRepairs" :show-fuel="showFuel" :editing="editingId === entry.id" @cancel-edit="closeInlineEditor" @saved="savedInlineEditor" /></td></tr>
+              <tr v-if="expanded.includes(entry.id)" class="border-b border-ui-divider bg-ui-muted"><td :colspan="store.visibleColumns.length + 2"><VehicleReturnEntryDetails class="sticky left-0 max-w-full" :style="tableViewportWidth ? {width:tableViewportWidth+'px'} : {}" :entry="entry" :timezone="timezone" :can-read-repairs="canReadRepairs" :show-fuel="showFuel" :editing="editingId === entry.id" @cancel-edit="closeInlineEditor" @saved="savedInlineEditor" /></td></tr>
             </tbody>
           </table>
         </div>
         <div class="divide-y divide-ui-divider lg:hidden">
           <article v-for="entry in displayEntries" :key="entry.id" class="min-w-0">
-            <div class="p-3 cursor-pointer" @click="toggle(entry.id)">
+            <div class="cursor-pointer bg-ui-surface p-3 transition hover:bg-ui-hover" @click="toggle(entry.id)">
               <div class="flex items-center justify-between gap-2">
                 <div class="flex min-w-0 items-center gap-1.5"><button type="button" class="flex min-w-0 items-center gap-2 text-sm font-semibold text-ui-text" :aria-expanded="expanded.includes(entry.id)" @click.stop="toggle(entry.id)"><Truck class="h-4 w-4 shrink-0" /><span class="truncate">{{ entry.truck.licensePlate }}</span><ChevronDown class="h-4 w-4 shrink-0" :class="expanded.includes(entry.id) ? 'rotate-180' : ''" /></button><VehicleReturnInspectionAlert :vehicle="entry.truck" :timezone="timezone" /></div>
                 <div class="flex shrink-0 gap-1" @click.stop><AppIconButton v-if="canUpdate" label="Edytuj wpis" size="sm" :disabled="store.isMutating || editorLoading || editingId !== null" @click="openEdit(entry.id)"><SquarePen class="h-4 w-4" /></AppIconButton><AppIconButton v-if="canDelete" label="Usuń wpis" size="sm" variant="danger" :disabled="store.isMutating || editorLoading || editingId !== null" @click="deleteEntry = entry"><Trash2 class="h-4 w-4" /></AppIconButton></div>
               </div>
-              <dl class="mt-2 grid grid-cols-[max-content_minmax(0,1fr)] items-center gap-x-3 gap-y-1 text-xs text-ui-text-secondary">
-                <template v-for="column in store.visibleColumns.filter(item => item.key !== 'truck')" :key="column.key">
-                  <dt class="text-ui-mutedText">{{ column.label }}</dt><dd class="min-w-0">
+              <dl class="mt-3 grid min-w-0 grid-cols-2 gap-x-3 gap-y-3 text-xs text-ui-text-secondary">
+                <div v-for="column in store.visibleColumns.filter(item => item.key !== 'truck')" :key="column.key" class="min-w-0" :class="column.key === 'notes' ? 'col-span-2' : ''">
+                  <dt class="mb-1 text-[11px] text-ui-mutedText">{{ column.label }}</dt><dd class="min-w-0 break-words font-medium">
                     <AppCheckbox v-if="isStation(column.key)" @click.stop :model-value="station(entry, column.key) === 'DONE'" :aria-label="`${column.label} ${entry.truck.licensePlate}`" :disabled="!canUpdate || store.isMutating || editorLoading || editingId !== null" @update:model-value="changeStation(entry, stationField(column.key), $event ? 'DONE' : 'PENDING')" />
                     <VehicleReturnCell v-else :entry="entry" :column="column.key" :timezone="timezone" />
                   </dd>
-                </template>
+                </div>
               </dl>
             </div>
-            <VehicleReturnEntryDetails v-if="expanded.includes(entry.id)" class="border-t border-ui-divider bg-ui-muted" :entry="entry" :timezone="timezone" :can-read-repairs="canReadRepairs" :show-fuel="showFuel" :editing="editingId === entry.id" @cancel-edit="closeInlineEditor" @saved="savedInlineEditor" />
+            <VehicleReturnEntryDetails v-if="expanded.includes(entry.id)" class="border-t border-ui-divider" :entry="entry" :timezone="timezone" :can-read-repairs="canReadRepairs" :show-fuel="showFuel" :editing="editingId === entry.id" @cancel-edit="closeInlineEditor" @saved="savedInlineEditor" />
           </article>
         </div>
         <div v-if="!displayEntries.length" class="p-10 text-center"><Route class="mx-auto h-7 w-7 text-ui-icon" /><p class="mt-3 ui-body-sm text-ui-mutedText">{{ store.searchQuery ? 'Brak wyników wyszukiwania.' : 'Brak wpisów w wybranym tygodniu.' }}</p></div>
@@ -74,6 +74,9 @@
 </template>
 
 <script setup lang="ts">
+import { onActivated, onDeactivated } from 'vue'
+import { useWorkspaceActive, useWorkspaceDirty, useWorkspaceViewState } from '@/composables/useWorkspace'
+import { toRef } from 'vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ChevronDown, ChevronLeft, ChevronRight, LoaderCircle, Plus, Route, SquarePen, Trash2, Truck } from 'lucide-vue-next'
@@ -99,11 +102,20 @@ import { getApiErrorMessage } from '@/services/api'
 import type { ReturnStationStatus, VehicleReturnEntry } from '@/types/vehicleReturn'
 
 const store = useVehicleReturnStore()
+const workspaceActive = useWorkspaceActive()
 const auth = useAuthStore()
 const route = useRoute(), router = useRouter()
 const { canRead, canCreate, canUpdate, canDelete, canReadRepairs, canReadVehicles, canReadDrivers } = useVehicleReturnPermissions()
 const editorOpen = ref(false), editorLoading = ref(false)
 const editingId = ref<number | null>(null)
+const tableViewport = ref<HTMLElement | null>(null), tableViewportWidth = ref(0)
+let tableResizeObserver: ResizeObserver | null = null
+watch(tableViewport, element => {
+  tableResizeObserver?.disconnect()
+  if (!element) return
+  tableResizeObserver = new ResizeObserver(() => { tableViewportWidth.value = element.clientWidth })
+  tableResizeObserver.observe(element)
+}, {flush:'post'})
 const displayEntries = computed(() => {
   const current = store.currentEntry
   if (editingId.value === null || !current || current.id !== editingId.value) return store.filteredEntries
@@ -222,14 +234,20 @@ watch([() => auth.activeCompanyId, canRead], () => {
   store.resetApiState()
   if (canRead.value) void store.loadWeek()
 })
-onMounted(() => {
+function startWorkspaceRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer)
   refreshTimer = setInterval(() => {
     remaining.value = Math.max(0, Math.min(30, Math.ceil((nextRefreshAt - Date.now()) / 1000)))
-    if (remaining.value === 0 && canRead.value && !store.isLoading && !store.isMutating && document.visibilityState === 'visible') {
+    if (workspaceActive.value && remaining.value === 0 && canRead.value && !store.isLoading && !store.isMutating && document.visibilityState === 'visible') {
       nextRefreshAt = Date.now() + 30000
       void store.loadWeek()
     }
   }, 250)
+}
+onActivated(startWorkspaceRefresh)
+onDeactivated(() => { if (refreshTimer) clearInterval(refreshTimer); refreshTimer = undefined })
+onMounted(() => {
+  startWorkspaceRefresh()
   if (canRead.value) {
     if (store.selectedWeekStart > latestWeek.value) store.selectedWeekStart = latestWeek.value
     else void store.loadWeek()
@@ -238,8 +256,11 @@ onMounted(() => {
   }
 })
 onBeforeUnmount(() => {
+  tableResizeObserver?.disconnect()
   if (refreshTimer) clearInterval(refreshTimer)
   editorRequest += 1
   store.clearEditor()
 })
+useWorkspaceDirty(computed(() => editingId.value !== null || editorOpen.value))
+useWorkspaceViewState({ selectedWeekStart: toRef(store, 'selectedWeekStart'), searchQuery: toRef(store, 'searchQuery') })
 </script>

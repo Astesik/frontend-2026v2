@@ -1,17 +1,21 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { refreshAccessToken, registerAuthSessionHandlers, setAuthToken } from '@/services/api'
 import { authService } from '@/services/authService'
 import { useCompanyManagementStore } from './companyManagementStore'
 import { useDeviceStore } from './deviceStore'
 import { useDailyStatisticsStore } from './dailyStatisticsStore'
+import { useFuelStationStore } from './fuelStationStore'
+import { useFuelRouteStore } from './fuelRouteStore'
 import { useVehicleReturnStore } from './vehicleReturnStore'
 import { useDriverStore } from './driverStore'
 import { useFleetStore } from './fleetStore'
 import { useNotificationStore } from './notificationStore'
 import { usePlaceStore } from './placeStore'
 import { useRepairStore } from './repairStore'
+import { useVehicleMaintenanceStore } from './vehicleMaintenanceStore'
 import { useUiStore } from './uiStore'
+import { useWorkspaceTabsStore } from './workspaceTabsStore'
 import type { AuthSession, AuthUser, LoginPayload } from '@/types/auth'
 
 const AUTH_TOKEN_KEY = 'routewise.auth.token'
@@ -346,16 +350,28 @@ export const useAuthStore = defineStore('auth', () => {
     scheduleProactiveRefresh()
   }
 
-  function clearLocalSession() {
+  function resetCompanyApiState() {
     useVehicleReturnStore().resetApiState()
     useDailyStatisticsStore().resetApiState()
+    useFuelStationStore().resetApiState()
+    useFuelRouteStore().resetApiState()
     useFleetStore().resetApiState()
     useDeviceStore().resetApiState()
     useDriverStore().resetApiState()
     useRepairStore().resetApiState()
+    useVehicleMaintenanceStore().resetApiState()
     usePlaceStore().resetApiState()
     useNotificationStore().resetApiState()
     useCompanyManagementStore().resetApiState()
+  }
+
+  watch(() => user.value ? `${user.value.userId ?? user.value.id ?? user.value.uid ?? ''}:${activeCompanyId.value ?? ''}` : '', (next, previous) => {
+    if (next && previous && next !== previous) resetCompanyApiState()
+  }, { flush: 'sync' })
+
+  function clearLocalSession() {
+    useWorkspaceTabsStore().resetApiState()
+    resetCompanyApiState()
     token.value = null
     user.value = null
     accessTokenExpiresAt.value = null

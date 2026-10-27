@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-4 xl:flex xl:h-[calc(100dvh-15rem)] xl:min-h-0 xl:flex-col xl:space-y-0 xl:gap-4 xl:overflow-hidden">
+  <div class="space-y-4 md:flex md:min-h-0 md:flex-1 md:flex-col md:space-y-0 md:gap-4 md:overflow-hidden">
     <AppTabs
       class="w-fit shrink-0"
       :model-value="activeSection"
@@ -21,8 +21,8 @@
     <AppCard
       v-if="activeSection === 'roles'"
       compact
-      class="xl:min-h-0 xl:flex-1 xl:overflow-hidden"
-      content-class="xl:flex xl:h-full xl:min-h-0 xl:flex-col"
+      class="md:min-h-0 md:flex-1 md:overflow-hidden"
+      content-class="md:flex md:h-full md:min-h-0 md:flex-col"
     >
       <div class="mb-3 flex shrink-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
@@ -98,8 +98,8 @@
     <AppCard
       v-else
       compact
-      class="xl:min-h-0 xl:flex-1 xl:overflow-hidden"
-      content-class="xl:flex xl:h-full xl:min-h-0 xl:flex-col"
+      class="md:min-h-0 md:flex-1 md:overflow-hidden"
+      content-class="md:flex md:h-full md:min-h-0 md:flex-col"
     >
       <div class="mb-3 flex shrink-0 flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
@@ -177,7 +177,7 @@
       </div>
     </AppCard>
 
-    <Teleport to="body">
+  <Teleport :to="workspacePortal">
       <AppDrawer
         :open="isRoleDrawerOpen"
         :title="roleForm.id ? 'Edytuj rolę' : 'Dodaj rolę'"
@@ -441,6 +441,8 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceDirty } from '@/composables/useWorkspace'
+import { useWorkspacePortal } from '@/composables/useWorkspace'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import {
   CheckCircle2,
@@ -1262,4 +1264,6 @@ onMounted(async () => {
   await authStore.restoreBackendSession()
   await reload()
 })
+const workspacePortal = useWorkspacePortal()
+useWorkspaceDirty(computed(() => isRoleDrawerOpen.value || isUserDrawerOpen.value || Boolean(passwordResetUser.value)))
 </script>

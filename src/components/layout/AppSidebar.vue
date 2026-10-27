@@ -103,6 +103,12 @@
     </nav>
 
     <div class="mt-4 shrink-0 space-y-1 border-t border-ui-border pt-3">
+      <ThemeToggle
+        v-if="features.themeSwitching"
+        :compact="displaySidebarCollapsed"
+        class="!h-9 !w-full !gap-3 !border-transparent !bg-transparent !text-[0.8125rem] !shadow-none hover:!bg-ui-hover"
+        :class="displaySidebarCollapsed ? '!px-0' : '!justify-start !px-3'"
+      />
       <button
         type="button"
         class="sidebar-bottom-action text-danger-600 hover:bg-danger-50 hover:text-danger-600 dark:text-danger-400 dark:hover:bg-danger-500/10 dark:hover:text-danger-300"
@@ -124,6 +130,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Cpu,
+  Fuel,
   House,
   LogOut,
   MapPinned,
@@ -135,14 +142,19 @@ import {
   X,
 } from 'lucide-vue-next'
 import SidebarItem from './SidebarItem.vue'
+import { features } from '@/config/features'
+import ThemeToggle from '@/components/ui/ThemeToggle.vue'
+import { canOpenWorkspace, workspaceDescriptor } from '@/workspace/registry'
 import { useAuthStore } from '@/stores/authStore'
 import { useUiStore } from '@/stores/uiStore'
 import { useVehicleReturnPermissions } from '@/composables/useVehicleReturnPermissions'
+import { useFuelStationPermissions } from '@/composables/useFuelStationPermissions'
 
 const uiStore = useUiStore()
 const authStore = useAuthStore()
 const router = useRouter()
 const { canRead: canReadVehicleReturns } = useVehicleReturnPermissions()
+const { canRead: canReadFuelStations } = useFuelStationPermissions()
 
 const baseNavigation: Array<{ to: string; label: string; icon: Component; group: 'main' | 'fleet' | 'settings' }> = [
   { to: '/dashboard', label: 'Strona główna', icon: House, group: 'main' },
@@ -151,6 +163,7 @@ const baseNavigation: Array<{ to: string; label: string; icon: Component; group:
   { to: '/devices', label: 'Urządzenia', icon: Cpu, group: 'fleet' },
   { to: '/drivers', label: 'Kierowcy', icon: UserRound, group: 'fleet' },
   { to: '/repairs', label: 'Naprawy', icon: Wrench, group: 'fleet' },
+  { to: '/fuel-stations', label: 'Stacje paliw', icon: Fuel, group: 'fleet' },
   { to: '/trips', label: 'Zjazdy i wyjazdy', icon: Route, group: 'main' },
   { to: '/settings', label: 'Ustawienia', icon: Settings, group: 'settings' },
 ]
@@ -163,6 +176,9 @@ function hasPermissionPrefix(prefix: string) {
 }
 
 function canSeeNavigationItem(path: string) {
+  const workspaceView = workspaceDescriptor(baseNavigation.find(item => item.to === path)?.to.slice(1))
+  if (workspaceView && !canOpenWorkspace(workspaceView.name, authStore)) return false
+  if (path === '/fuel-stations') return features.fuelStations && canReadFuelStations.value
   if (path === '/trips') return canReadVehicleReturns.value
   if (path === '/dashboard') return authStore.canManageCompany || authStore.hasActiveCompanyPermission('dashboard.read') || authStore.hasActiveCompanyPermission('positions.read')
   if (path === '/vehicles') return hasPermissionPrefix('vehicles.')

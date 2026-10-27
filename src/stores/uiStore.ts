@@ -1,11 +1,13 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { features } from '@/config/features'
 import type { Theme, Toast } from '@/types/ui'
 
 const THEME_KEY = 'routewise.ui.theme'
 const SIDEBAR_KEY = 'routewise.ui.sidebarCollapsed'
 
 function readStoredTheme(): Theme {
+  if (!features.themeSwitching) return 'dark'
   const storedTheme = localStorage.getItem(THEME_KEY)
 
   if (storedTheme === 'light' || storedTheme === 'dark') {
@@ -42,6 +44,11 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   function setTheme(nextTheme: Theme) {
+    if (!features.themeSwitching) {
+      theme.value = 'dark'
+      applyTheme()
+      return
+    }
     theme.value = nextTheme
     localStorage.setItem(THEME_KEY, nextTheme)
     applyTheme()

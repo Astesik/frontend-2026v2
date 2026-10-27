@@ -13,6 +13,7 @@ export const useDeviceStore = defineStore('devices', () => {
   const devices = ref<DeviceListItem[]>([])
   const selectDevices = ref<DeviceSelectItem[]>([])
   const currentDevice = ref<DeviceDetails | null>(null)
+  const detailsById = ref<Record<string, DeviceDetails>>({})
   const isLoading = ref(false)
   const isDetailLoading = ref(false)
   const isSelectLoading = ref(false)
@@ -45,6 +46,7 @@ export const useDeviceStore = defineStore('devices', () => {
     try {
       const device = await deviceService.getDevice(id, options)
       currentDevice.value = device
+      detailsById.value[String(device.id)] = device
       upsertDevice(device)
       return device
     } finally {
@@ -69,6 +71,7 @@ export const useDeviceStore = defineStore('devices', () => {
     try {
       const device = await deviceService.updateDevice(id, payload)
       currentDevice.value = device
+      detailsById.value[String(device.id)] = device
       upsertDevice(device)
       return device
     } finally {
@@ -81,6 +84,7 @@ export const useDeviceStore = defineStore('devices', () => {
 
     try {
       await deviceService.deleteDevice(id)
+      delete detailsById.value[String(id)]
       devices.value = devices.value.filter((device) => String(device.id) !== String(id))
       selectDevices.value = selectDevices.value.filter((device) => String(device.id) !== String(id))
 
@@ -101,6 +105,7 @@ export const useDeviceStore = defineStore('devices', () => {
     selectDevices.value = []
     currentDevice.value = null
     isLoading.value = false
+    detailsById.value = {}
     isDetailLoading.value = false
     isSelectLoading.value = false
     isMutating.value = false
@@ -110,6 +115,7 @@ export const useDeviceStore = defineStore('devices', () => {
     devices,
     selectDevices,
     currentDevice,
+    detailsById,
     isLoading,
     isDetailLoading,
     isSelectLoading,

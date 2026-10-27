@@ -1,8 +1,7 @@
 <template>
   <div
     ref="repairsViewRoot"
-    class="flex min-h-full w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden"
-    :class="repairViewMode === 'kanban' ? 'xl:h-[calc(100dvh-3rem)] xl:min-h-0 xl:overflow-hidden' : ''"
+    class="flex min-h-full w-full min-w-0 max-w-full flex-col gap-5 overflow-x-hidden md:h-full md:min-h-0 md:overflow-hidden"
   >
     <header class="flex w-full min-w-0 shrink-0 flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div class="flex min-w-0 max-w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
@@ -40,7 +39,7 @@
       Pobieranie napraw...
     </div>
 
-    <section v-else-if="repairViewMode === 'kanban'" class="grid w-full min-w-0 max-w-full min-h-[calc(100vh-220px)] gap-4 xl:min-h-0 xl:flex-1 xl:grid-cols-[repeat(3,minmax(0,1fr))]">
+    <section v-else-if="repairViewMode === 'kanban'" data-repairs-scroll-key="board" class="grid w-full min-w-0 max-w-full min-h-[calc(100vh-220px)] gap-4 md:min-h-0 md:flex-1 md:auto-rows-max md:overflow-y-auto xl:auto-rows-fr xl:overflow-hidden xl:grid-cols-[repeat(3,minmax(0,1fr))]">
       <div
         v-for="column in repairColumns"
         :key="column.key"
@@ -56,7 +55,7 @@
       >
         <button
           type="button"
-          class="flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
+          class="flex w-full shrink-0 items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left transition hover:bg-slate-50 dark:border-app-border dark:hover:bg-app-elevated"
           :aria-expanded="!isRepairColumnCollapsed(column.key)"
           :aria-label="isRepairColumnCollapsed(column.key) ? `Rozwiń sekcję ${column.label}` : `Zwiń sekcję ${column.label}`"
           @click="toggleRepairColumn(column.key)"
@@ -115,7 +114,7 @@
       </div>
     </section>
 
-    <section v-else-if="repairViewMode === 'list'" class="min-w-0 space-y-3">
+    <section v-else-if="repairViewMode === 'list'" data-repairs-scroll-key="list" class="min-w-0 space-y-3 md:min-h-0 md:flex-1 md:overflow-y-auto">
       <article
         v-for="column in repairColumns"
         :key="`list-${column.key}`"
@@ -142,7 +141,6 @@
           <table class="ui-table min-w-[900px]">
             <thead class="ui-table-head">
               <tr>
-                <th class="w-10 py-2 pl-3 pr-1"><span class="sr-only">Rozwiń</span></th>
                 <th class="py-2 pr-3 font-medium">Pojazd</th>
                 <th class="py-2 pr-3 font-medium">Miejsce naprawy</th>
                 <th class="py-2 pr-3 font-medium">Planowany przyjazd</th>
@@ -153,20 +151,7 @@
             </thead>
             <tbody>
               <template v-for="repair in visibleColumnRepairs(column)" :key="repair.id">
-                <tr
-                  class="ui-table-row cursor-pointer"
-                  :aria-expanded="isListRepairExpanded(repair.id)"
-                  tabindex="0"
-                  @click="toggleListRepair(repair.id)"
-                  @keydown.enter.prevent="toggleListRepair(repair.id)"
-                  @keydown.space.prevent="toggleListRepair(repair.id)"
-                >
-                  <td class="py-2 pl-3 pr-1">
-                    <ChevronDown
-                      class="h-4 w-4 text-ui-icon transition"
-                      :class="isListRepairExpanded(repair.id) ? 'rotate-180' : ''"
-                    />
-                  </td>
+                <tr class="ui-table-row">
                   <td class="py-2 pr-3">
                     <span class="flex min-w-0 items-center gap-2">
                       <img
@@ -190,8 +175,8 @@
                     {{ repair.doneFaults || 0 }}/{{ repair.totalFaults || repair.faults?.length || 0 }}
                   </td>
                 </tr>
-                <tr v-if="isListRepairExpanded(repair.id)" class="border-b border-ui-divider bg-ui-muted">
-                  <td colspan="7" class="p-3">
+                <tr class="border-b border-ui-divider bg-ui-muted">
+                  <td colspan="6" class="p-3">
                     <div class="space-y-2">
                       <div
                         v-for="fault in repair.faults || []"
@@ -233,7 +218,7 @@
                 </tr>
               </template>
               <tr v-if="hasMoreColumnRepairs(column)">
-                <td colspan="7" class="p-3 text-center">
+                <td colspan="6" class="p-3 text-center">
                   <AppButton
                     size="sm"
                     variant="secondary"
@@ -245,7 +230,7 @@
                 </td>
               </tr>
               <tr v-if="!column.repairs.length">
-                <td colspan="7" class="px-4 py-6 text-center ui-body-sm text-ui-mutedText">
+                <td colspan="6" class="px-4 py-6 text-center ui-body-sm text-ui-mutedText">
                   Brak napraw w tej sekcji.
                 </td>
               </tr>
@@ -323,18 +308,9 @@
                   <AppBadge fixed-width="lg" :variant="statusVariant(repair.status)">{{ statusLabel(repair.status) }}</AppBadge>
                 </td>
                 <td class="px-2 py-1.5">
-                  <button
-                    type="button"
-                    class="inline-flex h-8 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-dark dark:hover:text-slate-50"
-                    :aria-expanded="isFieldRepairExpanded(repair.id)"
-                    @click="toggleFieldRepairExpansion(repair.id)"
-                  >
-                    <ChevronDown
-                      class="h-3.5 w-3.5 transition"
-                      :class="isFieldRepairExpanded(repair.id) ? 'rotate-180' : ''"
-                    />
+                  <span class="text-xs font-semibold text-ui-text-secondary">
                     {{ repair.doneFaults || 0 }}/{{ repair.totalFaults || repair.faults?.length || 0 }}
-                  </button>
+                  </span>
                 </td>
                 <td class="px-2 py-1.5">
                   <div class="flex justify-end gap-1">
@@ -357,7 +333,7 @@
                   </div>
                 </td>
               </tr>
-              <tr v-if="isFieldRepairExpanded(repair.id)" class="border-b border-slate-100 bg-slate-50/70 dark:border-app-border dark:bg-app-dark">
+              <tr class="border-b border-slate-100 bg-slate-50/70 dark:border-app-border dark:bg-app-dark">
                 <td></td>
                 <td colspan="7" class="px-2 py-3">
                   <div v-if="repair.faults?.length" class="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
@@ -386,7 +362,7 @@
     </section>
 
     <section v-else class="min-h-0 flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel">
-      <div class="grid h-[calc(100vh-210px)] min-h-[34rem] overflow-hidden lg:grid-cols-[17rem_minmax(0,1fr)]">
+      <div class="grid h-[calc(100vh-210px)] min-h-[34rem] overflow-hidden md:h-full md:min-h-0 lg:grid-cols-[17rem_minmax(0,1fr)]">
         <aside class="flex min-h-0 flex-col border-b border-slate-100 bg-slate-50/70 dark:border-app-border dark:bg-app-dark lg:border-b-0 lg:border-r">
           <div class="min-h-0 flex-1 overflow-y-auto p-3">
             <div class="mb-2 flex items-center justify-between gap-2">
@@ -536,7 +512,7 @@
       @confirm="confirmDeleteMechanic"
     />
 
-    <Teleport to="body">
+  <Teleport :to="workspacePortal">
       <div
         v-if="draggedRepair"
         class="pointer-events-none fixed z-[80] w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-app-border dark:bg-app-panel"
@@ -549,6 +525,8 @@
 </template>
 
 <script setup lang="ts">
+import { useWorkspaceViewState, useWorkspaceDirty } from '@/composables/useWorkspace'
+import { useWorkspacePortal } from '@/composables/useWorkspace'
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type Component, type PropType } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
@@ -616,15 +594,12 @@ const draggedRepair = ref<Repair | null>(null)
 const dragPreview = reactive({ x: 0, y: 0 })
 const dragOverColumn = ref<RepairColumnKey | null>(null)
 const collapsedRepairColumnKeys = ref<Set<RepairColumnKey>>(new Set(['done']))
-const collapsedRepairIds = ref<Set<number>>(new Set())
 const visibleRepairLimits = reactive<Record<RepairColumnKey, number>>({
   new: 15,
   progress: 15,
   done: 15,
 })
-const expandedListRepairIds = ref<Set<number>>(new Set())
 const listFaultStatusTarget = ref<{ repair: Repair; fault: RepairFault } | null>(null)
-const expandedFieldRepairIds = ref<Set<number>>(new Set())
 const selectedFieldRepairIds = ref<Set<number>>(new Set())
 const isCreateModalOpen = ref(false)
 const isMechanicsModalOpen = ref(false)
@@ -753,7 +728,6 @@ const RepairCardContent = defineComponent({
   },
   setup(props) {
     return () => {
-      const isExpanded = props.preview || !collapsedRepairIds.value.has(props.repair.id)
       const faults = props.repair.faults || []
       const totalFaults = props.repair.totalFaults || faults.length
       const isDone = normalizeRepairStatus(props.repair.status) === 'done'
@@ -780,40 +754,16 @@ const RepairCardContent = defineComponent({
         ]),
         h('div', { class: 'mt-2 min-w-0 space-y-1 text-xs leading-5 text-slate-600 dark:text-slate-300' }, [
           props.showPlace ? h('p', { class: 'truncate' }, `Miejsce naprawy: ${repairPlaceLabel(props.repair)}`) : null,
-          h('p', { class: 'min-w-0 break-words' }, [
-            h('span', { class: 'text-slate-500 dark:text-slate-400' }, 'Planowany przyjazd: '),
-            h('span', { class: 'font-medium text-slate-700 dark:text-slate-200' }, formatDateTime(props.repair.plannedArrivalAt)),
-          ]),
-          h('p', { class: 'min-w-0 max-w-full overflow-hidden' }, [
-            h('span', { class: 'min-w-0 break-words' }, [
-              h('span', { class: 'text-slate-500 dark:text-slate-400' }, 'Planowany odjazd: '),
-              h('span', { class: 'font-medium text-slate-700 dark:text-slate-200' }, formatDateTime(props.repair.plannedDepartureAt)),
-            ]),
-          ]),
         ]),
-        totalFaults
-          ? h('button', {
-            type: 'button',
-            class: 'mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 transition hover:text-slate-950 dark:text-slate-400 dark:hover:text-slate-50',
-            onClick: (event: MouseEvent) => {
-              event.stopPropagation()
-              toggleRepairFaults(props.repair.id)
-            },
-          }, [
-            h(ChevronDown, { class: ['h-3.5 w-3.5 transition', isExpanded ? 'rotate-180' : ''] }),
-            `Usterki ${props.repair.doneFaults || 0}/${totalFaults}`,
-          ])
-          : null,
-        isExpanded
-          ? h('div', { class: 'mt-2 min-w-0 max-w-full space-y-1 overflow-hidden rounded-xl border border-slate-100 bg-slate-50 p-2 dark:border-app-border dark:bg-app-dark' }, faults.length
-            ? faults.map((fault) => h('div', { key: fault.id, class: 'flex min-w-0 items-center gap-2 text-xs text-slate-700 dark:text-slate-200' }, [
-              fault.status === 'DONE'
-                ? h(CircleCheck, { class: 'h-3.5 w-3.5 shrink-0 text-success-600 dark:text-success-400' })
-                : h('span', { class: 'h-3.5 w-3.5 shrink-0 rounded-full border border-slate-300 dark:border-app-muted' }),
-              h('span', { class: 'min-w-0 truncate' }, fault.description),
-            ]))
-            : [h('p', { class: 'text-xs text-slate-500 dark:text-slate-400' }, 'Brak danych o usterkach.')])
-          : null,
+        h('p', { class: 'mt-2 text-[11px] font-semibold text-ui-mutedText' }, `Usterki ${props.repair.doneFaults || 0}/${totalFaults}`),
+        h('ul', { class: 'mt-2 min-w-0 space-y-1 text-xs text-ui-text-secondary' }, faults.length
+          ? faults.map((fault) => h('li', { key: fault.id, class: 'flex min-w-0 items-start gap-2' }, [
+            fault.status === 'DONE'
+              ? h(CircleCheck, { class: 'mt-0.5 h-3.5 w-3.5 shrink-0 text-success-600 dark:text-success-400' })
+              : h('span', { class: 'mt-0.5 h-3.5 w-3.5 shrink-0 rounded-full border border-ui-border-strong' }),
+            h('span', { class: 'min-w-0 whitespace-pre-wrap break-words' }, fault.description),
+          ]))
+          : [h('li', { class: 'text-ui-mutedText' }, 'Brak usterek w tej naprawie.')]),
       ])
     }
   },
@@ -985,7 +935,7 @@ function repairTimestamp(repair: Repair) {
 
 function formatDate(value: string | null | undefined) {
   const date = parseDateOnly(value)
-  return date ? date.toLocaleDateString('pl-PL') : '-'
+  return date ? date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-'
 }
 
 function formatDateTime(value: string | null | undefined) {
@@ -1224,22 +1174,6 @@ function toggleAllFieldRepairs(shouldSelect: boolean) {
     : new Set()
 }
 
-function isFieldRepairExpanded(repairId: number) {
-  return expandedFieldRepairIds.value.has(repairId)
-}
-
-function toggleFieldRepairExpansion(repairId: number) {
-  const nextIds = new Set(expandedFieldRepairIds.value)
-
-  if (nextIds.has(repairId)) {
-    nextIds.delete(repairId)
-  } else {
-    nextIds.add(repairId)
-  }
-
-  expandedFieldRepairIds.value = nextIds
-}
-
 function repairPdfSection(repair: Repair) {
   const faults = repair.faults || []
   const createdBy = repair.createdBy?.username || repair.createdByUsername || '—'
@@ -1326,18 +1260,6 @@ function generateRepairsPdf(items: Repair[]) {
   window.setTimeout(() => printWindow.print(), 180)
 }
 
-function toggleRepairFaults(repairId: number) {
-  const nextCollapsedIds = new Set(collapsedRepairIds.value)
-
-  if (nextCollapsedIds.has(repairId)) {
-    nextCollapsedIds.delete(repairId)
-  } else {
-    nextCollapsedIds.add(repairId)
-  }
-
-  collapsedRepairIds.value = nextCollapsedIds
-}
-
 function isRepairColumnCollapsed(columnKey: RepairColumnKey) {
   return collapsedRepairColumnKeys.value.has(columnKey)
 }
@@ -1374,22 +1296,6 @@ function resetVisibleRepairLimits() {
   visibleRepairLimits.new = REPAIRS_PAGE_SIZE
   visibleRepairLimits.progress = REPAIRS_PAGE_SIZE
   visibleRepairLimits.done = REPAIRS_PAGE_SIZE
-}
-
-function isListRepairExpanded(repairId: number) {
-  return expandedListRepairIds.value.has(repairId)
-}
-
-function toggleListRepair(repairId: number) {
-  const nextExpandedIds = new Set(expandedListRepairIds.value)
-
-  if (nextExpandedIds.has(repairId)) {
-    nextExpandedIds.delete(repairId)
-  } else {
-    nextExpandedIds.add(repairId)
-  }
-
-  expandedListRepairIds.value = nextExpandedIds
 }
 
 function requestListFaultStatusChange(repair: Repair, fault: RepairFault) {
@@ -1747,9 +1653,6 @@ watch(fieldRepairs, (visibleRepairs) => {
   selectedFieldRepairIds.value = new Set(
     [...selectedFieldRepairIds.value].filter((repairId) => visibleIds.has(repairId)),
   )
-  expandedFieldRepairIds.value = new Set(
-    [...expandedFieldRepairIds.value].filter((repairId) => visibleIds.has(repairId)),
-  )
 })
 
 watch(mapRepairVehicles, () => {
@@ -1771,6 +1674,9 @@ onBeforeUnmount(() => {
   clearRepairMarkers()
 
 })
+const workspacePortal = useWorkspacePortal()
+useWorkspaceViewState({ activeTab, repairViewMode, repairSearch }, { repairViewMode: 'kanban' })
+useWorkspaceDirty(computed(() => isMechanicFormModalOpen.value))
 </script>
 
 <style>

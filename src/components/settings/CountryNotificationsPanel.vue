@@ -1,7 +1,7 @@
 <template>
-  <AppCard title="Powiadomienia krajowe">
+  <AppCard title="Powiadomienia krajowe" class="md:flex md:min-h-0 md:flex-1 md:flex-col md:overflow-hidden" content-class="md:flex md:min-h-0 md:flex-1 md:flex-col">
     <AppTabs
-      class="mb-4 w-full"
+      class="mb-4 w-full shrink-0"
       :model-value="activeTab"
       :items="tabs"
       aria-label="Widok powiadomień krajowych"
@@ -10,7 +10,7 @@
     />
 
     <template v-if="activeTab === 'rules'">
-      <div class="mb-3 flex justify-end">
+      <div class="mb-3 flex shrink-0 justify-end">
         <AppButton size="sm" @click="openCreateModal">
           <Plus class="h-4 w-4" />
           Dodaj regułę
@@ -21,8 +21,8 @@
         Pobieranie reguł...
       </div>
 
-      <div v-else class="ui-table-shell">
-        <div class="max-h-[52vh] overflow-auto">
+      <div v-else class="ui-table-shell md:flex md:min-h-0 md:flex-1 md:flex-col">
+        <div class="max-h-[52vh] overflow-auto md:min-h-0 md:max-h-none md:flex-1">
           <table class="ui-table min-w-[900px]">
             <thead class="ui-table-head sticky top-0 z-10">
               <tr>
@@ -94,8 +94,8 @@
         Pobieranie historii...
       </div>
 
-      <div v-else class="ui-table-shell">
-        <div class="max-h-[52vh] overflow-auto">
+      <div v-else class="ui-table-shell md:flex md:min-h-0 md:flex-1 md:flex-col">
+        <div class="max-h-[52vh] overflow-auto md:min-h-0 md:max-h-none md:flex-1">
           <table class="ui-table min-w-[920px]">
             <thead class="ui-table-head sticky top-0 z-10">
               <tr>
@@ -146,7 +146,7 @@
           </table>
         </div>
 
-        <div class="px-3 pb-3">
+        <div class="shrink-0 px-3 pb-3">
           <AppPagination
             v-model:page="historyPage"
             v-model:page-size="historyPageSize"
@@ -184,6 +184,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useWorkspaceDirty } from '@/composables/useWorkspace'
 import { onMounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { Pencil, Plus, Trash2 } from 'lucide-vue-next'
@@ -357,7 +359,7 @@ function vignetteVariant(value: VignetteStatus): 'success' | 'warning' | 'error'
 
 function formatEventDate(event: CountryEventHistoryItem) {
   const value = event.occurredAt || event.createdAt
-  return value ? new Date(value).toLocaleString('pl-PL') : '-'
+  return value ? new Date(value).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'
 }
 
 watch(activeTab, (tab) => {
@@ -375,4 +377,5 @@ watch([historyPage, historyPageSize], () => {
 onMounted(() => {
   void notificationStore.loadCountryRules({ silent: true })
 })
+useWorkspaceDirty(computed(() => isModalOpen.value))
 </script>

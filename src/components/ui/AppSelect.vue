@@ -1,5 +1,5 @@
 <template>
-  <AppFormField v-bind="$attrs" :id="selectId" :label="label" :hint="hint" :error="error" :required="required" :compact="size === 'sm'">
+  <AppFormField v-bind="$attrs" :id="selectId" :label="label" :hint="hint" :error="error" :required="required" :compact="size === 'sm'" :class="inline ? 'ui-inline-field' : ''">
     <template #default="{ describedBy }">
       <button
         :id="selectId"
@@ -8,6 +8,7 @@
         role="combobox"
         aria-haspopup="listbox"
         :aria-expanded="isOpen"
+        :aria-label="ariaLabel"
         :aria-controls="listboxId"
         :aria-activedescendant="isOpen && activeIndex >= 0 ? optionId(activeIndex) : undefined"
         :aria-describedby="describedBy"
@@ -15,7 +16,7 @@
         :disabled="disabled"
         class="ui-field-control flex items-center justify-between gap-3 text-left"
         :class="[
-          size === 'sm' ? 'ui-field-sm' : 'ui-field-md',
+          inline ? 'ui-inline-field-control' : size === 'sm' ? 'ui-field-sm' : 'ui-field-md',
           error ? '!border-danger-500 focus:!ring-danger-100 dark:!border-danger-400' : '',
           isOpen ? '!border-ui-input-focus !bg-ui-input-hover ring-2 ring-ui-focus/60' : '',
         ]"
@@ -67,6 +68,8 @@ export interface AppSelectOption {
 
 const props = withDefaults(defineProps<{
   modelValue: string
+  inline?: boolean
+  ariaLabel?: string
   options: AppSelectOption[]
   label?: string
   hint?: string
@@ -78,6 +81,8 @@ const props = withDefaults(defineProps<{
   size?: 'sm' | 'md'
   maxHeight?: number
 }>(), {
+  inline: false,
+  ariaLabel: undefined,
   label: undefined,
   hint: undefined,
   error: undefined,

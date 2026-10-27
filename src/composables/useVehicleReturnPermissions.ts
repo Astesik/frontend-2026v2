@@ -13,6 +13,7 @@ export function useVehicleReturnPermissions() {
     canReadVehicles: computed(() => has('vehicles.read')),
     canReadDrivers: computed(() => has('drivers.read')),
     canReadPositions: computed(() => has('positions.read')),
+    canReadDriverTrip: computed(() => canRead.value && has('positions.read') && has('vehicles.read') && has('drivers.read')),
     canReadRepairs: computed(() => has('repairs.read')),
   }
 }

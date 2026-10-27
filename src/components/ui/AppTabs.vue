@@ -1,8 +1,10 @@
 <template>
   <div
     ref="tabListElement"
-    class="inline-flex max-w-full flex-wrap items-center gap-1 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted"
-    :class="size === 'sm' ? 'p-0.5' : 'p-1'"
+    class="inline-flex max-w-full items-center"
+    :class="variant === 'underline'
+      ? 'app-tabs--underline w-full gap-1 overflow-x-auto border-b border-ui-border'
+      : ['flex-wrap gap-1 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted', size === 'sm' ? 'p-0.5' : 'p-1']"
     :aria-label="ariaLabel"
     role="tablist"
     @keydown="handleKeydown"
@@ -12,12 +14,13 @@
       :key="item.value"
       type="button"
       role="tab"
-      class="inline-flex min-w-0 items-center justify-center gap-2 rounded-[var(--rw-radius-control)] font-medium transition-colors duration-150 focus-visible:z-10 disabled:cursor-not-allowed disabled:text-ui-disabled-text"
+      class="inline-flex min-w-0 items-center justify-center gap-2 font-medium transition-colors duration-150 focus-visible:z-10 disabled:cursor-not-allowed disabled:text-ui-disabled-text"
       :class="[
-        sizeClasses[size],
-        modelValue === item.value
-          ? 'bg-ui-surface text-ui-text shadow-soft'
-          : 'text-ui-text-secondary hover:bg-ui-hover hover:text-ui-text',
+        variant === 'underline'
+          ? 'app-tabs__underline-tab relative h-11 shrink-0 whitespace-nowrap px-3 text-sm text-ui-text-secondary hover:text-ui-text'
+          : [sizeClasses[size], 'rounded-[var(--rw-radius-control)]', modelValue === item.value
+            ? 'bg-ui-surface text-ui-text shadow-soft'
+            : 'text-ui-text-secondary hover:bg-ui-hover hover:text-ui-text'],
       ]"
       :aria-selected="modelValue === item.value"
       :tabindex="modelValue === item.value ? 0 : -1"
@@ -45,9 +48,11 @@ const props = withDefaults(defineProps<{
   items: AppTabItem[]
   ariaLabel?: string
   size?: 'sm' | 'md'
+  variant?: 'pills' | 'underline'
 }>(), {
   ariaLabel: 'Wybierz widok',
   size: 'md',
+  variant: 'pills',
 })
 
 const emit = defineEmits<{
@@ -91,3 +96,31 @@ function handleKeydown(event: KeyboardEvent) {
   })
 }
 </script>
+
+<style scoped>
+.app-tabs--underline {
+  --section-accent: var(--rw-text-primary);
+}
+
+:global(.dark .app-tabs--underline) {
+  --section-accent: 255 255 255;
+}
+
+.app-tabs__underline-tab::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 2px;
+  content: '';
+  background: rgb(var(--section-accent));
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.app-tabs__underline-tab[aria-selected='true'] {
+  color: rgb(var(--rw-text-primary));
+}
+
+.app-tabs__underline-tab[aria-selected='true']::after {
+  opacity: 1;
+}
+</style>
