@@ -72,7 +72,7 @@ const live = {
   },
   todayHistoryRange: () => ({ from: '2026-10-26T23:00:00.000Z' }),
   googleMap: ref({}), window: { google: { maps: {} } }, mapSettings: { map: { todayRoute: true } }, canReadLocalHistory: ref(true),
-  todayRouteRequestId: 1, positionHistory: { lastTimestamp: () => '2026-10-27T10:00:00Z' }, syncTodayRouteRender() {},
+  todayRouteRequestId: 1, queuedTodayRouteVehicleId: null, positionHistory: { lastTimestamp: () => '2026-10-27T10:00:00Z' }, syncTodayRouteRender() {},
   clearTodayRoute() { assert.fail('Polling must not clear the route') }, clearPositionHistoryData() { assert.fail('Polling must not clear stored history') }, showRouteHistoryErrorToast(error) { throw error },
 }
 vm.runInNewContext(transpile(functionSource('renderTodayRoute')) + '\nthis.refresh = renderTodayRoute', live)

@@ -452,9 +452,10 @@
 
           <section class="mt-3">
             <p class="mb-1.5 text-[11px] font-semibold uppercase text-slate-500 dark:text-app-muted">Typ mapy</p>
-            <div class="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-app-elevated">
+            <div class="grid grid-cols-3 gap-1 rounded-xl bg-slate-100 p-1 dark:bg-app-elevated">
               <button type="button" class="h-7 rounded-lg text-[11px] font-medium transition" :class="mapOptionClasses(mapSettings.map.mapType === 'roadmap')" @click="setMapType('roadmap')">Mapa</button>
               <button type="button" class="h-7 rounded-lg text-[11px] font-medium transition" :class="mapOptionClasses(mapSettings.map.mapType === 'satellite')" @click="setMapType('satellite')">Satelita</button>
+              <button type="button" class="h-7 rounded-lg text-[11px] font-medium transition" :class="mapOptionClasses(mapSettings.map.mapType === 'terrain')" @click="setMapType('terrain')">Teren</button>
             </div>
           </section>
 
@@ -883,7 +884,7 @@ type MapMode = 'list' | 'history' | 'places' | 'settings'
 type MapState = 'missing-key' | 'loading' | 'ready' | 'error'
 type FuelUnit = 'auto' | 'liters' | 'percent'
 type MapTheme = 'light' | 'dark'
-type GoogleMapType = 'roadmap' | 'satellite'
+type GoogleMapType = 'roadmap' | 'satellite' | 'terrain'
 type BadgeVariant = 'neutral' | 'success' | 'warning' | 'error' | 'info'
 type HistoryPreset = 'today' | 'yesterday' | 'current-week' | 'previous-week' | 'current-month' | 'previous-month'
 type RoutePointMarkerKind = 'point' | 'start' | 'end'
@@ -1125,9 +1126,11 @@ const historyFilters = reactive({
 const historyFormError = ref('')
 let alertTooltipHideTimer: number | null = null
 let todayRouteRequestId = 0
+let queuedTodayRouteVehicleId: string | null = null
 let routeAnimationFrameId: number | null = null
 let routeAnimationId = 0
 let vehicleFocusAnimationFrameId: number | null = null
+let selectedVehiclePositionRequestId = 0
 let todayRoutePolylines: any[] = []
 let fuelEventMarkers: any[] = []
 let renderedFuelEvents: readonly LocalFuelEvent[] | null = null
@@ -2367,6 +2370,7 @@ function clearRoutePolyline() {
 
 function clearTodayRoute(invalidateRequest = true) {
   cancelRouteAnimation()
+  queuedTodayRouteVehicleId = null
 
   if (invalidateRequest) {
     todayRouteRequestId += 1
@@ -3034,11 +3038,14 @@ async function searchPositionHistory() {
   }
 }
 
-async function renderTodayRoute(options: {append?:boolean} = {}) {
+async function renderTodayRoute(options: {append?:boolean; queueIfLoading?:boolean} = {}) {
   if (!workspaceActive.value || activeMode.value === 'history') return
   const vehicle = selectedVehicle.value
   const shouldAppend = options.append === true && fleetStore.currentPositionHistoryMode === 'today' && fleetStore.currentPositionHistoryVehicleId === vehicle?.id && Date.parse(fleetStore.currentPositionHistoryRange?.from || '') === Date.parse(todayHistoryRange().from)
-  if (shouldAppend && fleetStore.isRouteHistoryLoading) return
+  if (shouldAppend && fleetStore.isRouteHistoryLoading) {
+    if (options.queueIfLoading) queuedTodayRouteVehicleId = vehicle?.id ?? null
+    return
+  }
   if (!shouldAppend) {clearTodayRoute(); clearPositionHistoryData()}
   if (!googleMap.value || !window.google?.maps || !mapSettings.map.todayRoute || !vehicle || !canReadLocalHistory.value) return
   const requestId = todayRouteRequestId
@@ -3053,6 +3060,11 @@ async function renderTodayRoute(options: {append?:boolean} = {}) {
     if (requestId === todayRouteRequestId && selectedVehicleId.value === vehicle.id) syncTodayRouteRender()
   } catch (error) {
     if (requestId === todayRouteRequestId) showRouteHistoryErrorToast(error)
+  } finally {
+    if (requestId === todayRouteRequestId && queuedTodayRouteVehicleId === vehicle.id && selectedVehicleId.value === vehicle.id) {
+      queuedTodayRouteVehicleId = null
+      void renderTodayRoute({append:true})
+    }
   }
 }
 
@@ -3173,6 +3185,28 @@ function selectVehicle(vehicleId: string) {
   }
 
   collapseVehiclePanelOnMobile()
+  void refreshSelectedVehiclePosition(vehicleId)
+}
+
+async function refreshSelectedVehiclePosition(vehicleId: string) {
+  const mode = activeMode.value
+  if (!workspaceActive.value || mode === 'history') return
+  const requestId = ++selectedVehiclePositionRequestId
+  const companyId = authStore.activeCompanyId
+  const previous = fleetStore.vehicles.find(item => item.id === vehicleId)
+  try {
+    await fleetStore.fetchLastPositions({ silent: true })
+  } catch {
+    // Keep the last known position; regular polling will retry.
+    return
+  }
+  if (requestId !== selectedVehiclePositionRequestId || !workspaceActive.value || selectedVehicleId.value !== vehicleId || authStore.activeCompanyId !== companyId || activeMode.value === 'history') return
+  renderMarkers()
+  const latest = fleetStore.vehicles.find(item => item.id === vehicleId)
+  if (latest && (!previous?.hasPosition || latest.latitude !== previous.latitude || latest.longitude !== previous.longitude)) {
+    focusVehicle(latest)
+  }
+  if (latest) void renderTodayRoute({append:true, queueIfLoading:true})
 }
 
 function closeVehicleDrawer() {
