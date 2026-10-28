@@ -254,9 +254,6 @@
               <dd class="mt-0.5 font-semibold text-slate-950 dark:text-slate-50">{{ historyConsumptionLabel }}</dd>
             </div>
           </dl>
-          <ul v-if="historyWarnings.length" class="mt-3 space-y-2 text-[11px] text-warning-600 dark:text-warning-400">
-            <li v-for="warning in historyWarnings" :key="warning" class="rounded-xl border border-yellow-200 bg-yellow-50 px-2.5 py-2 text-yellow-800 dark:border-yellow-700/50 dark:bg-yellow-950/40 dark:text-yellow-200">{{ warning }}</li>
-          </ul>
           <p v-if="!fleetStore.isRouteHistoryLoading && !positionHistory.records.value.length" class="mt-3 ui-caption text-ui-mutedText">Brak historii w lokalnej bazie dla tego zakresu.</p>
           <div v-if="historyFuelEvents.length" class="mt-3 space-y-2 border-t border-ui-border pt-3">
             <h3 class="ui-label">Zdarzenia paliwowe</h3>
@@ -866,7 +863,7 @@ import PlaceDetailsModal from '@/components/places/PlaceDetailsModal.vue'
 import { usePositionHistory, type RouteLatLng } from '@/composables/usePositionHistory'
 import LocalHistoryPointPopup from '@/components/map/LocalHistoryPointPopup.vue'
 import { historyLocalValue as toLocalDateTimeValue, historyLocalInstant, historyPresetRange as historyRangeForPreset, validateHistoryRange, todayHistoryRange } from '@/utils/historyTime'
-import { historyMetric, historyPointSpeed, historyPointFuel, fuelEventLabel, localHistoryWarning, validHistoryPosition } from '@/utils/localPositionHistory'
+import { historyMetric, historyPointSpeed, historyPointFuel, fuelEventLabel, validHistoryPosition } from '@/utils/localPositionHistory'
 import { loadGoogleMaps } from '@/services/googleMapsLoader'
 import { DARK_STYLES } from '@/services/googleMapStyles'
 import { fleetMarkerIconSvg } from '@/utils/fleetMarker'
@@ -1285,7 +1282,13 @@ const filteredVehicles = computed(() => {
 
 const mapMarkerVehicles = computed(() => {
   if (activeMode.value === 'history') {
-    return []
+    const routeVehicleId = fleetStore.currentPositionHistoryMode === 'custom' &&
+      (fleetStore.isRouteHistoryLoading || fleetStore.currentPositionHistoryComplete || positionHistory.records.value.length > 0)
+      ? fleetStore.currentPositionHistoryVehicleId
+      : null
+    return fleetStore.vehicles.filter(vehicle => vehicle.hasPosition && (routeVehicleId
+      ? vehicle.id === routeVehicleId
+      : historyFilters.fleetId === 'all' || fleetStore.isVehicleInGroup(historyFilters.fleetId, vehicle.id)))
   }
 
   return filteredVehicles.value.filter((vehicle) => vehicle.hasPosition)
@@ -1355,14 +1358,6 @@ const historyRangeLabel = computed(() => {
 const historyDistanceLabel = computed(() => historyMetric(fleetStore.currentPositionHistorySummary?.distanceKm ?? null, 'km'))
 const historyFuelUsedLabel = computed(() => historyMetric(fleetStore.currentPositionHistorySummary?.fuelUsedLiters ?? null, 'l'))
 const historyConsumptionLabel = computed(() => historyMetric(fleetStore.currentPositionHistorySummary?.consumptionLPer100Km ?? null, 'l/100 km'))
-const historyWarnings = computed(() => {
-  const warnings = (fleetStore.currentPositionHistorySummary?.warnings || [])
-    .filter(code => code.toUpperCase() !== 'GAPS_IN_TELEMETRY')
-    .map(localHistoryWarning)
-  if (fleetStore.currentPositionHistorySummary?.distanceSource === 'GPS_ESTIMATE') warnings.unshift('Kilometry są oszacowaniem odległości między odczytami GPS, nie przebiegiem drogowym.')
-  if (fleetStore.currentPositionHistoryVehicleId && !fleetStore.isRouteHistoryLoading && !fleetStore.currentPositionHistoryComplete) warnings.unshift('Nie pobrano całej historii. Widoczna trasa może być niepełna.')
-  return warnings
-})
 const historyFuelEvents = computed(() => fleetStore.currentPositionHistorySummary?.fuelEvents || [])
 const historyLoadProgress = computed(() => fleetStore.isRouteHistoryLoading
   ? Math.min(99, fleetStore.currentPositionHistorySummary?.sampleCount ? fleetStore.currentPositionHistoryLoaded * 100 / fleetStore.currentPositionHistorySummary.sampleCount : 8)
@@ -3168,6 +3163,18 @@ function focusPositionHistory() {
 }
 
 function selectVehicle(vehicleId: string) {
+  if (activeMode.value === 'history') {
+    const vehicle = fleetStore.vehicles.find(item => item.id === vehicleId)
+    if (!vehicle) return
+    historyFilters.vehicleId = vehicleId
+    selectedVehicleId.value = vehicleId
+    vehicleDetailsDrawerOpen.value = false
+    vignetteDrawerOpen.value = false
+    vehiclePanelCollapsed.value = false
+    historyFormError.value = ''
+    focusVehicle(vehicle)
+    return
+  }
   if (selectedVehicleId.value !== vehicleId) {
     vehicleDrawerTab.value = 'info'
     isRepairCreateModalOpen.value = false
@@ -3270,7 +3277,7 @@ async function refreshLastPositions() {
     void renderTodayRoute({ append: true })
   }
 
-  if (mapSettings.map.followVehicle && selectedVehicle.value) {
+  if (activeMode.value !== 'history' && mapSettings.map.followVehicle && selectedVehicle.value) {
     focusVehicle(selectedVehicle.value)
   }
 }
@@ -3298,9 +3305,9 @@ function startPositionRefresh() {
   }, POSITION_REFRESH_INTERVAL_MS)
 }
 
-watch(filteredVehicles, (vehicles) => {
-  renderMarkers()
+watch(mapMarkerVehicles, () => renderMarkers())
 
+watch(filteredVehicles, (vehicles) => {
   if (activeMode.value !== 'history' && selectedVehicleId.value && !vehicles.some((vehicle) => vehicle.id === selectedVehicleId.value)) {
     selectedVehicleId.value = null
     vehicleDetailsDrawerOpen.value = false
@@ -3446,7 +3453,7 @@ watch(() => historyFilters.preset, (preset) => {
 })
 
 watch(() => mapSettings.map.followVehicle, (shouldFollow) => {
-  if (!shouldFollow || !selectedVehicleId.value) {
+  if (activeMode.value === 'history' || !shouldFollow || !selectedVehicleId.value) {
     return
   }
 
