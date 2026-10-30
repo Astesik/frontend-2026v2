@@ -640,6 +640,10 @@
                     <button type="button" class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-[6px] text-ui-icon transition hover:bg-ui-hover hover:text-ui-text" title="Kopiuj koordynaty" @click="copyVehiclePosition(selectedVehicle)"><Copy class="h-3.5 w-3.5" /></button>
                   </dd>
                 </div>
+                <div class="flex items-center justify-between gap-3 px-3 py-2">
+                  <dt class="text-ui-mutedText">Przebieg</dt>
+                  <dd class="font-semibold tabular-nums text-ui-text">{{ historyMetric(selectedVehicle.mileage, 'km') }}</dd>
+                </div>
                 <VehicleTodayStatistics
                   :vehicle-id="selectedVehicle.backendId"
                   :hide-consumption="selectedVehicle.vehicleType === 'trailer'"

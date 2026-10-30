@@ -6,7 +6,9 @@
 
     <AppTabs
       v-if="settingsTabs.length"
-      class="sticky top-0 z-20 w-fit max-w-full shrink-0"
+      class="sticky top-0 z-20 w-full max-w-full shrink-0"
+      variant="underline"
+      size="sm"
       :model-value="activeTab"
       :items="settingsTabs"
       aria-label="Sekcje ustawień"

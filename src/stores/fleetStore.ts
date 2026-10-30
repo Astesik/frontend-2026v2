@@ -223,6 +223,7 @@ function normalizeVehicle(vehicle: ApiVehicle, position?: ApiLastPosition): Vehi
     speed: Math.round(position?.speedKph ?? 0),
     fuelLevel: Math.round(position?.fuelPct ?? 0),
     fuelPct: position?.fuelPct ?? null,
+    mileage: position?.mileage ?? null,
     fuelTank: vehicle.fuelTank ?? 0,
     lastUpdate: formatRelativeTime(position?.ts || vehicle.lastPositionAt),
     location: hasPosition

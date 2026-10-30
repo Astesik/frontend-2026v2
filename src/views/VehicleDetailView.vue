@@ -71,6 +71,7 @@
                   <input v-model="editForm.fuelTank" class="vehicle-inline-control" type="number" aria-label="Zbiornik paliwa" :disabled="isUpdatingVehicle || editForm.type === 'TRAILER'" />
                 </InfoRow>
                 <InfoRow label="Ostatnia pozycja" :value="formatDateTime(vehicle.lastPositionAt)" />
+                <InfoRow label="Przebieg" :value="historyMetric(vehicleMileage, 'km')" />
                 <InfoRow label="Status" :value="statusLabel(vehicle.status)" :editing="isEditModalOpen">
                   <AppSelect v-model="editForm.status" inline aria-label="Status" :options="vehicleStatusFormOptions" :disabled="isUpdatingVehicle" />
                 </InfoRow>
@@ -451,6 +452,7 @@ import { useFleetStore } from '@/stores/fleetStore'
 import { useRepairStore, type VehicleRepairHistoryItem } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
 import { useVehicleMaintenanceStore } from '@/stores/vehicleMaintenanceStore'
+import { historyMetric } from '@/utils/localPositionHistory'
 import type { ApiVehicle } from '@/types/fleet'
 import type { Repair, RepairComment, RepairFault } from '@/types/repair'
 
@@ -551,6 +553,7 @@ const serviceCalendarWeekdays = ['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nd']
 const vehicleId = computed(() => String(route.params.id || ''))
 const vehicle = computed(() => fleetStore.apiVehicles.find((item) => String(item.id) === vehicleId.value) || null)
 const vehicleBatteryLevel = computed(() => fleetStore.vehicles.find(item => item.backendId === vehicle.value?.id)?.batteryLevel ?? vehicle.value?.batteryLevel ?? null)
+const vehicleMileage = computed(() => fleetStore.vehicles.find(item => item.backendId === vehicle.value?.id)?.mileage ?? null)
 const wheelTelemetry = computed(() => maintenanceStore.telemetryByVehicleId[vehicleId.value])
 const serviceSchedule = computed(() => maintenanceStore.schedulesByVehicleId[vehicleId.value])
 watch(() => [vehicleId.value, vehicle.value?.type] as const, ([id, type]) => {

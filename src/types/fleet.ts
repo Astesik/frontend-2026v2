@@ -85,6 +85,7 @@ export interface ApiLastPosition {
   countryCode: string | null
   ignitionState: string | null
   batteryLevel?: number | null
+  mileage?: number | null
   driverSlot0: string | null
   driverSlot1: string | null
   raw: unknown
@@ -138,6 +139,7 @@ export interface Vehicle {
   assignedDeviceName: string | null
   ignitionState: string | null
   batteryLevel?: number | null
+  mileage?: number | null
   heading: number | null
   lastPositionAt: string | null
   positionTimestamp: string | null
