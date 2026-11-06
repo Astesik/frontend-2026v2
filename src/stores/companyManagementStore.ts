@@ -217,16 +217,6 @@ export const useCompanyManagementStore = defineStore('companyManagement', () => 
     }
   }
 
-  async function resetUserPassword(userId: number | string, newPassword: string) {
-    isMutating.value = true
-
-    try {
-      await companyManagementService.resetUserPassword(userId, newPassword)
-    } finally {
-      isMutating.value = false
-    }
-  }
-
   async function deleteUser(userId: number | string) {
     isMutating.value = true
 
@@ -263,7 +253,6 @@ export const useCompanyManagementStore = defineStore('companyManagement', () => 
     updateUser,
     updateUserRoles,
     updateUserPermissionOverrides,
-    resetUserPassword,
     deleteUser,
     resetApiState,
   }

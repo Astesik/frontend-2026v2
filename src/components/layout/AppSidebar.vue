@@ -187,13 +187,7 @@ function canSeeNavigationItem(path: string) {
   if (path === '/repairs') return hasPermissionPrefix('repairs.')
 
   if (path === '/settings') {
-    return (
-      authStore.canManageCompany ||
-      hasPermissionPrefix('settings.') ||
-      hasPermissionPrefix('vehicle_groups.') ||
-      hasPermissionPrefix('notifications.') ||
-      hasPermissionPrefix('vignettes.')
-    )
+    return true
   }
 
   return true

@@ -21,65 +21,46 @@
       </p>
     </AppCard>
 
-    <AppCard v-if="activeTab === 'fleet'" title="Floty" class="md:flex md:min-h-0 md:flex-1 md:flex-col md:overflow-hidden" content-class="md:min-h-0 md:flex-1 md:overflow-y-auto">
-      <template #actions>
-        <AppButton size="sm" @click="isCreateGroupModalOpen = true">
-          <Plus class="h-4 w-4" />
-          Dodaj flotę
-        </AppButton>
-      </template>
-
-      <div class="space-y-2">
-        <section
-          v-for="group in fleetStore.vehicleGroups"
-          :key="group.id"
-          class="rounded-[var(--rw-radius-panel)] border border-ui-border p-2 transition"
-          :class="isEditingGroup(group.id) ? 'bg-ui-muted' : 'bg-ui-surface'"
-        >
-          <div class="grid gap-2 lg:grid-cols-[18rem_minmax(0,1fr)_auto] lg:items-center">
-            <AppInput
-              :model-value="groupNameForms[group.id] || group.name || ''"
-              placeholder="Nazwa floty"
-              size="sm"
-              :disabled="!isEditingGroup(group.id) || isGroupMutating"
-              @update:model-value="groupNameForms[group.id] = $event"
-              @keydown.enter.prevent="renameGroup(group.id)"
-              @blur="isEditingGroup(group.id) && renameGroup(group.id)"
-            />
-
-            <VehicleTagInput
-              :model-value="groupVehicleIds(group.id)"
-              :vehicles="fleetStore.apiVehicles"
-              floating
-              compact
-              :disabled="!isEditingGroup(group.id) || isGroupMutating"
-              placeholder="Dodaj pojazd"
-              @add="addVehicleToGroup(group.id, $event)"
-              @remove="removeVehicleFromGroup(group.id, $event)"
-            />
-
-            <div class="flex flex-wrap gap-2 lg:justify-end">
-              <AppButton size="sm" variant="secondary" :disabled="isGroupMutating" @click="toggleGroupEdit(group.id)">
-                <component :is="isEditingGroup(group.id) ? Check : SquarePen" class="h-4 w-4" />
-                {{ isEditingGroup(group.id) ? 'Gotowe' : 'Edytuj' }}
-              </AppButton>
-              <AppButton size="sm" variant="danger" @click="groupToDelete = group">
-                <Trash2 class="h-4 w-4" />
-                Usuń
-              </AppButton>
-            </div>
-          </div>
-        </section>
-
-        <div v-if="!fleetStore.vehicleGroups.length" class="rounded-[var(--rw-radius-panel)] border border-dashed border-ui-border p-5 ui-body-sm text-ui-mutedText">
-          Brak utworzonych flot.
-        </div>
+    <div class="settings-content min-w-0 space-y-3 md:min-h-0 md:flex-1 md:overflow-y-auto">
+    <AccountSecurityPanel v-if="activeTab === 'account'" />
+    <CompanyManagementPanel v-if="activeTab === 'company' && authStore.canManageCompany" />
+    <div v-if="activeTab === 'fleet' && canManageFleets" class="space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <span class="ui-caption">Floty: {{ fleetStore.vehicleGroups.length }}</span>
+        <AppButton size="sm" @click="isCreateGroupModalOpen = true"><Plus class="h-4 w-4" />Dodaj flotę</AppButton>
       </div>
-    </AppCard>
-
-    <CompanyManagementPanel v-else-if="activeTab === 'company' && authStore.canManageCompany" />
-    <MailSettingsPanel v-else-if="activeTab === 'mail'" />
-    <CountryNotificationsPanel v-else-if="activeTab === 'countries'" />
+      <p v-if="fleetStore.isVehicleGroupsLoading" class="py-8 text-center ui-caption" role="status">Pobieranie flot…</p>
+      <div v-else-if="fleetStore.vehicleGroups.length" class="grid min-w-0 items-stretch gap-3 xl:grid-cols-2">
+        <AppCard v-for="group in fleetStore.vehicleGroups" :key="group.id" :title="group.name" :icon="Truck" compact content-class="!p-0 min-w-0">
+          <template #actions>
+            <div class="flex items-center gap-1">
+              <AppBadge class="mr-1">{{ groupVehicleIds(group.id).length }} poj.</AppBadge>
+              <AppIconButton :label="isEditingGroup(group.id) ? 'Zakończ edycję floty ' + group.name : 'Edytuj flotę ' + group.name" size="sm" variant="ghost" :disabled="isGroupMutating" @click="toggleGroupEdit(group.id)"><component :is="isEditingGroup(group.id) ? Check : SquarePen" class="h-4 w-4" /></AppIconButton>
+              <AppIconButton :label="'Usuń flotę ' + group.name" size="sm" variant="danger" :disabled="isGroupMutating" @click="groupToDelete = group"><Trash2 class="h-4 w-4" /></AppIconButton>
+            </div>
+          </template>
+          <div v-if="isEditingGroup(group.id)" class="space-y-3 p-4">
+            <AppInput :model-value="groupNameForms[group.id] ?? group.name" label="Nazwa floty" size="sm" :disabled="isGroupMutating" @update:model-value="groupNameForms[group.id] = $event" @keydown.enter.prevent="renameGroup(group.id)" />
+            <VehicleTagInput :model-value="groupVehicleIds(group.id)" :vehicles="fleetStore.apiVehicles" label="Pojazdy" floating compact :disabled="isGroupMutating" placeholder="Dodaj pojazd do floty" @add="addVehicleToGroup(group.id, $event)" @remove="removeVehicleFromGroup(group.id, $event)" />
+            <div class="flex justify-end"><AppButton size="sm" :loading="isGroupMutating" @click="toggleGroupEdit(group.id)"><Check class="h-4 w-4" />Gotowe</AppButton></div>
+          </div>
+          <div v-else class="p-4">
+            <div v-if="groupVehicleIds(group.id).length" class="flex flex-wrap gap-2">
+              <span v-for="item in groupVehicles(group.id)" :key="item.id" class="inline-flex items-center gap-2 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted px-3 py-2 text-xs font-medium text-ui-text"><Truck class="h-3.5 w-3.5 text-ui-icon" />{{ item.label }}</span>
+            </div>
+            <p v-else class="py-3 text-center ui-caption">Brak pojazdów. Edytuj flotę, aby je przypisać.</p>
+          </div>
+        </AppCard>
+      </div>
+      <AppCard v-else title="Twoje floty" :icon="Truck" compact>
+        <div class="flex flex-col items-center gap-3 py-8 text-center"><Truck class="h-8 w-8 text-ui-icon" /><p class="text-sm text-ui-mutedText">Dodaj pierwszą flotę i pogrupuj pojazdy.</p><AppButton size="sm" @click="isCreateGroupModalOpen = true"><Plus class="h-4 w-4" />Dodaj flotę</AppButton></div>
+      </AppCard>
+    </div>
+    <template v-if="activeTab === 'notifications'">
+      <CountryNotificationsPanel v-if="canManageCountryNotifications" />
+      <MailSettingsPanel v-if="canManageMail" />
+    </template>
+    </div>
 
     <AppModal
       :open="isCreateGroupModalOpen"
@@ -120,12 +101,15 @@
 <script setup lang="ts">
 import { useWorkspaceViewState, useWorkspaceDirty } from '@/composables/useWorkspace'
 import { computed, onMounted, reactive, ref, watch, type Component } from 'vue'
-import { BellRing, Check, Mail, Plus, ShieldCheck, SquarePen, Trash2, Truck } from 'lucide-vue-next'
+import { BellRing, Building2, Check, Plus, SquarePen, Trash2, Truck, UserRound } from 'lucide-vue-next'
 import CompanyManagementPanel from '@/components/settings/CompanyManagementPanel.vue'
 import CountryNotificationsPanel from '@/components/settings/CountryNotificationsPanel.vue'
 import MailSettingsPanel from '@/components/settings/MailSettingsPanel.vue'
+import AccountSecurityPanel from '@/components/settings/AccountSecurityPanel.vue'
 import VehicleTagInput from '@/components/selects/VehicleTagInput.vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppBadge from '@/components/ui/AppBadge.vue'
+import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -135,7 +119,7 @@ import { useFleetStore } from '@/stores/fleetStore'
 import { useUiStore } from '@/stores/uiStore'
 import type { VehicleGroup } from '@/types/fleet'
 
-type SettingsTabKey = 'fleet' | 'mail' | 'countries' | 'company'
+type SettingsTabKey = 'account' | 'company' | 'fleet' | 'notifications'
 
 const SETTINGS_TAB_KEY = 'routewise.settings.activeTab'
 const uiStore = useUiStore()
@@ -150,12 +134,16 @@ const editingGroupId = ref<string | null>(null)
 const groupNameForms = reactive<Record<string, string>>({})
 
 function isSettingsTabKey(value: string | null): value is SettingsTabKey {
-  return value === 'fleet' || value === 'mail' || value === 'countries' || value === 'company'
+  return value === 'account' || value === 'company' || value === 'fleet' || value === 'notifications'
+}
+
+function normalizeSettingsTab(value: string | null): SettingsTabKey {
+  if (value === 'mail' || value === 'countries') return 'notifications'
+  return isSettingsTabKey(value) ? value : 'account'
 }
 
 function readStoredSettingsTab() {
-  const storedValue = localStorage.getItem(SETTINGS_TAB_KEY)
-  return isSettingsTabKey(storedValue) ? storedValue : 'fleet'
+  return normalizeSettingsTab(localStorage.getItem(SETTINGS_TAB_KEY))
 }
 
 function hasPermissionPrefix(prefix: string) {
@@ -170,18 +158,19 @@ function hasAnyPermission(permissions: string[]) {
 }
 
 const activeTab = ref<SettingsTabKey>(readStoredSettingsTab())
+const canManageFleets = computed(() => hasPermissionPrefix('vehicle_groups.'))
+const canManageMail = computed(() => hasAnyPermission(['settings.read', 'settings.manage']))
+const canManageCountryNotifications = computed(() => hasPermissionPrefix('notifications.') || hasPermissionPrefix('vignettes.'))
 const settingsTabs = computed<Array<{ value: SettingsTabKey; label: string; icon: Component }>>(() => [
-  ...(hasPermissionPrefix('vehicle_groups.')
+  { value: 'account' as const, label: 'Konto', icon: UserRound },
+  ...(authStore.canManageCompany
+    ? [{ value: 'company' as const, label: 'Firma', icon: Building2 }]
+    : []),
+  ...(canManageFleets.value
     ? [{ value: 'fleet' as const, label: 'Floty', icon: Truck }]
     : []),
-  ...(hasAnyPermission(['settings.read', 'settings.manage'])
-    ? [{ value: 'mail' as const, label: 'Email / SMTP', icon: Mail }]
-    : []),
-  ...(hasPermissionPrefix('notifications.') || hasPermissionPrefix('vignettes.')
-    ? [{ value: 'countries' as const, label: 'Powiadomienia krajowe', icon: BellRing }]
-    : []),
-  ...(authStore.canManageCompany
-    ? [{ value: 'company' as const, label: 'Zarządzanie firmą', icon: ShieldCheck }]
+  ...(canManageMail.value || canManageCountryNotifications.value
+    ? [{ value: 'notifications' as const, label: 'Powiadomienia', icon: BellRing }]
     : []),
 ])
 
@@ -205,12 +194,19 @@ function isEditingGroup(groupId: string) {
   return editingGroupId.value === groupId
 }
 
+function groupVehicles(groupId: string) {
+  const vehicles = new Map(fleetStore.apiVehicles.map(vehicle => [String(vehicle.id), vehicle.licensePlate]))
+  return groupVehicleIds(groupId).map(id => ({ id, label: vehicles.get(String(id)) || `Pojazd #${id}` }))
+}
+
 async function toggleGroupEdit(groupId: string) {
+  if (isGroupMutating.value) return
   if (isEditingGroup(groupId)) {
-    await renameGroup(groupId)
-    editingGroupId.value = null
+    if (await renameGroup(groupId)) editingGroupId.value = null
     return
   }
+
+  if (editingGroupId.value && !await renameGroup(editingGroupId.value)) return
 
   editingGroupId.value = groupId
 }
@@ -279,7 +275,7 @@ async function createGroup() {
 
 async function renameGroup(groupId: string) {
   if (!isEditingGroup(groupId)) {
-    return
+    return false
   }
 
   const name = groupNameForms[groupId]?.trim()
@@ -295,11 +291,11 @@ async function renameGroup(groupId: string) {
       title: 'Brak nazwy',
       message: 'Nazwa floty nie może być pusta.',
     })
-    return
+    return false
   }
 
   if (currentGroup?.name === name) {
-    return
+    return true
   }
 
   isGroupMutating.value = true
@@ -312,16 +308,14 @@ async function renameGroup(groupId: string) {
       title: 'Flota zaktualizowana',
       message: 'Zapisano nazwę floty.',
     })
+    return true
   } catch {
-    if (currentGroup) {
-      groupNameForms[groupId] = currentGroup.name
-    }
-
     uiStore.addToast({
       type: 'error',
       title: 'Nie udało się zapisać floty',
       message: 'Spróbuj ponownie za chwilę.',
     })
+    return false
   } finally {
     isGroupMutating.value = false
   }
@@ -412,7 +406,7 @@ watch(activeTab, (tab) => {
 
 watch(settingsTabs, (tabs) => {
   if (!tabs.some((tab) => tab.value === activeTab.value)) {
-    activeTab.value = tabs[0]?.value || 'fleet'
+    activeTab.value = tabs[0]?.value || 'account'
   }
 
   void ensureGroupsLoaded()
@@ -422,6 +416,17 @@ onMounted(async () => {
   await authStore.restoreBackendSession()
   await ensureGroupsLoaded()
 })
-useWorkspaceViewState({ activeTab }, { activeTab: 'fleet' })
+useWorkspaceViewState({ activeTab }, { activeTab: readStoredSettingsTab() })
+activeTab.value = normalizeSettingsTab(activeTab.value)
+if (!settingsTabs.value.some(tab => tab.value === activeTab.value)) activeTab.value = 'account'
 useWorkspaceDirty(computed(() => editingGroupId.value !== null || isCreateGroupModalOpen.value))
 </script>
+
+<style scoped>
+.settings-content { padding: 1px .75rem .75rem 1px; scrollbar-gutter: stable; overscroll-behavior: contain; }
+.settings-content :deep(.ui-card-header > div:first-child) { min-width: 0; overflow-wrap: anywhere; }
+.settings-content :deep(table) { border-collapse: collapse; }
+.settings-content :deep(th:not(:last-child)),
+.settings-content :deep(td:not(:last-child)) { border-right: 1px solid rgb(var(--rw-border)); }
+.settings-content :deep(th), .settings-content :deep(td) { padding: .625rem .75rem; vertical-align: middle; }
+</style>

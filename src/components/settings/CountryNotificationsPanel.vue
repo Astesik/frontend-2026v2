@@ -1,5 +1,5 @@
 <template>
-  <AppCard title="Powiadomienia krajowe" class="md:flex md:min-h-0 md:flex-1 md:flex-col md:overflow-hidden" content-class="md:flex md:min-h-0 md:flex-1 md:flex-col">
+  <AppCard title="Powiadomienia krajowe" :icon="BellRing" compact content-class="!p-3">
     <AppTabs
       class="mb-4 w-full shrink-0"
       :model-value="activeTab"
@@ -21,8 +21,8 @@
         Pobieranie reguł...
       </div>
 
-      <div v-else class="ui-table-shell md:flex md:min-h-0 md:flex-1 md:flex-col">
-        <div class="max-h-[52vh] overflow-auto md:min-h-0 md:max-h-none md:flex-1">
+      <div v-else class="ui-table-shell">
+        <div class="overflow-x-auto">
           <table class="ui-table min-w-[900px]">
             <thead class="ui-table-head sticky top-0 z-10">
               <tr>
@@ -94,8 +94,8 @@
         Pobieranie historii...
       </div>
 
-      <div v-else class="ui-table-shell md:flex md:min-h-0 md:flex-1 md:flex-col">
-        <div class="max-h-[52vh] overflow-auto md:min-h-0 md:max-h-none md:flex-1">
+      <div v-else class="ui-table-shell">
+        <div class="overflow-x-auto">
           <table class="ui-table min-w-[920px]">
             <thead class="ui-table-head sticky top-0 z-10">
               <tr>
@@ -188,7 +188,7 @@ import { computed } from 'vue'
 import { useWorkspaceDirty } from '@/composables/useWorkspace'
 import { onMounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { Pencil, Plus, Trash2 } from 'lucide-vue-next'
+import { BellRing, Pencil, Plus, Trash2 } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'

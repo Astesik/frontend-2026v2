@@ -21,8 +21,8 @@
           {{ formError }}
         </p>
 
-        <AppButton type="submit" full-width size="lg" :loading="authStore.isLoading">
-          Zaloguj
+        <AppButton type="submit" full-width size="lg" :loading="authStore.isLoading" :disabled="remaining > 0">
+          {{ remaining > 0 ? `Spróbuj za ${remaining} s` : 'Zaloguj' }}
         </AppButton>
       </form>
     </AppCard>
@@ -30,7 +30,8 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, computed, onUnmounted } from 'vue'
+import axios from 'axios'
 import { useRoute, useRouter } from 'vue-router'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
@@ -48,12 +49,18 @@ const form = reactive({
 })
 
 const formError = ref('')
+const blockedUntil = ref(0)
+const now = ref(Date.now())
+const remaining = computed(() => Math.max(0, Math.ceil((blockedUntil.value - now.value) / 1000)))
+const timer = window.setInterval(() => { now.value = Date.now() }, 1000)
+onUnmounted(() => window.clearInterval(timer))
 
 function getRedirectPath() {
   return typeof route.query.redirect === 'string' ? route.query.redirect : '/map'
 }
 
 async function handleSubmit() {
+  if (remaining.value > 0) return
   formError.value = ''
 
   try {
@@ -62,8 +69,14 @@ async function handleSubmit() {
       password: form.password,
     })
     await router.push(getRedirectPath())
-  } catch {
-    formError.value = 'Nie udalo sie zalogowac. Sprawdz login i haslo.'
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 429) {
+      const seconds = Number(error.response.headers['retry-after'] || error.response.data?.retryAfterSeconds || 60)
+      blockedUntil.value = Date.now() + Math.max(1, seconds) * 1000
+      formError.value = 'Zbyt wiele prób logowania. Poczekaj do zakończenia blokady.'
+    } else {
+      formError.value = 'Nie udało się zalogować. Sprawdź login i hasło.'
+    }
   }
 }
 </script>

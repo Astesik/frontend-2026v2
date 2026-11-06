@@ -118,15 +118,12 @@ function normalizeFault(fault: RepairFault): RepairFault {
   const rawFault = fault as RepairFault & {
     createdBy?: number | { id?: number; username?: string | null } | null
     assignedMechanic?: unknown
-    completedByMechanic?: unknown
-    performedByMechanic?: unknown
     repairedAt?: string | null
     updatedAt?: string | null
     comments?: RepairFaultComment[] | null
     photos?: RepairFaultPhoto[] | null
   }
   const assignedMechanic = rawFault.assignedMechanic
-  const completedMechanic = rawFault.completedByMechanic || rawFault.performedByMechanic
   const createdBy = typeof rawFault.createdBy === 'object' && rawFault.createdBy
     ? {
         id: Number(rawFault.createdBy.id),
@@ -141,10 +138,9 @@ function normalizeFault(fault: RepairFault): RepairFault {
     status: normalizeFaultStatus(fault.status),
     note: fault.note || null,
     createdBy,
+    repairedBy: fault.repairedBy || null,
     assignedMechanicId: fault.assignedMechanicId ?? mechanicId(assignedMechanic),
     assignedMechanicFullName: fault.assignedMechanicFullName || mechanicFullName(assignedMechanic),
-    performedByMechanicId: fault.performedByMechanicId ?? mechanicId(completedMechanic),
-    performedByMechanicFullName: fault.performedByMechanicFullName || mechanicFullName(completedMechanic),
     resolvedAt: fault.resolvedAt || rawFault.repairedAt || null,
     repairedAt: rawFault.repairedAt || null,
     updatedAt: rawFault.updatedAt || null,

@@ -4,6 +4,12 @@ import type { AuthUser, RefreshResponse } from '@/types/auth'
 
 const AUTH_TOKEN_KEY = 'routewise.auth.token'
 const AUTH_USER_KEY = 'routewise.auth.user'
+const AUTH_GENERATION_KEY = 'routewise.auth.generation'
+let authEpoch = 0
+export function invalidateAuthRequests() {
+  authEpoch++
+  localStorage.setItem(AUTH_GENERATION_KEY, crypto.randomUUID())
+}
 const DEFAULT_API_BASE_URL = ''
 
 declare module 'axios' {
@@ -37,6 +43,7 @@ export const api = axios.create({
   headers: {
     Accept: 'application/json',
     'Content-Type': 'application/json',
+    'X-Routewise-Client': '1',
   },
 })
 
@@ -45,12 +52,21 @@ const refreshClient = axios.create({
   withCredentials: true,
   headers: {
     Accept: 'application/json',
+    'Content-Type': 'application/json',
+    'X-Routewise-Client': '1',
   },
 })
 
 export function registerAuthSessionHandlers(handlers: AuthSessionHandlers) {
   authSessionHandlers = handlers
 }
+
+window.addEventListener('storage', (event) => {
+  if (event.key !== AUTH_TOKEN_KEY && event.key !== AUTH_USER_KEY) return
+  const token = getStoredToken()
+  if (!token) { authEpoch++; authSessionHandlers?.clearSession(); return }
+  try { authSessionHandlers?.setSession({ token, user: JSON.parse(localStorage.getItem(AUTH_USER_KEY) || 'null') as AuthUser | null }) } catch { /* Ignore malformed local metadata. */ }
+})
 
 function normalizeToken(token: string | null) {
   const normalizedToken = token?.replace(/^Bearer\s+/i, '').trim()
@@ -131,8 +147,26 @@ function clearStoredAuthSession() {
 
 export async function refreshAccessToken() {
   if (!refreshPromise) {
-    refreshPromise = refreshClient.post<RefreshResponse>('/api/auth/refresh', null, { withCredentials: true })
-      .then(({ data }) => {
+    const epoch = authEpoch
+    const generation = localStorage.getItem(AUTH_GENERATION_KEY)
+    const initialToken = getStoredToken()
+    const perform = async () => {
+      if (epoch !== authEpoch || generation !== localStorage.getItem(AUTH_GENERATION_KEY)) return null
+      const newer = getStoredToken()
+      if (newer && newer !== initialToken) return { data: { accessToken: newer } as RefreshResponse }
+      try { return await refreshClient.post<RefreshResponse>('/api/auth/refresh', null, { withCredentials: true }) }
+      catch (e) {
+        if (axios.isAxiosError(e) && e.response?.status === 409) {
+          await new Promise(resolve => setTimeout(resolve, 300))
+          return refreshClient.post<RefreshResponse>('/api/auth/refresh', null, { withCredentials: true })
+        }
+        throw e
+      }
+    }
+    refreshPromise = (navigator.locks ? navigator.locks.request('routewise-auth-refresh', perform) : perform())
+      .then((response) => {
+        if (!response || epoch !== authEpoch || generation !== localStorage.getItem(AUTH_GENERATION_KEY)) return null
+        const { data } = response
         const token = tokenFromRefreshResponse(data)
 
         if (!token) {
@@ -149,9 +183,12 @@ export async function refreshAccessToken() {
         authSessionHandlers?.setSession(session)
         return session.token
       })
-      .catch(() => {
-        clearStoredAuthSession()
-        return null
+      .catch((error) => {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          if (epoch === authEpoch && generation === localStorage.getItem(AUTH_GENERATION_KEY)) clearStoredAuthSession()
+          return null
+        }
+        throw error
       })
       .finally(() => {
         refreshPromise = null

@@ -194,6 +194,7 @@ function mergeSessionUsers(existingUser: AuthUser | null, incomingUser: AuthUser
   if (!incomingUser) {
     return existingUser
   }
+  if (String(existingUser.userId ?? existingUser.id ?? existingUser.uid) !== String(incomingUser.userId ?? incomingUser.id ?? incomingUser.uid)) return incomingUser
 
   const incomingFirstName = typeof incomingUser.firstName === 'string' && incomingUser.firstName.trim()
     ? incomingUser.firstName
@@ -317,12 +318,12 @@ export const useAuthStore = defineStore('auth', () => {
     const refreshAt = accessTokenExpiresAt.value - Date.now() - 2 * 60 * 1000
 
     if (refreshAt <= 0) {
-      void refreshAccessToken()
+      void refreshAccessToken().catch(() => {})
       return
     }
 
     proactiveRefreshTimer = window.setTimeout(() => {
-      void refreshAccessToken()
+      void refreshAccessToken().catch(() => {})
     }, refreshAt)
   }
 
@@ -385,8 +386,10 @@ export const useAuthStore = defineStore('auth', () => {
       return
     }
 
+    const requestedToken = token.value
     try {
       const session = await authService.getSession({ silent: true })
+      if (token.value !== requestedToken) return
 
       if (session.token) {
         applySession({

@@ -16,6 +16,8 @@ const routes: RouteRecordRaw[] = [
     path: '/login',
     component: AuthLayout,
     children: [
+      { path: 'forgot-password', redirect: { name: 'login', query: {}, hash: '' } },
+      { path: 'reset-password', redirect: { name: 'login', query: {}, hash: '' } },
       {
         path: '',
         name: 'login',

@@ -1,4 +1,4 @@
-import { api } from './api'
+import { api, invalidateAuthRequests } from './api'
 import type { AuthSession, AuthSessionState, LoginPayload, LoginResponse, SessionResponse } from '@/types/auth'
 
 function tokenFromAuthResponse(response: AuthSessionState) {
@@ -79,7 +79,8 @@ function normalizeSessionResponse(response: SessionResponse) {
 
 export const authService = {
   async login(payload: LoginPayload) {
-    const { data } = await api.post<LoginResponse>('/api/auth/login', payload)
+    const { data } = await api.post<LoginResponse>('/api/auth/login', payload, { skipErrorToast: true })
+    invalidateAuthRequests()
     return normalizeAuthResponse(data)
   },
 
@@ -91,6 +92,7 @@ export const authService = {
   },
 
   async logout() {
+    invalidateAuthRequests()
     await api.post('/api/auth/logout')
   },
 }

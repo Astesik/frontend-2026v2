@@ -35,6 +35,7 @@ export function workspaceDescriptor(name: unknown, recordId?: unknown): Workspac
 }
 export function describeWorkspaceRoute(route: RouteLocationNormalizedLoaded | RouteLocationNormalized) { return workspaceDescriptor(route.name, route.params.id) }
 export function canOpenWorkspace(name: WorkspaceViewName, access: WorkspaceAccess) {
+  if (name === 'settings') return true // Account security is available to every signed-in user.
   if (access.canManageCompany || access.hasActiveCompanyRole('COMPANY_ADMIN')) return true
   const view = workspaceViews[name]
   return 'all' in view && view.all ? view.permissions.every(access.hasActiveCompanyPermission) : view.permissions.some(access.hasActiveCompanyPermission)

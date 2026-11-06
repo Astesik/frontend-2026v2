@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { parse, compileScript } from '@vue/compiler-sfc'
 import ts from 'typescript'
+import * as passwordRules from '../src/utils/passwordRules.ts'
 
 const require = createRequire(import.meta.url)
 const vue = require('vue')
@@ -33,7 +34,6 @@ function scenario(permissions = ['users.create', 'users.update', 'users.delete',
     updateUser: async (id, payload) => { calls.push(['updateUser', id, plain(payload)]); if (holdUpdate) await holdUpdate; return { ...store.users.find(user => user.id === id), ...payload } },
     updateUserRoles: async (id, value) => calls.push(['updateUserRoles', id, plain(value)]),
     updateUserPermissionOverrides: async (id, value) => calls.push(['updateUserPermissionOverrides', id, plain(value)]),
-    resetUserPassword: async (id, value) => calls.push(['resetUserPassword', id, value]),
     deleteRole: async id => calls.push(['deleteRole', id]), deleteUser: async id => calls.push(['deleteUser', id]),
   })
   const exports = {}
@@ -43,6 +43,7 @@ function scenario(permissions = ['users.create', 'users.update', 'users.delete',
     '@/stores/companyManagementStore': { useCompanyManagementStore: () => store },
     '@/stores/authStore': { useAuthStore: () => auth },
     '@/stores/uiStore': { useUiStore: () => ({ addToast: value => toasts.push(value) }) },
+    '@/utils/passwordRules': passwordRules,
     '@/composables/useWorkspace': { useWorkspacePortal: () => 'body', useWorkspaceDirty: value => vue.watch(value, dirty => dirtyValues.push(dirty), { immediate: true, flush: 'sync' }) },
   }
   vm.runInNewContext(code, { exports, localStorage: { getItem: () => null, setItem() {} }, window: { matchMedia: () => ({ matches: false }) }, require: name => mocks[name] || (name.endsWith('.vue') ? {} : require(name)) })
@@ -51,7 +52,8 @@ function scenario(permissions = ['users.create', 'users.update', 'users.delete',
 }
 
 const main = scenario(), panel = main.panel
-assert.equal(panel.activeSection.value, 'users')
+assert.equal(panel.isUserEditorOpen.value, false)
+assert.equal(panel.isRoleEditorOpen.value, false)
 panel.openEditUserEditor(main.store.users[1])
 assert.equal(panel.isRoleEditorOpen.value, false)
 assert.equal(panel.editorDirty.value, false)
@@ -130,10 +132,13 @@ create.panel.openNewUserEditor()
 await create.panel.saveUser()
 assert.equal(create.calls.length, 0, 'Validate missing fields before creating a user')
 Object.assign(create.panel.userForm, { username: 'new', email: 'new@example.test', password: 'test-only-password', firstName: 'Jan', lastName: 'Test' })
+await create.panel.saveUser()
+assert.equal(create.calls.length, 0, 'The initial password needs an uppercase letter')
+create.panel.userForm.password = 'Żeglarz!'
 create.panel.toggleUserRole(2)
 create.panel.setOverrideEffect('vehicles.read', 'GRANT')
 await create.panel.saveUser()
-assert.deepEqual(create.calls[0], ['createUser', { username: 'new', email: 'new@example.test', password: 'test-only-password', firstName: 'Jan', lastName: 'Test', roleIds: [2], permissionOverrides: [{ permission: 'vehicles.read', effect: 'GRANT' }] }])
+assert.deepEqual(create.calls[0], ['createUser', { username: 'new', email: 'new@example.test', password: 'Żeglarz!', firstName: 'Jan', lastName: 'Test', roleIds: [2], permissionOverrides: [{ permission: 'vehicles.read', effect: 'GRANT' }] }])
 create.panel.openNewRoleEditor()
 Object.assign(create.panel.roleForm, { code: 'TEST', name: 'Test', permissions: ['vehicles.read'] })
 await create.panel.saveRole()
@@ -144,14 +149,6 @@ account.panel.openEditUserEditor(account.store.users[1])
 await account.panel.toggleSelectedUserStatus()
 assert.equal(account.panel.userForm.active, false)
 assert.equal(account.panel.editorDirty.value, false, 'An immediately saved account status is not an unsaved form change')
-account.panel.openPasswordResetModal()
-account.panel.passwordResetForm.newPassword = 'test-only-password'
-account.panel.passwordResetForm.repeatPassword = 'different-password'
-await account.panel.submitPasswordReset()
-assert.equal(account.calls.some(call => call[0] === 'resetUserPassword'), false, 'Password mismatch must be rejected')
-account.panel.passwordResetForm.repeatPassword = 'test-only-password'
-await account.panel.submitPasswordReset()
-assert.deepEqual(account.calls.at(-1), ['resetUserPassword', 2, 'test-only-password'])
 account.panel.requestDeleteCurrentUser()
 await account.panel.confirmDelete()
 assert.deepEqual(account.calls.at(-1), ['deleteUser', 2])

@@ -1,19 +1,13 @@
 <template>
-  <AppCard title="Email / SMTP" compact class="max-w-4xl md:flex md:min-h-0 md:flex-1 md:flex-col md:overflow-hidden" content-class="md:min-h-0 md:flex-1 md:overflow-y-auto">
+  <div class="grid min-w-0 items-stretch gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+  <AppCard title="Konfiguracja poczty SMTP" :icon="Mail" compact>
+    <template #actions><AppSwitch v-model="form.enabled" label="Wysyłanie włączone" :disabled="isLoadingMail || isMutating" /></template>
     <div v-if="isLoadingMail" class="py-8 ui-body-sm text-ui-mutedText">Pobieranie konfiguracji...</div>
 
     <div v-else class="space-y-4">
       <form
-        class="rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-muted p-4"
         @submit.prevent="saveSettings"
       >
-        <div class="mb-4 flex flex-col gap-3 border-b border-ui-divider pb-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h3 class="ui-card-title">Konfiguracja poczty</h3>
-          </div>
-          <AppSwitch v-model="form.enabled" label="Wysyłanie włączone" />
-        </div>
-
         <div class="grid gap-3 md:grid-cols-2">
           <AppInput v-model="form.host" label="Host SMTP" placeholder="smtp.example.com" size="sm" />
           <AppInput v-model="form.port" label="Port" type="number" placeholder="587" size="sm" />
@@ -43,20 +37,18 @@
         </div>
       </form>
 
-      <section class="rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-surface p-4 shadow-soft">
-        <div class="mb-3">
-          <h3 class="ui-card-title">Wiadomość testowa</h3>
-        </div>
+    </div>
+  </AppCard>
+  <AppCard title="Wiadomość testowa" :icon="Send" compact>
         <EmailChipInput v-model="testRecipients" label="Odbiorcy" />
         <div class="mt-3 flex justify-end">
-          <AppButton variant="secondary" :loading="isMutating" :disabled="!mailSettings?.enabled || !testRecipients.length" @click="sendTest">
+          <AppButton variant="secondary" :loading="isMutating" :disabled="isLoadingMail || !mailSettings?.enabled || !testRecipients.length" @click="sendTest">
             <Send class="h-4 w-4" />
             Wyślij test
           </AppButton>
         </div>
-      </section>
-    </div>
   </AppCard>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -64,7 +56,7 @@ import { computed } from 'vue'
 import { useWorkspaceDirty } from '@/composables/useWorkspace'
 import { onMounted, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import { Send } from 'lucide-vue-next'
+import { Mail, Send } from 'lucide-vue-next'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'

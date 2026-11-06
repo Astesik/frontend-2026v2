@@ -299,6 +299,18 @@
                         {{ fault.description }}
                       </p>
                     </div>
+                    <p class="mt-1 break-words text-xs leading-5 text-ui-mutedText">
+                      Dodano: {{ fault.createdBy?.username || 'brak danych o użytkowniku' }}
+                      <template v-if="fault.createdAt">
+                        · <time :datetime="fault.createdAt">{{ formatDateTime(fault.createdAt) }}</time>
+                      </template>
+                    </p>
+                    <p v-if="fault.status === 'DONE'" class="mt-1 break-words text-xs leading-5 text-ui-mutedText">
+                      Wykonano: {{ fault.repairedBy?.username || 'brak danych o użytkowniku' }}
+                      <template v-if="fault.repairedAt">
+                        · <time :datetime="fault.repairedAt">{{ formatDateTime(fault.repairedAt) }}</time>
+                      </template>
+                    </p>
                   </template>
                 </div>
 

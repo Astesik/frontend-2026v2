@@ -1,44 +1,53 @@
 <template>
   <div class="company-management grid min-w-0 gap-3 md:min-h-0 md:flex-1">
-    <AppCard title="Użytkownicy i role" :icon="Users" compact class="company-directory flex min-h-0 min-w-0 flex-col" content-class="!p-0 flex min-h-0 flex-1 flex-col">
-      <template #actions>
-        <AppIconButton label="Odśwież użytkowników i role" size="sm" variant="ghost" :loading="store.isLoading" :disabled="editorBusy" @click="reload"><RefreshCw class="h-4 w-4" /></AppIconButton>
-      </template>
-      <AppTabs class="shrink-0 !gap-0 px-2" variant="underline" size="sm" :model-value="activeSection" :items="sections" aria-label="Użytkownicy i role firmy" @update:model-value="setActiveSection" />
-      <div class="space-y-2 border-b border-ui-divider p-3">
-        <div class="flex gap-2">
-          <AppInput v-if="activeSection === 'users'" v-model="userSearch" class="min-w-0 flex-1" placeholder="Szukaj użytkownika" aria-label="Szukaj użytkownika" size="sm" clearable />
-          <AppInput v-else v-model="roleSearch" class="min-w-0 flex-1" placeholder="Szukaj roli" aria-label="Szukaj roli" size="sm" clearable />
-          <AppIconButton v-if="activeSection === 'users'" label="Dodaj użytkownika" size="sm" :disabled="!canCreateUsers || editorBusy" @click="requestEditorSelection(openNewUserEditor)"><Plus class="h-4 w-4" /></AppIconButton>
-          <AppIconButton v-else label="Dodaj rolę" size="sm" :disabled="!canCreateRoles || editorBusy" @click="requestEditorSelection(openNewRoleEditor)"><Plus class="h-4 w-4" /></AppIconButton>
+    <div class="company-directories grid min-w-0 items-stretch gap-3">
+      <AppCard title="Użytkownicy" :icon="Users" compact class="min-w-0" content-class="!p-0">
+        <template #actions><AppButton size="sm" :disabled="!canCreateUsers || editorBusy" @click="requestEditorSelection(openNewUserEditor)"><Plus class="h-4 w-4" />Dodaj użytkownika</AppButton></template>
+        <div class="flex flex-wrap gap-2 border-b border-ui-divider p-3">
+          <AppInput v-model="userSearch" class="min-w-40 flex-1" placeholder="Szukaj użytkownika" aria-label="Szukaj użytkownika" size="sm" clearable />
+          <AppSelect v-if="store.roles.length" v-model="userRoleFilter" class="!w-48 max-w-full" :options="userRoleFilterOptions" size="sm" aria-label="Filtruj użytkowników według roli" />
         </div>
-        <AppSelect v-if="activeSection === 'users' && store.roles.length" v-model="userRoleFilter" :options="userRoleFilterOptions" size="sm" aria-label="Filtruj użytkowników według roli" />
-      </div>
-      <div class="min-h-0 flex-1 overflow-y-auto p-2" :aria-busy="store.isLoading">
-        <p v-if="store.isLoading" class="p-4 text-center ui-caption" role="status">Pobieranie danych…</p>
-        <template v-else-if="activeSection === 'users'">
-          <button v-for="userItem in filteredUsers" :key="userItem.id" type="button" class="company-directory-item" :class="isUserEditorOpen && userForm.id === userItem.id ? 'company-directory-item--selected' : ''" :aria-pressed="isUserEditorOpen && userForm.id === userItem.id" :disabled="editorBusy" @click="requestEditorSelection(() => openEditUserEditor(userItem))">
-            <span class="company-avatar">{{ userInitials(userItem) }}</span>
-            <span class="min-w-0 flex-1">
-              <span class="flex items-center justify-between gap-2"><span class="truncate text-sm font-semibold text-ui-text">{{ displayUserName(userItem) }}</span><span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="userItem.active === false ? 'bg-danger-400' : 'bg-success-500'" :title="userItem.active === false ? 'Zablokowany' : 'Aktywny'" /></span>
-              <span class="mt-0.5 block truncate ui-caption">{{ userItem.email || userItem.username }}</span>
-              <span class="mt-1 block truncate text-[11px] text-ui-text-secondary">{{ userRoles(userItem).map(role => role.name).join(', ') || 'Bez przypisanej roli' }}</span>
-            </span>
-          </button>
-          <p v-if="!filteredUsers.length" class="p-5 text-center ui-caption">Brak użytkowników pasujących do filtra.</p>
-        </template>
-        <template v-else>
-          <button v-for="role in filteredRoles" :key="role.id" type="button" class="company-directory-item" :class="isRoleEditorOpen && roleForm.id === role.id ? 'company-directory-item--selected' : ''" :aria-pressed="isRoleEditorOpen && roleForm.id === role.id" :disabled="editorBusy" @click="requestEditorSelection(() => openEditRoleEditor(role))">
-            <span class="company-avatar"><ShieldCheck class="h-4 w-4" /></span>
-            <span class="min-w-0 flex-1"><span class="block truncate text-sm font-semibold text-ui-text">{{ role.name }}</span><span class="mt-1 block ui-caption">{{ role.systemRole ? 'Systemowa' : 'Własna' }} · {{ usersForRole(role.id).length }} użytk. · {{ role.permissions.length }} uprawnień</span></span>
-            <ChevronRight class="h-3.5 w-3.5 shrink-0 text-ui-icon" />
-          </button>
-          <p v-if="!filteredRoles.length" class="p-5 text-center ui-caption">Brak ról pasujących do filtra.</p>
-        </template>
-      </div>
-    </AppCard>
+        <div class="overflow-x-auto" :aria-busy="store.isLoading">
+          <table class="ui-table min-w-[730px]" aria-label="Użytkownicy firmy">
+            <thead class="ui-table-head"><tr><th class="w-12 text-center">Lp.</th><th>Użytkownik</th><th>Login</th><th>Email</th><th>Role</th><th>Status</th><th class="w-16 text-right">Akcje</th></tr></thead>
+            <tbody>
+              <tr v-for="(userItem, index) in filteredUsers" :key="userItem.id" class="ui-table-row" :class="isUserEditorOpen && userForm.id === userItem.id ? 'bg-ui-muted' : ''">
+                <td class="text-center tabular-nums text-ui-mutedText">{{ index + 1 }}</td>
+                <td><button type="button" class="inline-flex items-center gap-2 text-left font-medium text-ui-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus" :disabled="editorBusy" @click="requestEditorSelection(() => openEditUserEditor(userItem))"><span class="company-avatar !h-7 !w-7 !text-[10px]">{{ userInitials(userItem) }}</span>{{ displayUserName(userItem) }}</button></td>
+                <td>{{ userItem.username || '—' }}</td>
+                <td>{{ userItem.email || '—' }}</td>
+                <td><div class="flex flex-wrap gap-1"><AppBadge v-for="role in userRoles(userItem)" :key="role.id">{{ role.name }}</AppBadge><span v-if="!userRoles(userItem).length" class="ui-caption">Brak roli</span></div></td>
+                <td><AppBadge :variant="userItem.active === false ? 'error' : 'success'">{{ userItem.active === false ? 'Zablokowany' : 'Aktywny' }}</AppBadge></td>
+                <td class="text-right"><AppIconButton :label="'Otwórz użytkownika ' + displayUserName(userItem)" size="sm" variant="ghost" :disabled="editorBusy" @click="requestEditorSelection(() => openEditUserEditor(userItem))"><SquarePen class="h-4 w-4" /></AppIconButton></td>
+              </tr>
+              <tr v-if="store.isLoading || !filteredUsers.length"><td colspan="7" class="py-8 text-center ui-caption">{{ store.isLoading ? 'Pobieranie użytkowników…' : 'Brak użytkowników pasujących do filtra.' }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="border-t border-ui-divider px-4 py-2 ui-caption">Użytkownicy: {{ filteredUsers.length }} z {{ store.users.length }}</div>
+      </AppCard>
 
-    <div ref="editorElement" class="company-editor min-h-0 min-w-0 space-y-3 md:overflow-y-auto" tabindex="-1">
+      <AppCard title="Role" :icon="ShieldCheck" compact class="min-w-0" content-class="!p-0">
+        <template #actions><AppButton size="sm" :disabled="!canCreateRoles || editorBusy" @click="requestEditorSelection(openNewRoleEditor)"><Plus class="h-4 w-4" />Dodaj rolę</AppButton></template>
+        <div class="border-b border-ui-divider p-3"><AppInput v-model="roleSearch" placeholder="Szukaj roli" aria-label="Szukaj roli" size="sm" clearable /></div>
+        <div class="overflow-x-auto" :aria-busy="store.isLoading">
+          <table class="ui-table min-w-[450px]" aria-label="Role firmy">
+            <thead class="ui-table-head"><tr><th class="w-12 text-center">Lp.</th><th>Rola</th><th class="text-center">Użytkownicy</th><th class="text-center">Uprawnienia</th><th class="w-16 text-right">Akcje</th></tr></thead>
+            <tbody>
+              <tr v-for="(role, index) in filteredRoles" :key="role.id" class="ui-table-row" :class="isRoleEditorOpen && roleForm.id === role.id ? 'bg-ui-muted' : ''">
+                <td class="text-center tabular-nums text-ui-mutedText">{{ index + 1 }}</td>
+                <td><button type="button" class="text-left font-medium text-ui-text hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus" :disabled="editorBusy" @click="requestEditorSelection(() => openEditRoleEditor(role))">{{ role.name }}</button><span class="mt-0.5 block ui-caption">{{ role.systemRole ? 'Systemowa' : role.code }}</span></td>
+                <td class="text-center tabular-nums">{{ usersForRole(role.id).length }}</td><td class="text-center tabular-nums">{{ role.permissions.length }}</td>
+                <td class="text-right"><AppIconButton :label="'Otwórz rolę ' + role.name" size="sm" variant="ghost" :disabled="editorBusy" @click="requestEditorSelection(() => openEditRoleEditor(role))"><SquarePen class="h-4 w-4" /></AppIconButton></td>
+              </tr>
+              <tr v-if="store.isLoading || !filteredRoles.length"><td colspan="5" class="py-8 text-center ui-caption">{{ store.isLoading ? 'Pobieranie ról…' : 'Brak ról pasujących do filtra.' }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="border-t border-ui-divider px-4 py-2 ui-caption">Role: {{ filteredRoles.length }} z {{ store.roles.length }}</div>
+      </AppCard>
+    </div>
+    <div v-if="isUserEditorOpen || isRoleEditorOpen" ref="editorElement" class="company-editor min-h-0 min-w-0 space-y-3" tabindex="-1">
       <template v-if="isUserEditorOpen">
         <AppCard :title="userForm.id ? (selectedUser ? displayUserName(selectedUser) : userForm.username) : 'Nowy użytkownik'" :icon="UserRound" compact content-class="!p-0">
           <template #actions>
@@ -48,7 +57,6 @@
               <AppIconButton label="Zamknij użytkownika" size="sm" variant="ghost" :disabled="editorBusy" @click="requestEditorSelection(closeUserEditor)"><X class="h-4 w-4" /></AppIconButton>
             </div>
             <AppDropdown :open="isUserMenuOpen" :anchor="userMenuAnchor" role="menu" :match-width="false" content-class="min-w-44 p-1" @close="isUserMenuOpen = false">
-              <AppDropdownItem role="menuitem" :disabled="!canResetUserPassword" @click="isUserMenuOpen = false; openPasswordResetModal()"><KeyRound class="h-4 w-4" />Resetuj hasło</AppDropdownItem>
               <AppDropdownItem role="menuitem" :disabled="!canBlockUsers" @click="isUserMenuOpen = false; toggleSelectedUserStatus()"><component :is="userForm.active ? UserRoundX : UserRoundCheck" class="h-4 w-4" />{{ userForm.active ? 'Zablokuj' : 'Odblokuj' }}</AppDropdownItem>
               <AppDropdownItem role="menuitem" class="text-danger-600 dark:text-danger-400" :disabled="!canDeleteUsers" @click="isUserMenuOpen = false; requestDeleteCurrentUser()"><Trash2 class="h-4 w-4" />Usuń użytkownika</AppDropdownItem>
             </AppDropdown>
@@ -56,14 +64,14 @@
           <AppTabs :model-value="userEditorTab" :items="userEditorTabs" variant="underline" size="sm" class="px-3" aria-label="Sekcje użytkownika" @update:model-value="setUserEditorTab" />
         </AppCard>
         <form id="company-user-form" class="space-y-3" @invalid.capture="showInvalidUserField" @submit.prevent="saveUser">
-          <div v-show="userEditorTab === 'info'" class="grid min-w-0 items-start gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+          <div v-show="userEditorTab === 'info'" class="grid min-w-0 items-stretch gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
             <AppCard title="Dane użytkownika" :icon="UserRound" compact>
               <fieldset :disabled="!canSaveUserForm || editorBusy" class="grid min-w-0 gap-3 sm:grid-cols-2">
                 <AppInput v-model="userForm.firstName" label="Imię" size="sm" autocomplete="given-name" />
                 <AppInput v-model="userForm.lastName" label="Nazwisko" size="sm" autocomplete="family-name" />
                 <AppInput v-model="userForm.username" label="Login" size="sm" required autocomplete="off" />
-                <AppInput v-model="userForm.email" label="Email" type="email" size="sm" required autocomplete="off" />
-                <AppPasswordInput v-if="!userForm.id" v-model="userForm.password" label="Hasło startowe" size="sm" required autocomplete="new-password" class="sm:col-span-2" />
+                <AppInput v-model="userForm.email" label="Email" type="email" size="sm" required autocomplete="off" :disabled="Boolean(userForm.id) && !canChangeRecoveryEmail" :hint="userForm.id && !canChangeRecoveryEmail ? 'Adres odzyskiwania zmienia administrator globalny.' : undefined" />
+                <AppPasswordInput v-if="!userForm.id" v-model="userForm.password" label="Hasło startowe" :hint="newPasswordHint" size="sm" required autocomplete="new-password" class="sm:col-span-2" />
               </fieldset>
             </AppCard>
             <AppCard title="Przypisane role" :icon="ShieldCheck" compact content-class="!p-0">
@@ -73,7 +81,7 @@
                 <span class="min-w-0 flex-1"><span class="block text-sm text-ui-text">{{ role.name }}</span><span class="ui-caption">{{ role.permissions.length }} uprawnień</span></span>
                 <span v-if="role.systemRole" class="text-[10px] text-ui-mutedText">Systemowa</span>
               </label>
-              <p v-if="!store.roles.length" class="p-4 ui-caption">Dodaj rolę na liście po lewej, aby przypisać ją użytkownikowi.</p>
+              <p v-if="!store.roles.length" class="p-4 ui-caption">Dodaj rolę w kafelku „Role”, aby przypisać ją użytkownikowi.</p>
             </AppCard>
           </div>
           <AppCard v-if="userEditorTab === 'permissions'" title="Indywidualne uprawnienia" :icon="KeyRound" compact content-class="!p-0">
@@ -104,7 +112,7 @@
         <AppCard title="Uprawnienia roli" :icon="KeyRound" compact content-class="!p-0">
           <template #actions><span class="ui-caption">{{ roleForm.permissions.length }} wybranych</span></template>
           <div class="border-b border-ui-divider p-3"><AppInput v-model="rolePermissionSearch" placeholder="Szukaj uprawnienia" aria-label="Szukaj uprawnienia roli" size="sm" clearable /></div>
-          <div class="grid items-start gap-px bg-ui-border lg:grid-cols-2">
+          <div class="grid items-stretch gap-px bg-ui-border lg:grid-cols-2">
             <section v-for="category in rolePermissionCategories" :key="category.category" class="bg-ui-surface">
               <h3 class="company-permission-heading">{{ category.label }}</h3>
               <label v-for="permission in category.permissions" :key="permission.code" class="company-choice-row" :title="permissionTitle(permission)"><AppCheckbox :model-value="roleForm.permissions.includes(permission.code)" :aria-label="permission.name || permission.code" :disabled="!canSaveRoleForm || editorBusy" @update:model-value="toggleRolePermission(permission.code)" /><span class="text-xs text-ui-text">{{ permission.name || permission.code }}</span></label>
@@ -119,14 +127,6 @@
         <div v-if="canSaveRoleForm" class="company-editor-footer"><span class="mr-auto ui-caption">{{ editorDirty ? 'Niezapisane zmiany' : 'Wszystkie zmiany zapisane' }}</span><AppButton size="sm" variant="secondary" :disabled="editorBusy" @click="requestEditorSelection(closeRoleEditor)">Anuluj</AppButton><AppButton size="sm" form="company-role-form" type="submit" :loading="isSavingEditor" :disabled="editorBusy || (Boolean(roleForm.id) && !editorDirty)"><Save class="h-4 w-4" />{{ roleForm.id ? 'Zapisz zmiany' : 'Dodaj rolę' }}</AppButton></div>
       </template>
 
-      <AppCard v-else title="Użytkownicy i role" :icon="Users" compact>
-        <p class="ui-body-sm text-ui-text-secondary">Wybierz osobę lub rolę z listy, aby zarządzać dostępem do firmy.</p>
-        <div class="mt-5 grid gap-3 sm:grid-cols-2">
-          <button type="button" class="company-start-tile" :disabled="!canCreateUsers || editorBusy" @click="openNewUserEditor"><UserRound class="h-5 w-5 text-ui-icon" /><span class="text-sm font-semibold text-ui-text">Dodaj użytkownika</span><span class="ui-caption">Dane konta i przypisanie ról</span></button>
-          <button type="button" class="company-start-tile" :disabled="!canCreateRoles || editorBusy" @click="openNewRoleEditor"><ShieldCheck class="h-5 w-5 text-ui-icon" /><span class="text-sm font-semibold text-ui-text">Utwórz rolę</span><span class="ui-caption">Wspólny zestaw uprawnień</span></button>
-        </div>
-        <div v-if="!store.isLoading && !store.roles.length && !store.permissions.length" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-warning-400/40 bg-warning-400/10 p-3 text-xs text-warning-400" role="status"><span>Nie pobrano ról i uprawnień firmy.</span><AppButton size="sm" variant="secondary" @click="reload">Spróbuj ponownie</AppButton></div>
-      </AppCard>
     </div>
     <Teleport :to="workspacePortal">
       <AppModal
@@ -151,40 +151,6 @@
         </template>
       </AppModal>
 
-      <AppModal
-        :open="Boolean(passwordResetUser)"
-        title="Resetuj hasło"
-        :description="passwordResetUser ? displayUserName(passwordResetUser) : undefined"
-        size="sm"
-        :busy="store.isMutating"
-        @close="closePasswordResetModal"
-      >
-        <form id="password-reset-form" class="space-y-3" @submit.prevent="submitPasswordReset">
-          <AppPasswordInput
-            id="company-user-new-password"
-            v-model="passwordResetForm.newPassword"
-            label="Nowe hasło"
-            autocomplete="new-password"
-            required
-          />
-          <AppPasswordInput
-            id="company-user-repeat-password"
-            v-model="passwordResetForm.repeatPassword"
-            label="Powtórz hasło"
-            autocomplete="new-password"
-            required
-          />
-          <p v-if="passwordResetError" class="ui-error">{{ passwordResetError }}</p>
-        </form>
-        <template #footer>
-          <AppButton variant="secondary" type="button" @click="closePasswordResetModal">Anuluj</AppButton>
-          <AppButton form="password-reset-form" type="submit" :loading="store.isMutating">
-            <KeyRound class="h-4 w-4" />
-            Zmień hasło
-          </AppButton>
-        </template>
-      </AppModal>
-
       <AppConfirmModal :open="Boolean(pendingEditorAction)" title="Odrzucić niezapisane zmiany?" description="Zmiany w bieżącym formularzu nie zostały zapisane." confirm-label="Odrzuć zmiany" confirm-variant="danger" @close="pendingEditorAction = null" @confirm="confirmEditorSelection" />
     </Teleport>
   </div>
@@ -197,11 +163,11 @@ import { computed, nextTick, onMounted, reactive, ref, shallowRef, watch } from 
 import {
   ChevronRight,
   Ellipsis,
-  RefreshCw,
   KeyRound,
   Plus,
   Save,
   ShieldCheck,
+  SquarePen,
   Trash2,
   UserRound,
   UserRoundCheck,
@@ -209,7 +175,6 @@ import {
   Users,
   X,
 } from 'lucide-vue-next'
-import { useRouter } from 'vue-router'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
@@ -222,6 +187,7 @@ import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppPasswordInput from '@/components/ui/AppPasswordInput.vue'
+import { newPasswordError, newPasswordHint } from '@/utils/passwordRules'
 import AppTabs from '@/components/ui/AppTabs.vue'
 import { useAuthStore } from '@/stores/authStore'
 import { useCompanyManagementStore } from '@/stores/companyManagementStore'
@@ -233,7 +199,6 @@ import type {
   CompanyUserPermissionOverride,
 } from '@/types/companyManagement'
 
-type SectionKey = 'roles' | 'users'
 type UserEditorTab = 'info' | 'permissions'
 type OverrideEffect = 'GRANT' | 'DENY'
 
@@ -243,13 +208,8 @@ interface PermissionCategoryGroup {
   permissions: CompanyPermission[]
 }
 
-const SECTION_KEY = 'routewise.companyManagement.section'
 const USER_EDITOR_TAB_KEY = 'routewise.companyManagement.userEditorTab'
 
-const sections = computed(() => [
-  { value: 'users', label: `Użytkownicy (${store.users.length})`, icon: Users },
-  { value: 'roles', label: `Role (${store.roles.length})`, icon: ShieldCheck },
-])
 
 const userEditorTabs = [
   { value: 'info' as const, label: 'Dane i role', icon: UserRound },
@@ -327,9 +287,8 @@ const actionOrder: Record<string, number> = {
 const store = useCompanyManagementStore()
 const authStore = useAuthStore()
 const uiStore = useUiStore()
-const router = useRouter()
+const canChangeRecoveryEmail = computed(() => authStore.user?.sysAdmin === true || authStore.user?.globalRoles?.includes('GLOBAL_ADMIN'))
 
-const activeSection = ref<SectionKey>(readStoredSection())
 const userEditorTab = ref<UserEditorTab>(readStoredUserEditorTab())
 const roleSearch = ref('')
 const userSearch = ref('')
@@ -360,7 +319,7 @@ function markEditorSaved() { editorBaseline.value = editorSnapshot.value }
 function focusEditor() {
   void nextTick(() => {
     editorElement.value?.focus({preventScroll:true})
-    if (window.matchMedia('(max-width: 767px)').matches) editorElement.value?.scrollIntoView({behavior:'smooth',block:'start'})
+    editorElement.value?.scrollIntoView({behavior:'smooth',block:'start'})
   })
 }
 function requestEditorSelection(action: () => void) {
@@ -395,7 +354,6 @@ const rolePermissionSearch = ref('')
 const permissionOverrideSearch = ref('')
 const roleToDelete = ref<CompanyRole | null>(null)
 const userToDelete = ref<CompanyManagedUser | null>(null)
-const passwordResetUser = ref<CompanyManagedUser | null>(null)
 const isRoleEditorOpen = ref(false)
 const isUserEditorOpen = ref(false)
 const isChangingUserStatus = ref(false)
@@ -418,11 +376,6 @@ const userForm = reactive({
   active: true,
   roleIds: [] as number[],
 })
-const passwordResetForm = reactive({
-  newPassword: '',
-  repeatPassword: '',
-})
-const passwordResetError = ref('')
 
 const canCreateRoles = computed(() => hasPermission('roles.create'))
 const canUpdateRoles = computed(() => hasPermission('roles.update'))
@@ -431,7 +384,6 @@ const canCreateUsers = computed(() => hasPermission('users.create'))
 const canUpdateUsers = computed(() => hasPermission('users.update'))
 const canDeleteUsers = computed(() => hasPermission('users.delete'))
 const canBlockUsers = computed(() => hasPermission('users.block'))
-const canResetUserPassword = computed(() => authStore.hasActiveCompanyPermission('users.reset_password'))
 const canAssignRoles = computed(() => hasPermission('roles.assign'))
 const canSaveRoleForm = computed(() => roleForm.id ? canUpdateRoles.value && selectedRole.value?.editable !== false : canCreateRoles.value)
 const canSaveUserForm = computed(() => userForm.id ? canUpdateUsers.value : canCreateUsers.value)
@@ -504,18 +456,11 @@ watch(() => authStore.activeCompanyId, () => {
   roleSearch.value = ''
 })
 
-watch(activeSection, (section) => {
-  localStorage.setItem(SECTION_KEY, section)
-})
 
 watch(userEditorTab, (tab) => {
   localStorage.setItem(USER_EDITOR_TAB_KEY, tab)
 })
 
-function readStoredSection(): SectionKey {
-  const storedValue = localStorage.getItem(SECTION_KEY)
-  return storedValue === 'roles' ? 'roles' : 'users'
-}
 
 function readStoredUserEditorTab(): UserEditorTab {
   const storedValue = localStorage.getItem(USER_EDITOR_TAB_KEY)
@@ -527,9 +472,6 @@ function readStoredUserEditorTab(): UserEditorTab {
   return 'info'
 }
 
-function setActiveSection(value: string) {
-  if (value === 'roles' || value === 'users') activeSection.value = value
-}
 
 function setUserEditorTab(value: string) {
   if (value === 'info' || value === 'permissions') userEditorTab.value = value
@@ -796,77 +738,9 @@ function openEditUserEditor(userItem: CompanyManagedUser) {
 
 function closeUserEditor() {
   isUserEditorOpen.value = false
-  closePasswordResetModal()
   resetUserForm()
   isUserMenuOpen.value = false
   markEditorSaved()
-}
-
-function openPasswordResetModal() {
-  if (!canResetUserPassword.value || !selectedUser.value) {
-    return
-  }
-
-  passwordResetForm.newPassword = ''
-  passwordResetForm.repeatPassword = ''
-  passwordResetError.value = ''
-  passwordResetUser.value = selectedUser.value
-}
-
-function closePasswordResetModal() {
-  passwordResetUser.value = null
-  passwordResetForm.newPassword = ''
-  passwordResetForm.repeatPassword = ''
-  passwordResetError.value = ''
-}
-
-function isCurrentSessionUser(userId: number | string) {
-  const sessionUserId = authStore.user?.userId ?? authStore.user?.id ?? authStore.user?.uid
-  return sessionUserId !== undefined && String(sessionUserId) === String(userId)
-}
-
-async function submitPasswordReset() {
-  if (!passwordResetUser.value || !canResetUserPassword.value) {
-    return
-  }
-
-  const newPassword = passwordResetForm.newPassword
-
-  if (newPassword.length < 8 || newPassword.length > 128) {
-    passwordResetError.value = 'Hasło musi mieć od 8 do 128 znaków.'
-    return
-  }
-
-  if (newPassword !== passwordResetForm.repeatPassword) {
-    passwordResetError.value = 'Podane hasła nie są takie same.'
-    return
-  }
-
-  const resetUserId = passwordResetUser.value.id
-  const shouldLogout = isCurrentSessionUser(resetUserId)
-
-  try {
-    await store.resetUserPassword(resetUserId, newPassword)
-    closePasswordResetModal()
-    uiStore.addToast({
-      type: 'success',
-      title: 'Hasło zmienione',
-      message: shouldLogout
-        ? 'Twoje hasło zostało zmienione. Zaloguj się ponownie.'
-        : 'Nowe hasło użytkownika zostało zapisane.',
-    })
-
-    if (shouldLogout) {
-      await authStore.logout()
-      await router.push('/login')
-    }
-  } catch {
-    uiStore.addToast({
-      type: 'error',
-      title: 'Nie udało się zmienić hasła',
-      message: 'Sprawdź hasło i spróbuj ponownie.',
-    })
-  }
 }
 
 async function toggleSelectedUserStatus() {
@@ -936,6 +810,13 @@ async function saveUser() {
       message: 'Login, email i hasło dla nowego użytkownika są wymagane.',
     })
     return
+  }
+  if (!userForm.id) {
+    const message = newPasswordError(userForm.password)
+    if (message) {
+      uiStore.addToast({ type: 'warning', title: 'Nieprawidłowe hasło', message })
+      return
+    }
   }
 
   isSavingEditor.value = true
@@ -1098,27 +979,19 @@ onMounted(async () => {
   await reload()
 })
 const workspacePortal = useWorkspacePortal()
-useWorkspaceDirty(computed(() => editorDirty.value || Boolean(passwordResetUser.value)))
+useWorkspaceDirty(editorDirty)
 </script>
 
 <style scoped>
 .company-management { grid-template-columns: minmax(0,1fr); }
-.company-directory { max-height: 25rem; }
 .company-editor { outline: none; scroll-margin-top: 1rem; }
-.company-directory-item { display:flex; width:100%; align-items:center; gap:.75rem; padding:.75rem; margin-bottom:.25rem; border:1px solid transparent; border-radius:var(--rw-radius-control); text-align:left; transition:background-color .15s,border-color .15s; }
-.company-directory-item:hover { background:rgb(var(--rw-surface-hover)); }
-.company-directory-item--selected { border-color:rgb(var(--rw-border-strong)); background:rgb(var(--rw-surface-selected)); }
-.company-directory-item:focus-visible,.company-start-tile:focus-visible { outline:2px solid rgb(var(--rw-focus-ring)); outline-offset:2px; }
-.company-directory-item:disabled,.company-start-tile:disabled { cursor:not-allowed; opacity:.6; }
 .company-avatar { display:grid; width:2.25rem; height:2.25rem; flex-shrink:0; place-items:center; border:1px solid rgb(var(--rw-border)); border-radius:var(--rw-radius-control); background:rgb(var(--rw-surface-muted)); font-size:.75rem; font-weight:600; color:rgb(var(--rw-text-muted)); }
 .company-choice-row { display:flex; min-width:0; align-items:center; gap:.75rem; padding:.75rem 1rem; border-bottom:1px solid rgb(var(--rw-border)); cursor:pointer; }
 .company-choice-row:last-child { border-bottom:0; }
 .company-permission-heading { padding:.6rem 1rem; border-bottom:1px solid rgb(var(--rw-border)); background:rgb(var(--rw-surface-muted)); color:rgb(var(--rw-text-muted)); font-size:.6875rem; font-weight:600; }
 .company-permission-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.5rem 1rem; border-bottom:1px solid rgb(var(--rw-border)); }
 .company-editor-footer { position:sticky; bottom:0; z-index:5; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:.5rem; padding:.75rem; border:1px solid rgb(var(--rw-border)); border-radius:var(--rw-radius-panel); background:rgb(var(--rw-surface)); }
-.company-start-tile { display:flex; flex-direction:column; align-items:flex-start; gap:.5rem; padding:1rem; border:1px solid rgb(var(--rw-border)); border-radius:var(--rw-radius-control); text-align:left; }
-.company-start-tile:hover { border-color:rgb(var(--rw-border-strong)); background:rgb(var(--rw-surface-hover)); }
 .company-editor :deep(.ui-card-header > div:first-child) { min-width:0; }
-@media(min-width:768px) { .company-management { grid-template-columns:minmax(24rem,28.5rem) minmax(0,1fr); overflow:hidden; } .company-directory { max-height:none; } }
+@media(min-width:1536px) { .company-directories { grid-template-columns:minmax(0,1.65fr) minmax(0,1fr); } }
 @media(max-width:479px) { .company-permission-row { flex-wrap:wrap; gap:.5rem; } .company-permission-row > :last-child { width:100%; } }
 </style>

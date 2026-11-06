@@ -24,6 +24,14 @@ export interface LoginPayload {
   password: string
 }
 
+export interface IpLocation {
+  status: 'located' | 'private' | 'unavailable'
+  countryCode: string | null
+  country: string | null
+  city: string | null
+  region: string | null
+}
+
 export interface AuthSession {
   token: string
   user: AuthUser | null
