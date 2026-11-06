@@ -53,6 +53,21 @@ export function historyPresetRange(preset: string, now = new Date()) {
   return { from: historyLocalInstant(`${from}T00:00`), to: to ? historyLocalInstant(`${to}T00:00`) : now }
 }
 
+export function customHistoryRange(fromValue: string, toValue: string, now = new Date()) {
+  let from = historyLocalInstant(fromValue)
+  const requestedTo = historyLocalInstant(toValue)
+  // The history API uses an exclusive end. Include the selected minute in full.
+  const end = requestedTo.getTime() + (toValue.length === 16 ? 60_000 : 0)
+  const to = new Date(Math.min(end, now.getTime()))
+
+  if (from > now && from.getTime() < end) {
+    const today = businessToday(HISTORY_TIMEZONE, now)
+    from = historyLocalInstant(`${today}T00:00`)
+  }
+  validateHistoryRange(from, to, now.getTime())
+  return { from, to }
+}
+
 export function validateHistoryRange(from: Date, to: Date, now = Date.now()) {
   if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime())) throw new Error('Wybierz poprawny zakres dat.')
   if (from >= to) throw new Error('Data „Od” musi być wcześniejsza niż data „Do”.')

@@ -71,6 +71,7 @@ const props = withDefaults(defineProps<{
   required?: boolean
   size?: 'sm' | 'md'
   defaultTime?: string
+  resetTimeOnDateSelect?: boolean
 }>(), {
   label: undefined,
   hint: undefined,
@@ -80,6 +81,7 @@ const props = withDefaults(defineProps<{
   required: false,
   size: 'md',
   defaultTime: '08:00',
+  resetTimeOnDateSelect: false,
 })
 
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
@@ -152,6 +154,11 @@ function closeDropdown() {
 
 function selectDate(value: string) {
   selectedDate.value = value
+  if (props.resetTimeOnDateSelect) {
+    const { hour, minute } = fallbackTimeParts(props.defaultTime)
+    selectedHour.value = hour
+    selectedMinute.value = minute
+  }
   emitCurrentValue()
 }
 

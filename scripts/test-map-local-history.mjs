@@ -3,14 +3,18 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import ts from 'typescript'
+import { compileScript, parse } from '@vue/compiler-sfc'
 const require = createRequire(import.meta.url)
 const pinia = require('pinia')
+const { effectScope, nextTick } = require('vue')
 const memory = new Map()
 const localStorage = {getItem:key=>memory.get(key) || null,setItem:(key,value)=>memory.set(key,value),removeItem:key=>memory.delete(key)}
 function load(file, mocks={}) {
   const exports = {}
-  const code = ts.transpileModule(readFileSync(new URL('../'+file,import.meta.url),'utf8'), {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText
-  vm.runInNewContext(code,{exports,AbortController,Intl,Date,Number,console,localStorage,require:name=>mocks[name] || require(name)})
+  const source = readFileSync(new URL('../'+file,import.meta.url),'utf8')
+  const script = file.endsWith('.vue') ? compileScript(parse(source).descriptor, { id: 'history-test' }).content : source
+  const code = ts.transpileModule(script, {compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText
+  vm.runInNewContext(code,{exports,AbortController,Intl,Date,Number,console,localStorage,require:name=>mocks[name] || (name.endsWith('.vue') ? {} : require(name))})
   return exports
 }
 const plain=value=>JSON.parse(JSON.stringify(value))
@@ -28,6 +32,42 @@ const yesterday=time.historyPresetRange('yesterday',new Date('2026-03-30T08:00:0
 assert.equal((yesterday.to-yesterday.from)/3600000,23)
 assert.throws(()=>time.validateHistoryRange(new Date(0),new Date(181*86400000)),/180/)
 assert.throws(()=>time.validateHistoryRange(new Date(),new Date(Date.now()+120000)),/przyszłości/)
+const now = new Date('2026-11-06T12:34:56.789Z')
+for (const end of ['2026-11-06T23:59', '2026-11-09T23:59']) {
+  const range = time.customHistoryRange('2026-11-05T00:00', end, now)
+  assert.equal(range.from.toISOString(), '2026-11-04T23:00:00.000Z')
+  assert.equal(range.to.toISOString(), now.toISOString())
+}
+const futureRange = time.customHistoryRange('2026-11-09T00:00', '2026-11-09T23:59', now)
+assert.equal(futureRange.from.toISOString(), '2026-11-05T23:00:00.000Z')
+assert.equal(futureRange.to.toISOString(), now.toISOString())
+const fullDay = time.customHistoryRange('2026-10-25T00:00', '2026-10-25T23:59', now)
+assert.equal((fullDay.to - fullDay.from) / 3600000, 25, 'Include the whole last minute on a DST transition day')
+assert.throws(() => time.customHistoryRange('2026-11-06T00:00', '2026-11-05T23:59', now), /wcześniejsza/)
+assert.throws(() => time.customHistoryRange('2026-01-01T00:00', '2026-11-09T23:59', now), /180/)
+
+const pickerComponent = load('src/components/ui/AppDateTimePicker.vue', {
+  '@/utils/date': load('src/utils/date.ts'),
+}).default
+for (const [defaultTime, resetTimeOnDateSelect, expectedTime] of [
+  ['00:00', true, '00:00'], ['23:59', true, '23:59'], ['08:00', false, '11:42'],
+]) {
+  const scope = effectScope()
+  const emitted = []
+  const picker = scope.run(() => pickerComponent.setup(
+    { modelValue: '2026-11-06T11:42', defaultTime, resetTimeOnDateSelect },
+    { emit: (_, value) => emitted.push(value), expose() {} },
+  ))
+  picker.isOpen.value = true
+  picker.selectDate('2026-10-25')
+  await nextTick()
+  assert.equal(emitted.at(-1), '2026-10-25T' + expectedTime)
+  picker.selectedHour.value = '15'
+  picker.selectedMinute.value = '17'
+  await nextTick()
+  assert.equal(emitted.at(-1), '2026-10-25T15:17', 'Time can still be adjusted manually')
+  scope.stop()
+}
 const utils=load('src/utils/localPositionHistory.ts')
 const history=load('src/composables/usePositionHistory.ts',{'@/utils/localPositionHistory':utils}).usePositionHistory()
 const first={id:1,deviceId:1,provider:'LOCAL',ts:'2026-10-06T08:00:00Z',positionValid:true,lat:52,lon:19}

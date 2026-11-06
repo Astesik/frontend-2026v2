@@ -46,7 +46,7 @@ const state = {
   renderMarkers() { renders.push(Array.from(state.api.mapMarkerVehicles.value, vehicle => vehicle.id)) },
   renderPlaceOverlays() {}, applyPlacePlacementCursor() {}, collapseVehiclePanelOnMobile() {}, animateHistoryRouteRender() {}, focusPositionHistory() {},
   focusVehicle(vehicle) { focused.push(vehicle.id) }, renderTodayRoute() { liveRefreshes++ }, refreshSelectedVehiclePosition() { liveRefreshes++ },
-  historyLocalInstant: value => new Date(value), validateHistoryRange() {}, historyRangeForPreset() {},
+  customHistoryRange: (from, to) => ({ from: new Date(from), to: new Date(to) }), validateHistoryRange() {}, historyRangeForPreset() {},
   routeHistoryErrorMessage: error => error.message, showRouteHistoryErrorToast(error) { throw error },
 }
 const scope = effectScope()

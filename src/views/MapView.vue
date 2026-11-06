@@ -206,13 +206,16 @@
           label="Od"
           size="sm"
           default-time="00:00"
+          reset-time-on-date-select
           @update:model-value="setCustomHistoryDate('dateFrom', $event)"
         />
         <AppDateTimePicker
           :model-value="historyFilters.dateTo"
           label="Do"
+          hint="Jeśli wybierzesz późniejszą datę lub godzinę, wyszukamy historię do teraz."
           size="sm"
           default-time="23:59"
+          reset-time-on-date-select
           @update:model-value="setCustomHistoryDate('dateTo', $event)"
         />
 
@@ -866,7 +869,7 @@ import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
 import PlaceDetailsModal from '@/components/places/PlaceDetailsModal.vue'
 import { usePositionHistory, type RouteLatLng } from '@/composables/usePositionHistory'
 import LocalHistoryPointPopup from '@/components/map/LocalHistoryPointPopup.vue'
-import { historyLocalValue as toLocalDateTimeValue, historyLocalInstant, historyPresetRange as historyRangeForPreset, validateHistoryRange, todayHistoryRange } from '@/utils/historyTime'
+import { historyLocalValue as toLocalDateTimeValue, customHistoryRange, historyPresetRange as historyRangeForPreset, validateHistoryRange, todayHistoryRange } from '@/utils/historyTime'
 import { historyMetric, historyPointSpeed, historyPointFuel, fuelEventLabel, validHistoryPosition } from '@/utils/localPositionHistory'
 import { loadGoogleMaps } from '@/services/googleMapsLoader'
 import { DARK_STYLES } from '@/services/googleMapStyles'
@@ -1434,6 +1437,7 @@ function applyHistoryPreset(preset: HistoryPreset) {
 }
 
 function setCustomHistoryDate(field: 'dateFrom' | 'dateTo', value: string) {
+  if (historyFilters[field] === value) return
   historyFilters[field] = value
   historyFilters.preset = ''
 }
@@ -3006,10 +3010,13 @@ async function searchPositionHistory() {
   if (!vehicle || !canReadLocalHistory.value) return
   let from: Date, to: Date
   try {
-    const presetRange = historyFilters.preset ? historyRangeForPreset(historyFilters.preset) : null
-    from = presetRange?.from || historyLocalInstant(historyFilters.dateFrom)
-    to = presetRange?.to || historyLocalInstant(historyFilters.dateTo)
-    validateHistoryRange(from, to)
+    const now = new Date()
+    const range = historyFilters.preset
+      ? historyRangeForPreset(historyFilters.preset, now)
+      : customHistoryRange(historyFilters.dateFrom, historyFilters.dateTo, now)
+    from = range.from
+    to = range.to
+    if (historyFilters.preset) validateHistoryRange(from, to, now.getTime())
   } catch (error) {
     historyFormError.value = error instanceof Error ? error.message : 'Wybierz poprawny zakres dat.'
     return
