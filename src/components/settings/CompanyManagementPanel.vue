@@ -90,7 +90,7 @@
               <h3 class="company-permission-heading">{{ category.label }}</h3>
               <div v-for="permission in category.permissions" :key="permission.code" class="company-permission-row" :title="permissionTitle(permission)">
                 <span class="min-w-0 text-xs text-ui-text">{{ permission.name || permission.code }}</span>
-                <AppSelect :model-value="overrideEffectFor(permission.code) || 'INHERIT'" :options="overrideEffectOptions" size="sm" class="w-40 max-w-full shrink-0" :aria-label="'Dostęp: ' + (permission.name || permission.code)" :disabled="!canEditUserOverrides || editorBusy" @update:model-value="setOverrideEffect(permission.code, $event)" />
+                <AppSelect :model-value="overrideEffectFor(permission.code) || 'INHERIT'" :options="overrideEffectOptions" size="sm" class="ml-auto !w-36 max-w-full shrink-0" :aria-label="'Dostęp: ' + (permission.name || permission.code)" :disabled="!canEditUserOverrides || editorBusy" @update:model-value="setOverrideEffect(permission.code, $event)" />
               </div>
             </section>
             <p v-if="!overridePermissionCategories.length" class="p-5 text-center ui-caption">Brak uprawnień pasujących do filtra.</p>
@@ -993,5 +993,5 @@ useWorkspaceDirty(editorDirty)
 .company-editor-footer { position:sticky; bottom:0; z-index:5; display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:.5rem; padding:.75rem; border:1px solid rgb(var(--rw-border)); border-radius:var(--rw-radius-panel); background:rgb(var(--rw-surface)); }
 .company-editor :deep(.ui-card-header > div:first-child) { min-width:0; }
 @media(min-width:1536px) { .company-directories { grid-template-columns:minmax(0,1.65fr) minmax(0,1fr); } }
-@media(max-width:479px) { .company-permission-row { flex-wrap:wrap; gap:.5rem; } .company-permission-row > :last-child { width:100%; } }
+@media(max-width:479px) { .company-permission-row { flex-wrap:wrap; gap:.5rem; } }
 </style>
