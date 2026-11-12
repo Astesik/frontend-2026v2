@@ -1,11 +1,7 @@
 export type RepairStatus =
   | 'new'
-  | 'planned'
   | 'ready_to_be_repaired'
-  | 'at_location'
-  | 'IN_FIELD'
   | 'done'
-  | 'cancelled'
 
 export type RepairFaultStatus = 'OPEN' | 'DONE'
 
@@ -25,6 +21,8 @@ export interface RepairFault {
   description: string
   status: RepairFaultStatus
   note: string | null
+  placeId?: number | null
+  placeName?: string | null
   createdBy?: RepairCreatedBy | null
   repairedBy?: RepairCreatedBy | null
   assignedMechanicId: number | null
@@ -89,6 +87,8 @@ export interface Repair {
   placeName: string | null
   vehicle?: RepairVehicleSummary | null
   place?: RepairPlaceSummary | null
+  currentPlaces?: RepairPlaceSummary[]
+  urgent?: boolean
   plannedArrivalAt: string | null
   plannedDepartureAt: string | null
   arrivalTime?: string | null
@@ -107,7 +107,7 @@ export interface Repair {
 
 export interface RepairPayload {
   vehicleId: number
-  placeId: number
+  urgent?: boolean
   plannedArrivalAt: string | null
   plannedDepartureAt: string | null
   status: RepairStatus
@@ -115,7 +115,7 @@ export interface RepairPayload {
 }
 
 export interface RepairUpdatePayload {
-  placeId?: number | null
+  urgent?: boolean
   plannedArrivalAt?: string | null
   plannedDepartureAt?: string | null
   status?: RepairStatus
@@ -124,10 +124,12 @@ export interface RepairUpdatePayload {
 
 export interface RepairFaultPayload {
   description: string
+  placeId?: number | null
   assignedMechanicId: number | null
 }
 
 export interface RepairFaultUpdatePayload {
+  placeId?: number | null
   description?: string
   assignedMechanicId?: number | null
   note?: string | null

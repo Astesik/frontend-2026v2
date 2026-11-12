@@ -17,6 +17,7 @@ import type {
   RepairFaultPhoto,
   RepairPayload,
   RepairPhoto,
+  RepairStatus,
   RepairUpdatePayload,
 } from '@/types/repair'
 
@@ -30,9 +31,17 @@ interface RepairCreateResult {
   photoUploadFailures: number
 }
 
+interface RepairLoadOptions {
+  silent?: boolean
+  background?: boolean
+}
+
 interface RepairsReturnPosition {
   contentScrollTop: number
   nestedScrollTops: Record<string, number>
+  mobileRepairStatus: RepairStatus
+  repairSearch: string
+  visibleRepairCount: number
 }
 
 export const useRepairStore = defineStore('repairs', () => {
@@ -50,6 +59,8 @@ export const useRepairStore = defineStore('repairs', () => {
   const isMutating = ref(false)
   const isPhotoMutating = ref(false)
   const repairsReturnPosition = ref<RepairsReturnPosition | null>(null)
+
+  let apiEpoch = 0
 
   const repairById = computed(() => new Map(repairs.value.map((repair) => [repair.id, repair])))
 
@@ -126,8 +137,12 @@ export const useRepairStore = defineStore('repairs', () => {
     }
   }
 
-  async function loadRepairs(options?: { silent?: boolean }) {
-    repairs.value = await repairService.getRepairs(undefined, options)
+  async function loadRepairs(options?: RepairLoadOptions) {
+    const epoch = apiEpoch
+    const previous = repairs.value
+    const next = await repairService.getRepairs(undefined, options)
+    if (epoch !== apiEpoch || (options?.background && (isMutating.value || repairs.value !== previous))) return
+    repairs.value = next
   }
 
   async function loadListData(options?: { silent?: boolean }) {
@@ -197,7 +212,9 @@ export const useRepairStore = defineStore('repairs', () => {
     }
   }
 
-  async function loadRepairDetail(repairId: number | string, options?: { silent?: boolean }) {
+  async function loadRepairDetail(repairId: number | string, options?: RepairLoadOptions) {
+    const epoch = apiEpoch
+    const previous = repairDetailsById.value[String(repairId)]
     const shouldShowLoading = !options?.silent
 
     if (shouldShowLoading) {
@@ -206,24 +223,29 @@ export const useRepairStore = defineStore('repairs', () => {
 
     try {
       const details = await repairService.getRepair(repairId, options)
+      const key = String(details.id)
+      if (epoch !== apiEpoch || (options?.background && (
+        isMutating.value || isPhotoMutating.value || repairDetailsById.value[key] !== previous
+      ))) return null
+
       const comments = details.comments || []
-      currentRepairComments.value = comments
-      currentRepair.value = {
-        ...details,
-        comments,
+      const next = { ...details, comments }
+      if (!options?.background || currentRepair.value?.id === details.id) {
+        currentRepairComments.value = comments
+        currentRepair.value = next
       }
       repairDetailsById.value = {
         ...repairDetailsById.value,
-        [String(details.id)]: currentRepair.value,
+        [key]: next,
       }
       repairCommentsById.value = {
         ...repairCommentsById.value,
-        [String(details.id)]: comments,
+        [key]: comments,
       }
-      upsertRepair(currentRepair.value)
-      return currentRepair.value
+      upsertRepair(next)
+      return next
     } finally {
-      if (shouldShowLoading) {
+      if (shouldShowLoading && epoch === apiEpoch) {
         isDetailLoading.value = false
       }
     }
@@ -294,6 +316,48 @@ export const useRepairStore = defineStore('repairs', () => {
     }
   }
 
+  async function uploadFaultPhotos(
+    repairId: number | string,
+    faultId: number | string,
+    files: File[],
+    options?: { silent?: boolean },
+  ) {
+    let failures = 0
+    for (const file of files) {
+      try {
+        await repairService.uploadRepairFaultPhoto(repairId, faultId, file, options)
+      } catch {
+        failures += 1
+      }
+    }
+    return failures
+  }
+
+  async function reportVehicleFault(vehicleId: number, fault: RepairFaultCreatePayload, urgent: boolean) {
+    isMutating.value = true
+    const epoch = apiEpoch
+
+    try {
+      const { repairId, faultId } = await repairService.reportVehicleFault(vehicleId, {
+        description: fault.description.trim(),
+        placeId: fault.placeId,
+        urgent,
+      })
+      const photoUploadFailures = await uploadFaultPhotos(repairId, faultId, fault.photos || [], { silent: true })
+
+      // A failed refresh does not undo the saved fault.
+      if (epoch === apiEpoch) {
+        await loadRepairs({ silent: true }).catch(() => undefined)
+        if (currentRepair.value?.id === repairId) {
+          await loadRepairDetail(repairId, { silent: true }).catch(() => undefined)
+        }
+      }
+      return photoUploadFailures
+    } finally {
+      isMutating.value = false
+    }
+  }
+
   async function createRepairWithFaults(
     payload: RepairPayload,
     faults: RepairFaultCreatePayload[],
@@ -316,21 +380,16 @@ export const useRepairStore = defineStore('repairs', () => {
         const createdFault = await repairService.addRepairFault(createdRepair.id, {
           description,
           assignedMechanicId: fault.assignedMechanicId,
+          placeId: fault.placeId,
         }, options)
         createdFaults.push(createdFault)
 
-        for (const file of fault.photos || []) {
-          try {
-            await repairService.uploadRepairFaultPhoto(createdRepair.id, createdFault.id, file, options)
-          } catch {
-            photoUploadFailures += 1
-          }
-        }
+        photoUploadFailures += await uploadFaultPhotos(createdRepair.id, createdFault.id, fault.photos || [], options)
       }
 
       await loadRepairs({ silent: true })
       return {
-        repair: createdRepair,
+        repair: repairs.value.find(repair => repair.id === createdRepair.id) ?? createdRepair,
         faults: createdFaults,
         photoUploadFailures,
       }
@@ -585,6 +644,7 @@ export const useRepairStore = defineStore('repairs', () => {
   }
 
   function resetApiState() {
+    apiEpoch++
     repairs.value = []
     currentRepair.value = null
     currentRepairComments.value = []
@@ -632,6 +692,7 @@ export const useRepairStore = defineStore('repairs', () => {
     uploadRepairPhoto,
     deleteRepairPhoto,
     createRepairWithFaults,
+    reportVehicleFault,
     updateRepair,
     deleteRepair,
     addRepairFault,

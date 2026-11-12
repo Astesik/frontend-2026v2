@@ -1,7 +1,7 @@
 <template>
   <AppModal
     :open="open"
-    title="Dodaj nową naprawę"
+    :title="quickReport ? 'Dodaj usterkę' : 'Dodaj nową naprawę'"
     :size="quickReport ? 'sm' : 'xl'"
     :busy="isMutating"
     :close-on-backdrop="false"
@@ -10,9 +10,9 @@
     body-class="!min-h-0 !flex-1 !overflow-hidden !bg-ui-surface !p-3 sm:!p-4"
     @close="closeModal"
   >
-    <form v-if="!result" id="shared-create-repair-form" class="grid h-full min-h-0 min-w-0 gap-3 sm:gap-4" :class="quickReport ? ((!dictionariesLoading && !basePlace) ? 'grid-rows-[auto_minmax(0,1fr)]' : 'grid-rows-[minmax(0,1fr)]') : 'grid-rows-[auto_minmax(0,1fr)] md:grid-cols-[19rem_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)]'" @submit.prevent="submitRepair">
-      <section v-if="!quickReport || (!dictionariesLoading && !basePlace)" class="min-w-0" :class="quickReport ? '' : 'space-y-3'">
-        <div v-if="!quickReport" class="grid grid-cols-2 gap-2 md:grid-cols-1 md:gap-3">
+    <form v-if="!result" id="shared-create-repair-form" class="h-full min-h-0 min-w-0 gap-3 sm:gap-4" :class="quickReport ? 'grid grid-rows-[minmax(0,1fr)]' : 'space-y-4 overflow-y-auto md:grid md:grid-cols-[19rem_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)] md:space-y-0 md:overflow-hidden'" @submit.prevent="submitRepair">
+      <section v-if="!quickReport" class="min-w-0 space-y-3">
+        <div class="grid grid-cols-1 gap-2 md:gap-3">
           <AppSearchSelect
             v-model="form.vehicleId"
             label="Pojazd"
@@ -21,11 +21,11 @@
             :disabled="lockVehicle"
             :error="detailsError && !form.vehicleId ? 'Wybierz pojazd.' : undefined"
           />
-          <AppSearchSelect v-model="form.placeId" label="Miejsce" placeholder="Wybierz miejsce naprawy" :options="placeOptions" :error="detailsError && !form.placeId ? 'Wybierz miejsce naprawy.' : undefined" />
 
-          <AppSelect v-model="form.status" label="Status" :options="statusOptions" />
+          <AppSelect v-model="form.status" label="Status" :options="repairStatusOptions" />
           <AppDateTimePicker v-model="form.arrivalAt" label="Planowany przyjazd" default-time="08:00" />
           <AppDateTimePicker v-model="form.departureAt" label="Planowany odjazd" default-time="16:00" />
+          <AppSwitch v-model="form.urgent" label="Pilne" />
         </div>
         <div v-if="!quickReport && existingCurrentWeekRepair" class="repair-warning mt-3">
             <CalendarClock class="h-5 w-5 shrink-0" />
@@ -38,7 +38,6 @@
             <AppButton type="button" size="sm" variant="secondary" @click="openExistingRepair(existingOpenRepair)">Przejdź do naprawy</AppButton>
           </div>
 
-        <p v-if="quickReport && !dictionariesLoading && !basePlace" class="mt-3 ui-error">Nie znaleziono miejsca „Baza”. Dodaj je w strefach lub sprawdź dostęp do miejsc.</p>
       </section>
 
       <section class="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden">
@@ -50,6 +49,8 @@
               <AppIconButton label="Usuń usterkę" size="sm" variant="ghost" :disabled="isMutating" @click="removeFault(fault.id)"><Trash2 class="h-4 w-4" /></AppIconButton>
             </div>
             <AppTextarea v-model="fault.description" label="Usterka" placeholder="Opisz, co wymaga naprawy..." :rows="3" :disabled="!canCreateFaults || isMutating" :error="faultsError && !fault.description.trim() ? 'Wpisz opis usterki.' : undefined" />
+            <AppSwitch v-if="quickReport" v-model="form.urgent" class="mt-3" label="Pilne" />
+            <AppSearchSelect v-model="fault.placeId" class="mt-3" label="Planowane miejsce" placeholder="Do ustalenia" :options="placeOptions" :disabled="!canCreateFaults || isMutating" />
             <section class="mt-3 rounded-[6px] border border-ui-divider bg-ui-surface p-3">
               <div class="mb-2 flex items-center justify-between gap-2"><span class="flex items-center gap-2 ui-label text-ui-text"><ImagePlus class="h-4 w-4 text-ui-icon" />Zdjęcia</span><AppBadge>{{ fault.photos.length }}</AppBadge></div>
               <button type="button" class="flex min-h-16 w-full flex-col items-center justify-center gap-1.5 rounded-[6px] border border-dashed border-ui-border bg-ui-input p-3 text-sm font-medium text-ui-text-secondary transition hover:border-ui-border-strong hover:bg-ui-hover disabled:cursor-not-allowed disabled:bg-ui-disabled" :disabled="isMutating || !canAddFaultPhotos" @click="openPhotoPicker(fault.id)"><ImagePlus class="h-4 w-4" />Dodaj zdjęcia</button>
@@ -101,7 +102,16 @@
 import { useWorkspaceDirty } from '@/composables/useWorkspace'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { CalendarClock, CircleCheck, CircleX, ImagePlus, Plus, Trash2, TriangleAlert, X } from 'lucide-vue-next'
+import {
+  IconCalendarTime as CalendarClock,
+  IconCircleCheck as CircleCheck,
+  IconCircleX as CircleX,
+  IconPhotoPlus as ImagePlus,
+  IconPlus as Plus,
+  IconTrash as Trash2,
+  IconAlertTriangle as TriangleAlert,
+  IconX as X,
+} from '@tabler/icons-vue'
 import PhotoSourceMenu from '@/components/ui/PhotoSourceMenu.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -109,7 +119,8 @@ import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppSearchSelect, { type AppSearchSelectOption } from '@/components/ui/AppSearchSelect.vue'
-import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import AppSwitch from '@/components/ui/AppSwitch.vue'
 import AppTextarea from '@/components/ui/AppTextarea.vue'
 import { getApiErrorMessage } from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'
@@ -117,18 +128,18 @@ import { useFleetStore } from '@/stores/fleetStore'
 import { useRepairStore } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
 import type { Repair, RepairStatus } from '@/types/repair'
+import { normalizeRepairStatus, repairStatusOptions } from '@/utils/repairPresentation'
 
 interface DraftPhoto { id: string; file: File; objectUrl: string }
-interface DraftFault { id: string; description: string; photos: DraftPhoto[]; photoError: string }
+interface DraftFault { id: string; description: string; placeId: string; photos: DraftPhoto[]; photoError: string }
 
 const props = withDefaults(defineProps<{ open: boolean; initialVehicleId?: number | string | null; lockVehicle?: boolean; existingRepairs?: Repair[]; quickReport?: boolean }>(), { initialVehicleId: null, lockVehicle: false, existingRepairs: () => [], quickReport: false })
-const emit = defineEmits<{ close: []; created: [repair: Repair]; 'open-repair': [repair: Repair] }>()
+const emit = defineEmits<{ close: []; created: [repair: Repair]; 'fault-reported': []; 'open-repair': [repair: Repair] }>()
 const authStore = useAuthStore()
 const fleetStore = useFleetStore()
 const repairStore = useRepairStore()
 const uiStore = useUiStore()
 const { places, isMutating } = storeToRefs(repairStore)
-const dictionariesLoading = ref(false)
 const faultsError = ref(false)
 const detailsError = ref(false)
 const result = ref<'success' | 'error' | null>(null)
@@ -139,34 +150,28 @@ const galleryInput = ref<HTMLInputElement | null>(null)
 const cameraInput = ref<HTMLInputElement | null>(null)
 const selectedPhotoFaultId = ref<string | null>(null)
 const photoPickerFaultId = ref<string | null>(null)
-const form = reactive({ vehicleId: '', placeId: '', status: 'planned' as RepairStatus, arrivalAt: '', departureAt: '' })
-const statusOptions: AppSelectOption[] = [
-  { label: 'Nowa', value: 'new' }, { label: 'Zaplanowana', value: 'planned' }, { label: 'Gotowa do naprawy', value: 'ready_to_be_repaired' },
-  { label: 'W lokalizacji', value: 'at_location' }, { label: 'W terenie', value: 'IN_FIELD' }, { label: 'Zakończona', value: 'done' }, { label: 'Anulowana', value: 'cancelled' },
-]
+const form = reactive({ vehicleId: '', urgent: false, status: 'new' as RepairStatus, arrivalAt: '', departureAt: '' })
 const vehicleOptions = computed<AppSearchSelectOption[]>(() => fleetStore.apiVehicles.map((vehicle) => ({ value: String(vehicle.id), label: vehicle.licensePlate, searchText: vehicle.licensePlate })))
-const placeOptions = computed<AppSearchSelectOption[]>(() => places.value.map((place) => ({ value: String(place.id), label: place.name })))
+const placeOptions = computed<AppSearchSelectOption[]>(() => [{ value: '', label: 'Do ustalenia' }, ...places.value.map(place => ({ value: String(place.id), label: place.name }))])
 const canCreateFaults = computed(() => authStore.canManageCompany || authStore.hasActiveCompanyPermission('faults.create'))
 const canAddFaultPhotos = computed(() => authStore.canManageCompany || authStore.hasActiveCompanyPermission('fault_photos.add'))
 const canCreateRepairs = computed(() => authStore.canManageCompany || authStore.hasActiveCompanyPermission('repairs.create'))
-const basePlace = computed(() => places.value.find((place) => place.name.trim().toLocaleLowerCase('pl-PL') === 'baza'))
-const canSubmit = computed(() => canCreateRepairs.value && (!props.quickReport || (canCreateFaults.value && !dictionariesLoading.value && Boolean(basePlace.value))))
+const canSubmit = computed(() => canCreateRepairs.value && (!props.quickReport || canCreateFaults.value))
 const matchingRepairs = computed(() => props.existingRepairs.filter((repair) => String(repair.vehicle?.id ?? repair.vehicleId) === form.vehicleId))
 const existingCurrentWeekRepair = computed(() => matchingRepairs.value.find((repair) => isCurrentWeek(repair.plannedArrivalAt)) || null)
-const existingOpenRepair = computed(() => matchingRepairs.value.find((repair) => !['done', 'cancelled'].includes(normalizeStatus(repair.status))) || null)
+const existingOpenRepair = computed(() => matchingRepairs.value.find((repair) => normalizeRepairStatus(repair.status) !== 'done') || null)
 
-function newFault(): DraftFault { return { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, description: '', photos: [], photoError: '' } }
+function newFault(): DraftFault { return { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, description: '', placeId: '', photos: [], photoError: '' } }
 function resetForm() {
-  revokePhotos(); Object.assign(form, { vehicleId: props.initialVehicleId == null ? '' : String(props.initialVehicleId), placeId: '', status: 'planned', arrivalAt: '', departureAt: '' })
+  revokePhotos(); Object.assign(form, { vehicleId: props.initialVehicleId == null ? '' : String(props.initialVehicleId), urgent: false, status: 'new', arrivalAt: '', departureAt: '' })
   faults.value = [newFault()]; detailsError.value = false; faultsError.value = false; result.value = null; resultMessage.value = ''; createdRepair.value = null
 }
-function normalizeStatus(value: string) { const status = value.toLowerCase(); return status === 'in_field' || status === 'infield' ? 'IN_FIELD' : status }
 function isCurrentWeek(value: string | null) {
   if (!value) return false
   const reference = !props.quickReport && form.arrivalAt ? new Date(form.arrivalAt) : new Date(); const start = new Date(reference); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - ((start.getDay() || 7) - 1)); const end = new Date(start); end.setDate(end.getDate() + 7)
   const date = new Date(value); return date >= start && date < end
 }
-function validateDetails() { const valid = Boolean(form.vehicleId && (props.quickReport ? basePlace.value : form.placeId)); detailsError.value = !valid; return valid }
+function validateDetails() { const valid = Boolean(form.vehicleId); detailsError.value = !valid; return valid }
 function returnToForm() { result.value = null; resultMessage.value = '' }
 function addFault() { if (canCreateFaults.value) faults.value = [...faults.value, newFault()] }
 function removeFault(id: string) { const fault = faults.value.find((item) => item.id === id); if (fault) revokePhotos([fault]); faults.value = faults.value.filter((item) => item.id !== id); if (!faults.value.length) faults.value = [newFault()] }
@@ -193,18 +198,37 @@ async function submitRepair() {
   if (faultsError.value) return
   result.value = null; resultMessage.value = ''
   try {
-    const response = await repairStore.createRepairWithFaults({ vehicleId: Number(form.vehicleId), placeId: props.quickReport ? basePlace.value!.id : Number(form.placeId), plannedArrivalAt: props.quickReport ? null : toIso(form.arrivalAt), plannedDepartureAt: props.quickReport ? null : toIso(form.departureAt), status: props.quickReport ? 'planned' : form.status, description: null }, canCreateFaults.value ? faults.value.map((fault) => ({ description: fault.description, assignedMechanicId: null, photos: canAddFaultPhotos.value ? fault.photos.map((photo) => photo.file) : [] })) : [], { silent: true })
-    createdRepair.value = response.repair
+    const vehicleId = Number(form.vehicleId)
+    const faultPayloads = canCreateFaults.value ? faults.value.map((fault) => ({
+      description: fault.description,
+      placeId: fault.placeId ? Number(fault.placeId) : null,
+      assignedMechanicId: null,
+      photos: canAddFaultPhotos.value ? fault.photos.map((photo) => photo.file) : [],
+    })) : []
+
     if (props.quickReport) {
+      const fault = faultPayloads.find(item => item.description.trim())
+      if (!fault) return
+      const photoUploadFailures = await repairStore.reportVehicleFault(vehicleId, fault, form.urgent)
       uiStore.addToast({
-        type: response.photoUploadFailures ? 'warning' : 'success',
-        title: response.photoUploadFailures ? 'Usterka dodana, ale nie wysłano wszystkich zdjęć' : 'Usterka dodana',
-        message: response.photoUploadFailures ? `Nie udało się wysłać zdjęć: ${response.photoUploadFailures}.` : 'Usterka została poprawnie zapisana.',
+        type: photoUploadFailures ? 'warning' : 'success',
+        title: photoUploadFailures ? 'Usterka dodana, ale nie wysłano wszystkich zdjęć' : 'Usterka dodana',
+        message: photoUploadFailures ? `Nie udało się wysłać zdjęć: ${photoUploadFailures}.` : 'Usterka została poprawnie zapisana.',
       })
-      emit('created', response.repair)
+      emit('fault-reported')
       closeModal()
       return
     }
+
+    const response = await repairStore.createRepairWithFaults({
+      vehicleId,
+      urgent: form.urgent,
+      plannedArrivalAt: toIso(form.arrivalAt),
+      plannedDepartureAt: toIso(form.departureAt),
+      status: form.status,
+      description: null,
+    }, faultPayloads, { silent: true })
+    createdRepair.value = response.repair
     result.value = 'success'; resultMessage.value = response.photoUploadFailures ? `Naprawa została utworzona, ale nie wysłano części zdjęć (${response.photoUploadFailures}).` : 'Naprawa została poprawnie zapisana.'; emit('created', response.repair); revokePhotos()
   } catch (error) {
     const message = getApiErrorMessage(error)
@@ -219,11 +243,10 @@ async function submitRepair() {
 watch(() => props.open, async (value) => {
   if (!value) return
   resetForm()
-  dictionariesLoading.value = true
-  try { await repairStore.loadDictionaries() } finally { dictionariesLoading.value = false }
+  await repairStore.loadDictionaries()
 })
 onBeforeUnmount(() => revokePhotos())
-useWorkspaceDirty(computed(() => props.open && !createdRepair.value && Boolean(form.vehicleId || form.arrivalAt || form.departureAt || faults.value.some(fault => fault.description.trim() || fault.photos.length))))
+useWorkspaceDirty(computed(() => props.open && !createdRepair.value && Boolean(form.vehicleId || form.urgent || form.arrivalAt || form.departureAt || faults.value.some(fault => fault.description.trim() || fault.placeId || fault.photos.length))))
 </script>
 
 <style scoped>

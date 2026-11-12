@@ -186,7 +186,15 @@
 <script setup lang="ts">
 import { useWorkspaceViewState, useWorkspaceDirty } from '@/composables/useWorkspace'
 import { computed, onMounted, reactive, ref, watch, type Component } from 'vue'
-import { ArrowDown, ArrowUp, ArrowUpDown, Check, SquarePen, Trash2, X } from 'lucide-vue-next'
+import {
+  IconArrowDown as ArrowDown,
+  IconArrowUp as ArrowUp,
+  IconArrowsSort as ArrowUpDown,
+  IconCheck as Check,
+  IconEdit as SquarePen,
+  IconTrash as Trash2,
+  IconX as X,
+} from '@tabler/icons-vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'

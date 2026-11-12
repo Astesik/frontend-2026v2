@@ -101,7 +101,16 @@
 <script setup lang="ts">
 import { useWorkspaceViewState, useWorkspaceDirty } from '@/composables/useWorkspace'
 import { computed, onMounted, reactive, ref, watch, type Component } from 'vue'
-import { BellRing, Building2, Check, Plus, SquarePen, Trash2, Truck, UserRound } from 'lucide-vue-next'
+import {
+  IconBellRinging as BellRing,
+  IconBuildings as Building2,
+  IconCheck as Check,
+  IconPlus as Plus,
+  IconEdit as SquarePen,
+  IconTrash as Trash2,
+  IconTruck as Truck,
+  IconUser as UserRound,
+} from '@tabler/icons-vue'
 import CompanyManagementPanel from '@/components/settings/CompanyManagementPanel.vue'
 import CountryNotificationsPanel from '@/components/settings/CountryNotificationsPanel.vue'
 import MailSettingsPanel from '@/components/settings/MailSettingsPanel.vue'

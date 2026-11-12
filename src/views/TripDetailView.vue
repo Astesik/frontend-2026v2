@@ -99,7 +99,17 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, CreditCard, Fuel, LoaderCircle, MapPinned, Route, RouteIcon, Truck, UserRound } from 'lucide-vue-next'
+import {
+  IconArrowLeft as ArrowLeft,
+  IconCreditCard as CreditCard,
+  IconGasStation as Fuel,
+  IconLoader2 as LoaderCircle,
+  IconMapPinned as MapPinned,
+  IconRoute as Route,
+  IconRoute as RouteIcon,
+  IconTruck as Truck,
+  IconUser as UserRound,
+} from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppIconLink from '@/components/ui/AppIconLink.vue'
 import TripActivityTimeline from '@/components/trips/TripActivityTimeline.vue'

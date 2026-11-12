@@ -211,6 +211,69 @@ const persisted=JSON.parse(sessionStorage.getItem('routewise.workspace.v1.live.1
 assert.equal(JSON.stringify(persisted).includes('Rekord 52'),false)
 assert.equal(JSON.stringify(persisted).includes('Niezapisane'),false)
 assert.equal(persisted.tabs.find(tab=>tab.recordId==='52').title,'Naprawa - WGM0052')
+// Exercise the repair deletion handler against the live workspace and router.
+const repairDetailSource = readFileSync(new URL('../src/views/RepairDetailView.vue', import.meta.url), 'utf8')
+const repairDetailScript = parse(repairDetailSource).descriptor.scriptSetup.content
+const repairDetailAst = ts.createSourceFile('RepairDetailView.ts', repairDetailScript, ts.ScriptTarget.Latest, true)
+const deleteHandler = repairDetailAst.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === 'confirmDeleteRepair')
+assert.ok(deleteHandler)
+const repairToDelete = vue.ref(null)
+const deleteErrors = []
+const deleteToasts = []
+let deleteRepair = async () => { throw new Error('Deletion failed') }
+const confirmDeleteRepair = vm.runInNewContext(deleteHandler.getText(repairDetailAst) + '\nconfirmDeleteRepair', {
+  repairToDelete,
+  canDeleteRepairs: vue.ref(true),
+  repairStore: { deleteRepair: id => deleteRepair(id) },
+  workspace,
+  router,
+  uiStore: { addToast: toast => deleteToasts.push(toast) },
+  showMutationError: title => deleteErrors.push(title),
+})
+
+await router.push('/repairs')
+await router.push('/repairs/54')
+await settle()
+workspace.pin('repair-detail:54')
+repairToDelete.value = { id: 54 }
+await confirmDeleteRepair()
+assert.equal(deleteErrors.length, 1)
+assert.equal(deleteToasts.length, 0)
+assert.equal(workspace.activeId, 'repair-detail:54')
+assert.equal(repairToDelete.value.id, 54)
+
+deleteRepair = async id => assert.equal(id, 54)
+await confirmDeleteRepair()
+await settle()
+assert.equal(repairToDelete.value, null)
+assert.equal(deleteToasts.length, 1)
+assert.equal(workspace.activeId, 'repairs')
+assert.equal(workspace.tabs.some(tab => tab.id === 'repair-detail:54'), false)
+assert.equal(destroyed.get('repair-detail:54'), 1)
+assert.equal(JSON.parse(sessionStorage.getItem('routewise.workspace.v1.live.1')).tabs.some(tab => tab.recordId === '54'), false)
+router.back()
+await new Promise(resolve => setImmediate(resolve))
+await settle()
+assert.equal(router.currentRoute.value.name, 'repairs')
+
+await router.push('/repairs/55')
+await settle()
+repairToDelete.value = { id: 55 }
+let finishDelete
+deleteRepair = id => {
+  assert.equal(id, 55)
+  return new Promise(resolve => { finishDelete = resolve })
+}
+const pendingDelete = confirmDeleteRepair()
+await router.push('/drivers')
+finishDelete()
+await pendingDelete
+await settle()
+assert.equal(workspace.tabs.some(tab => tab.id === 'repair-detail:55'), false)
+assert.equal(workspace.activeId, 'drivers')
+assert.equal(router.currentRoute.value.name, 'drivers')
+console.log('Repair deletion: failed request retains the tab, successful deletion evicts pinned tabs and cache, Back skips the deleted route, switching tabs during deletion preserves navigation OK.')
+
 workspace.ensureContext('another','1',allowed);await settle();assert.equal(destroyed.get('repair-detail:52'),1)
 app.unmount();assert.equal(activeResources.size,0)
 assert.equal(MAX_WORKSPACE_TABS,20)
@@ -324,7 +387,7 @@ const workspacePage=readFileSync(new URL('../src/components/workspace/WorkspaceP
 assert.match(workspacePage,/h-full min-h-0 w-full px-5/)
 for(const name of ['VehiclesView','DevicesView','DriversView','DashboardView','TripsView','RepairsView','SettingsView','FuelStationsView','VehicleDetailView','DeviceDetailView','RepairDetailView']) {
   const source=readFileSync(new URL(`../src/views/${name}.vue`,import.meta.url),'utf8')
-  assert.match(source,/md:h-full/,`${name} should fit the available workspace height`)
+  assert.match(source,/md:(?:min-)?h-full/,`${name} should fit the available workspace height`)
   assert.doesNotMatch(source,/h-\[calc\(100dvh-3rem\)\]/,`${name} must not size itself from the full viewport`)
 }
 console.log('Workspace sizing: lists use available parent height, not full viewport height OK.')

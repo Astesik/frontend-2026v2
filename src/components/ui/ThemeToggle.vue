@@ -16,7 +16,7 @@
 </template>
 
 <script setup lang="ts">
-import { Moon, Sun } from 'lucide-vue-next'
+import { IconMoon as Moon, IconSun as Sun } from '@tabler/icons-vue'
 import AppButton from './AppButton.vue'
 import AppIconButton from './AppIconButton.vue'
 import { useUiStore } from '@/stores/uiStore'

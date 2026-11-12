@@ -27,7 +27,7 @@
 </template>
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Check } from 'lucide-vue-next'
+import { IconCheck as Check } from '@tabler/icons-vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppSearchSelect from '@/components/ui/AppSearchSelect.vue'

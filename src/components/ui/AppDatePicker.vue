@@ -78,7 +78,7 @@
 <script setup lang="ts">
 defineOptions({ inheritAttrs: false })
 import { computed, ref, watch } from 'vue'
-import { CalendarDays, X } from 'lucide-vue-next'
+import { IconCalendarWeek as CalendarDays, IconX as X } from '@tabler/icons-vue'
 import AppButton from './AppButton.vue'
 import AppCalendarPanel from './AppCalendarPanel.vue'
 import AppDropdown from './AppDropdown.vue'

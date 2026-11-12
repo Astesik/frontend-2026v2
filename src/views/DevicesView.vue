@@ -110,7 +110,7 @@
 import { useWorkspaceViewState } from '@/composables/useWorkspace'
 import { computed, onMounted, ref, watch, type Component } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowDown, ArrowUp, ArrowUpDown, SquarePen } from 'lucide-vue-next'
+import { IconArrowDown as ArrowDown, IconArrowUp as ArrowUp, IconArrowsSort as ArrowUpDown, IconEdit as SquarePen } from '@tabler/icons-vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppInput from '@/components/ui/AppInput.vue'

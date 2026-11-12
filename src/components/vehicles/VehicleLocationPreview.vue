@@ -41,7 +41,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { Copy, Maximize2, Minus, Plus } from 'lucide-vue-next'
+import { IconCopy as Copy, IconMaximize as Maximize2, IconMinus as Minus, IconPlus as Plus } from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -147,7 +147,7 @@ function updateMarkerContent() {
   const icon = document.createElement('span')
   icon.className = `rw-fleet-marker-icon rw-fleet-marker-${state}`
   icon.style.setProperty('--rw-marker-heading', `${heading}deg`)
-  icon.innerHTML = fleetMarkerIconSvg(state, type)
+  icon.innerHTML = fleetMarkerIconSvg(state)
   const label = document.createElement('span'), plate = document.createElement('span')
   label.className = 'rw-fleet-marker-plate'
   plate.className = 'rw-fleet-marker-plate-number'

@@ -11,7 +11,7 @@
   </AppCard>
 </template>
 <script setup lang="ts">
-import { Gauge } from 'lucide-vue-next'
+import { IconGauge as Gauge } from '@tabler/icons-vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import { serviceIntervalRemaining } from '@/utils/vehicleMaintenance'

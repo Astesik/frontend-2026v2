@@ -1,7 +1,7 @@
 <template>
-  <component :is="type?.toUpperCase() === 'TRAILER' ? Container : Truck" aria-hidden="true" />
+  <component :is="type?.toUpperCase() === 'TRAILER' ? Box : Truck" aria-hidden="true" />
 </template>
 <script setup lang="ts">
-import { Container, Truck } from 'lucide-vue-next'
+import { IconBox as Box, IconTruck as Truck } from '@tabler/icons-vue'
 defineProps<{ type?: string | null }>()
 </script>

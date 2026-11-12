@@ -1,7 +1,7 @@
 <template>
-  <div class="space-y-3 md:flex md:h-full md:min-h-0 md:flex-col md:gap-3 md:space-y-0 md:overflow-hidden">
-    <header class="flex shrink-0 items-center gap-3">
-      <div class="flex items-center gap-3">
+  <div class="min-w-0 space-y-5 md:min-h-full">
+    <header class="flex shrink-0 flex-wrap items-center justify-between gap-3">
+      <div class="flex min-w-0 items-center gap-3">
         <AppIconLink
           class="md:hidden"
           :to="{ name: 'repairs' }"
@@ -9,14 +9,48 @@
         >
           <ArrowLeft class="h-4 w-4" />
         </AppIconLink>
-        <div class="min-w-0">
-          <p class="text-xs font-medium text-slate-500 dark:text-slate-400">Naprawa #{{ repairId }}</p>
-          <h1 class="mt-0.5 truncate ui-page-title !text-xl">
-            {{ repair ? repairVehicleLabel(repair) : 'Szczegóły naprawy' }}
-          </h1>
-        </div>
+        <h1 class="ui-page-title">Szczegóły naprawy</h1>
       </div>
 
+      <div v-if="repair && !isLoading" class="flex flex-wrap items-center gap-2">
+        <template v-if="infoEditMode">
+          <AppButton size="sm" variant="ghost" :disabled="isMutating" @click="cancelInfoEdit">
+            Anuluj
+          </AppButton>
+          <AppButton size="sm" :loading="isMutating" :disabled="!canUpdateRepairs" @click="updateRepairDetails">
+            <Check class="h-4 w-4" />
+            Zapisz
+          </AppButton>
+        </template>
+        <template v-else>
+          <AppButton size="sm" variant="secondary" :disabled="!canUpdateRepairs || isMutating" @click="openInfoEdit">
+            <SquarePen class="h-4 w-4" />
+            Edytuj
+          </AppButton>
+          <AppButton
+            size="sm"
+            variant="secondary"
+            :loading="isMutating"
+            :disabled="!canUpdateRepairs"
+            :title="!canUpdateRepairs ? 'Brak uprawnienia: repairs.update' : undefined"
+            @click="requestRepairStatusChange"
+          >
+            <CircleCheck class="h-4 w-4" />
+            {{ normalizeRepairStatus(repair.status) === 'done' ? 'Otwórz naprawę' : 'Zamknij naprawę' }}
+          </AppButton>
+          <span ref="informationMenuAnchor" class="inline-flex">
+            <AppIconButton label="Opcje naprawy" size="sm" variant="ghost" aria-haspopup="menu" :aria-expanded="isInformationMenuOpen" @click="isInformationMenuOpen = !isInformationMenuOpen">
+              <Ellipsis class="h-4 w-4" />
+            </AppIconButton>
+          </span>
+          <AppDropdown :open="isInformationMenuOpen" :anchor="informationMenuAnchor" role="menu" :match-width="false" content-class="min-w-40 p-1" @close="isInformationMenuOpen = false">
+            <AppDropdownItem role="menuitem" class="text-danger-600 dark:text-danger-400" :disabled="!canDeleteRepairs || isMutating" @click="isInformationMenuOpen = false; repairToDelete = repair">
+              <Trash2 class="h-4 w-4" />
+              Usuń naprawę
+            </AppDropdownItem>
+          </AppDropdown>
+        </template>
+      </div>
     </header>
 
     <div v-if="isLoading" class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-400">
@@ -27,140 +61,40 @@
       Nie znaleziono naprawy.
     </div>
 
-    <div v-else class="grid min-w-0 gap-3 md:min-h-0 md:flex-1 md:overflow-y-auto xl:grid-cols-[22rem_minmax(0,1fr)] xl:items-start">
-        <AppCard class="order-1 min-w-0 xl:sticky xl:top-0" title="Informacje" :icon="Info" compact content-class="!p-0">
-          <template #actions>
-            <template v-if="!infoEditMode">
-              <span ref="informationMenuAnchor" class="inline-flex">
-                <AppIconButton label="Opcje informacji" size="sm" variant="ghost" aria-haspopup="menu" :aria-expanded="isInformationMenuOpen" @click="isInformationMenuOpen = !isInformationMenuOpen"><Ellipsis class="h-4 w-4" /></AppIconButton>
-              </span>
-              <AppDropdown :open="isInformationMenuOpen" :anchor="informationMenuAnchor" role="menu" :match-width="false" content-class="min-w-36 p-1" @close="isInformationMenuOpen = false">
-                <AppDropdownItem role="menuitem" :disabled="!canUpdateRepairs || isMutating" @click="openInfoEdit"><SquarePen class="h-4 w-4" />Edytuj</AppDropdownItem>
-              </AppDropdown>
-            </template>
-            <div v-else class="flex flex-wrap justify-end gap-2">
-              <AppButton size="sm" variant="ghost" @click="cancelInfoEdit">
-                <X class="h-4 w-4" />
-                Anuluj
-              </AppButton>
-              <AppButton
-                size="sm"
-                variant="secondary"
-                :loading="isMutating"
-                :disabled="!canUpdateRepairs"
-                :title="!canUpdateRepairs ? 'Brak uprawnienia: repairs.update' : undefined"
-                @click="updateRepairDetails"
-              >
-                <Check class="h-4 w-4" />
-                Zapisz
-              </AppButton>
-            </div>
-          </template>
-
-          <div class="border-b border-ui-divider bg-ui-muted px-4 py-3">
-            <div class="flex min-w-0 items-center justify-between gap-3">
-              <div class="flex min-w-0 items-center gap-2.5">
-                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface text-ui-mutedText">
-                  <Truck class="h-4 w-4" />
-                </span>
-                <div class="min-w-0">
-                  <p class="ui-caption">Pojazd</p>
-                  <p class="truncate text-sm font-semibold text-ui-text">{{ repairVehicleLabel(repair) }}</p>
-                </div>
-              </div>
-              <AppBadge :variant="statusVariant(repair.status)">{{ statusLabel(repair.status) }}</AppBadge>
-            </div>
-          </div>
-
-          <div v-if="!infoEditMode" class="divide-y divide-ui-divider px-4">
-            <div class="repair-detail-row">
-              <UserRound class="repair-detail-row__icon" />
-              <div class="min-w-0">
-                <dt class="ui-caption">Utworzył</dt>
-                <dd class="repair-detail-row__value">{{ repairCreatorName(repair) }}</dd>
-              </div>
-            </div>
-            <div class="repair-detail-row">
-              <MapPin class="repair-detail-row__icon" />
-              <div class="min-w-0">
-                <dt class="ui-caption">Miejsce naprawy</dt>
-                <dd class="repair-detail-row__value">{{ repairPlaceLabel(repair) }}</dd>
-              </div>
-            </div>
-            <div class="repair-detail-row">
-              <CalendarClock class="repair-detail-row__icon" />
-              <div class="min-w-0">
-                <dt class="ui-caption">Planowany przyjazd</dt>
-                <dd class="repair-detail-row__value">{{ formatDateTime(repair.plannedArrivalAt) }}</dd>
-              </div>
-            </div>
-            <div class="repair-detail-row">
-              <CalendarCheck class="repair-detail-row__icon" />
-              <div class="min-w-0">
-                <dt class="ui-caption">Planowany odjazd</dt>
-                <dd class="repair-detail-row__value">{{ formatDateTime(repair.plannedDepartureAt) }}</dd>
-              </div>
-            </div>
-            <div class="repair-detail-row">
-              <CalendarClock class="repair-detail-row__icon" />
-              <div class="min-w-0">
-                <dt class="ui-caption">Data utworzenia</dt>
-                <dd class="repair-detail-row__value">{{ formatDateTime(repair.createdAt ?? null) }}</dd>
-              </div>
-            </div>
-          </div>
-
-          <div v-else class="space-y-3 px-4 py-3">
-            <div class="space-y-1.5">
-              <label class="ui-form-label">Status</label>
-              <AppSelect v-model="editForm.status" :options="repairStatusOptions" size="sm" />
-            </div>
-            <div class="space-y-1.5">
-              <label class="ui-form-label">Miejsce naprawy</label>
-              <AppSearchSelect v-model="editForm.placeId" placeholder="Wybierz miejsce" :options="placeOptions" size="sm" />
-            </div>
-            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-              <div class="space-y-1.5">
-                <label class="ui-form-label">Planowany przyjazd</label>
-                <AppDateTimePicker v-model="editForm.arrivalAt" size="sm" default-time="08:00" />
-              </div>
-              <div class="space-y-1.5">
-                <label class="ui-form-label">Planowany odjazd</label>
-                <AppDateTimePicker v-model="editForm.departureAt" size="sm" default-time="16:00" />
-              </div>
-            </div>
-            <div class="space-y-1.5">
-              <p class="ui-caption">Data utworzenia</p>
-              <p class="text-sm text-ui-text">{{ formatDateTime(repair.createdAt ?? null) }}</p>
-            </div>
-          </div>
-
-          <div class="grid gap-2 border-t border-ui-divider p-3 sm:grid-cols-2 xl:grid-cols-1">
-            <AppButton
-              class="w-full"
-              size="sm"
-              variant="secondary"
-              :loading="isMutating"
-              :disabled="!canUpdateRepairs"
-              :title="!canUpdateRepairs ? 'Brak uprawnienia: repairs.update' : undefined"
-              @click="requestRepairStatusChange"
-            >
-              <CircleCheck class="h-4 w-4" />
-              {{ normalizeRepairStatus(repair.status) === 'done' ? 'Otwórz naprawę' : 'Zamknij naprawę' }}
-            </AppButton>
-            <AppButton
-              class="w-full"
-              size="sm"
-              variant="danger"
-              :disabled="!canDeleteRepairs"
-              :title="!canDeleteRepairs ? 'Brak uprawnienia: repairs.delete' : undefined"
-              @click="repairToDelete = repair"
-            >
-              <Trash2 class="h-4 w-4" />
-              Usuń naprawę
-            </AppButton>
-          </div>
-        </AppCard>
+    <div v-else class="min-w-0 space-y-7 pb-5">
+      <section class="repair-overview" aria-label="Informacje o naprawie">
+        <dl class="repair-overview-grid grid gap-3" :class="infoEditMode ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2'">
+          <RepairInfoTile :icon="Hash" label="ID naprawy">
+            <span class="tabular-nums">#{{ repair.id }}</span>
+          </RepairInfoTile>
+          <RepairInfoTile :icon="Truck" label="Pojazd">
+            {{ repairVehicleLabel(repair) }}
+          </RepairInfoTile>
+          <RepairInfoTile :icon="ListDetails" label="Status">
+            <AppSelect v-if="infoEditMode" v-model="editForm.status" aria-label="Status" :options="repairStatusOptions" size="sm" />
+            <AppBadge v-else :variant="repairStatusVariant(repair.status)" class="max-w-full !whitespace-normal break-words">{{ repairStatusBadgeLabel(repair) }}</AppBadge>
+          </RepairInfoTile>
+          <RepairInfoTile :icon="Flag" label="Priorytet">
+            <AppSwitch v-if="infoEditMode" v-model="editForm.urgent" label="Pilne" />
+            <AppBadge v-else-if="repair.urgent" variant="error">Pilne</AppBadge>
+            <AppBadge v-else variant="neutral">Niepilne</AppBadge>
+          </RepairInfoTile>
+          <RepairInfoTile :icon="UserRound" label="Utworzył">
+            {{ repairCreatorName(repair) }}
+          </RepairInfoTile>
+          <RepairInfoTile :icon="CalendarPlus" label="Data utworzenia">
+            {{ formatDateTime(repair.createdAt) }}
+          </RepairInfoTile>
+          <RepairInfoTile :icon="CalendarClock" label="Planowany przyjazd">
+            <AppDateTimePicker v-if="infoEditMode" v-model="editForm.arrivalAt" aria-label="Planowany przyjazd" size="sm" default-time="08:00" />
+            <span v-else class="tabular-nums">{{ formatDateTime(repair.plannedArrivalAt) }}</span>
+          </RepairInfoTile>
+          <RepairInfoTile :icon="CalendarDue" label="Planowany odjazd">
+            <AppDateTimePicker v-if="infoEditMode" v-model="editForm.departureAt" aria-label="Planowany odjazd" size="sm" default-time="16:00" />
+            <span v-else class="tabular-nums">{{ formatDateTime(repair.plannedDepartureAt) }}</span>
+          </RepairInfoTile>
+        </dl>
+      </section>
 
         <template v-if="false">
         <AppCard title="Zdjęcia usterek" compact>
@@ -239,219 +173,194 @@
           </p>
         </AppCard>
         </template>
-        <AppCard v-if="canReadFaults" class="order-2 min-w-0" title="Usterki" :icon="Wrench" compact content-class="!p-3">
-          <template #actions>
-            <div class="flex flex-wrap justify-end gap-2">
-              <AppButton
-                size="sm"
-                variant="secondary"
-                :disabled="!canCreateFaults"
-                :title="!canCreateFaults ? 'Brak uprawnienia: faults.create' : undefined"
-                @click="openAddFaultModal"
-              >
-                <Plus class="h-4 w-4" />
-                Dodaj usterkę
-              </AppButton>
-            </div>
-          </template>
+      <section class="min-w-0" aria-label="Usterki">
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <Wrench class="h-5 w-5 text-ui-icon" aria-hidden="true" />
+            <h2 class="ui-section-title">Usterki</h2>
+            <AppBadge v-if="canReadFaults">{{ repair.faults.length }}</AppBadge>
+          </div>
+          <AppButton
+            v-if="canReadFaults"
+            size="sm"
+            variant="secondary"
+            :disabled="!canCreateFaults"
+            :title="!canCreateFaults ? 'Brak uprawnienia: faults.create' : undefined"
+            @click="openAddFaultModal"
+          >
+            <Plus class="h-4 w-4" />
+            Dodaj usterkę
+          </AppButton>
+        </div>
 
-          <div class="space-y-3">
-            <article
-              v-for="fault in repair.faults"
-              :key="fault.id"
-              class="overflow-hidden rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-surface shadow-soft"
+        <div v-if="!canReadFaults" class="ui-empty-state">
+          Brak uprawnień do wyświetlania usterek.
+        </div>
+        <div v-else-if="!repair.faults.length" class="ui-empty-state">
+          Brak usterek.
+        </div>
+        <div v-else class="space-y-3">
+          <article
+            v-for="fault in repair.faults"
+            :key="fault.id"
+            class="min-w-0 overflow-hidden rounded-xl border border-l-4 border-ui-border bg-ui-surface shadow-soft"
+            :class="[
+              fault.status === 'DONE' ? 'border-l-success-500' : 'border-l-warning-400',
+              { 'cursor-pointer': !isFaultEditing(fault.id) },
+            ]"
+            @click="!isFaultEditing(fault.id) && toggleFaultDetails(fault.id)"
+          >
+            <header
+              class="grid min-w-0 items-start gap-x-2 gap-y-3 px-3 py-3 sm:gap-x-4 sm:px-4 sm:py-4"
+              :class="isFaultEditing(fault.id) ? 'grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto]' : 'grid-cols-[minmax(0,1fr)_auto]'"
             >
-              <div
-                class="grid cursor-pointer grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-2 gap-y-2 px-2 py-2 transition hover:bg-slate-50 sm:px-3 md:grid-cols-[2rem_minmax(10rem,1fr)_12rem] md:gap-2 dark:hover:bg-app-elevated"
-                role="button"
-                tabindex="0"
-                :aria-expanded="isFaultExpanded(fault.id)"
-                :aria-label="isFaultExpanded(fault.id) ? 'Zwiń usterkę' : 'Rozwiń usterkę'"
-                @click="toggleFaultDetails(fault.id)"
-                @keydown.enter.self.prevent="toggleFaultDetails(fault.id)"
-                @keydown.space.self.prevent="toggleFaultDetails(fault.id)"
-              >
+              <div v-if="isFaultEditing(fault.id)" class="grid min-w-0 gap-3 xl:grid-cols-2">
+                <AppInput v-model="faultEditRows[fault.id].description" label="Opis usterki" size="sm" />
+                <AppSearchSelect v-model="faultEditRows[fault.id].placeId" label="Planowane miejsce" placeholder="Do ustalenia" :options="placeOptions" size="sm" />
+              </div>
+              <div v-else class="flex min-w-0 items-start gap-1.5 self-center sm:gap-2">
                 <button
                   type="button"
-                  class="inline-flex h-8 w-8 self-center items-center justify-center rounded-xl text-slate-300 transition hover:bg-slate-50 hover:text-success-600 dark:text-app-muted dark:hover:bg-app-elevated dark:hover:text-success-400"
+                  class="grid h-8 w-8 shrink-0 place-items-center rounded-full transition hover:bg-ui-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus disabled:cursor-not-allowed disabled:opacity-60"
+                  :class="fault.status === 'DONE' ? 'text-success-600 dark:text-success-400' : 'text-ui-icon'"
                   :aria-label="fault.status === 'DONE' ? 'Oznacz jako niezrobione' : 'Oznacz jako zrobione'"
+                  :title="!canChangeFaultStatus ? 'Brak uprawnienia: faults.change_status' : (fault.status === 'DONE' ? 'Oznacz jako niezrobione' : 'Oznacz jako zrobione')"
                   :disabled="isMutating || !canChangeFaultStatus"
-                  :title="!canChangeFaultStatus ? 'Brak uprawnienia: faults.change_status' : undefined"
                   @click.stop="toggleFaultDone(fault)"
-                  @keydown.stop
                 >
-                  <CircleCheck v-if="fault.status === 'DONE'" class="h-5 w-5 text-success-600 dark:text-success-400" />
-                  <Circle v-else class="h-5 w-5" />
+                  <CircleCheck v-if="fault.status === 'DONE'" class="h-5 w-5" aria-hidden="true" />
+                  <Circle v-else class="h-5 w-5" aria-hidden="true" />
                 </button>
-
-                <div class="min-w-0">
-                  <AppInput
-                    v-if="isFaultEditing(fault.id)"
-                    v-model="faultEditRows[fault.id].description"
-                    size="sm"
-                    placeholder="Opis usterki"
-                    @click.stop
-                    @keydown.stop
-                  />
-                  <template v-else>
-                    <div class="fault-description-scroll flex min-h-8 min-w-0 items-center overflow-visible md:overflow-x-auto">
-                      <p class="w-full whitespace-normal break-words text-sm font-semibold leading-5 text-slate-950 md:w-max md:min-w-full md:whitespace-nowrap dark:text-slate-50">
-                        {{ fault.description }}
-                      </p>
-                    </div>
-                    <p class="mt-1 break-words text-xs leading-5 text-ui-mutedText">
-                      Dodano: {{ fault.createdBy?.username || 'brak danych o użytkowniku' }}
-                      <template v-if="fault.createdAt">
-                        · <time :datetime="fault.createdAt">{{ formatDateTime(fault.createdAt) }}</time>
-                      </template>
-                    </p>
-                    <p v-if="fault.status === 'DONE'" class="mt-1 break-words text-xs leading-5 text-ui-mutedText">
-                      Wykonano: {{ fault.repairedBy?.username || 'brak danych o użytkowniku' }}
-                      <template v-if="fault.repairedAt">
-                        · <time :datetime="fault.repairedAt">{{ formatDateTime(fault.repairedAt) }}</time>
-                      </template>
-                    </p>
-                  </template>
-                </div>
-
-                <div
-                  v-if="isFaultExpanded(fault.id)"
-                  class="col-span-full row-start-3 grid gap-2 border-t border-slate-100 bg-slate-50/80 p-2 md:row-auto dark:border-app-border dark:bg-app-dark/80"
-                  @click.stop
-                  @keydown.stop
-                >
-                  <section class="min-w-0 rounded-xl border border-slate-100 bg-white p-2 dark:border-app-border dark:bg-app-panel">
-                  <header class="mb-2 flex items-center justify-between gap-2">
-                    <div class="flex min-w-0 items-center gap-2">
-                      <ImagePlus class="h-4 w-4 text-slate-400" />
-                      <h3 class="text-xs font-semibold text-slate-950 dark:text-slate-50">Zdjęcia</h3>
-                    </div>
-                    <AppBadge>{{ fault.photos?.length || 0 }}</AppBadge>
-                  </header>
-
-                  <div class="grid max-h-48 grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] gap-2 overflow-y-auto pr-1">
-                    <button
-                      type="button"
-                      class="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-200 text-center text-[10px] font-semibold text-slate-500 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-app-border dark:text-slate-400 dark:hover:bg-app-elevated"
-                      :disabled="isPhotoMutating || !canAddFaultPhotos"
-                      :title="!canAddFaultPhotos ? 'Brak uprawnienia: fault_photos.add' : undefined"
-                      @click.stop="openFaultPhotoAdd(fault.id)"
-                    >
-                      <LoaderCircle v-if="isPhotoMutating" class="h-4 w-4 animate-spin" />
-                      <ImagePlus v-else class="h-4 w-4" />
-                      {{ isPhotoMutating ? 'Wysyłanie' : 'Dodaj' }}
-                    </button>
-
-                    <article
-                      v-for="photo in fault.photos || []"
-                      :key="photo.id"
-                      class="group relative aspect-square overflow-hidden rounded-xl border border-slate-100 bg-slate-100 dark:border-app-border dark:bg-app-elevated"
-                    >
-                      <button
-                        v-if="photoObjectUrls[photo.id]"
-                        type="button"
-                        class="block h-full w-full cursor-zoom-in"
-                        :aria-label="`Powiększ zdjęcie ${photo.originalFilename}`"
-                        @click.stop="photoPreview = { ...photo, faultId: fault.id }"
-                      >
-                        <img :src="photoObjectUrls[photo.id]" :alt="photo.originalFilename" class="h-full w-full object-cover" />
-                      </button>
-                      <div v-else class="grid h-full place-items-center text-slate-400 dark:text-app-muted">
-                        <ImageOff v-if="photoLoadFailures[photo.id]" class="h-4 w-4" />
-                        <LoaderCircle v-else class="h-4 w-4 animate-spin" />
-                      </div>
-                      <button
-                        v-if="canDeleteFaultPhoto(photo)"
-                        type="button"
-                        class="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-950/70 text-white transition hover:bg-slate-950"
-                        :disabled="isPhotoMutating"
-                        aria-label="Usuń zdjęcie"
-                        @click.stop="photoToDelete = { ...photo, faultId: fault.id }"
-                      >
-                        <X class="h-3 w-3" />
-                      </button>
-                    </article>
-                  </div>
-                  <p v-if="!fault.photos?.length" class="mt-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-                    Brak zdjęć.
-                  </p>
-                  <p v-if="faultPhotoErrors[fault.id]" class="mt-1.5 text-[11px] font-medium text-danger-600 dark:text-danger-400">
-                    {{ faultPhotoErrors[fault.id] }}
-                  </p>
-                </section>
-
-                </div>
-
-                <div class="col-span-full row-start-2 flex self-center justify-end gap-1 md:col-span-auto md:col-start-3 md:row-start-1 md:justify-end">
+                <h3 class="min-w-0 self-center text-sm font-semibold leading-5 text-ui-text sm:text-base sm:leading-6">
                   <button
                     type="button"
-                    class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
-                    :aria-label="isFaultExpanded(fault.id) ? 'Zwiń usterkę' : 'Rozwiń usterkę'"
+                    class="max-w-full whitespace-pre-wrap break-words text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ui-focus"
                     :aria-expanded="isFaultExpanded(fault.id)"
+                    :aria-controls="isFaultExpanded(fault.id) ? 'repair-fault-photos-' + fault.id : undefined"
+                    @click.stop="toggleFaultDetails(fault.id)"
+                  >{{ fault.description }}</button>
+                </h3>
+              </div>
+
+              <div
+                class="flex items-center justify-end gap-1 self-start sm:gap-2"
+                :class="{ 'max-[419px]:grid max-[419px]:grid-cols-[auto_auto] max-[419px]:gap-y-0': !isFaultEditing(fault.id) }"
+              >
+                <template v-if="!isFaultEditing(fault.id)">
+                  <div class="flex h-8 items-center max-[419px]:col-span-2 max-[419px]:justify-end">
+                    <AppBadge :variant="fault.status === 'DONE' ? 'success' : 'warning'" class="!px-1.5 sm:!px-2">
+                      {{ fault.status === 'DONE' ? 'Wykonana' : 'Otwarta' }}
+                    </AppBadge>
+                  </div>
+                  <AppButton
+                    size="sm"
+                    variant="ghost"
+                    class="!h-8 !gap-1 !px-1.5 sm:!px-2"
+                    :aria-label="'Zdjęcia (' + (fault.photos?.length || 0) + ')'"
+                    :aria-expanded="isFaultExpanded(fault.id)"
+                    :aria-controls="isFaultExpanded(fault.id) ? 'repair-fault-photos-' + fault.id : undefined"
                     @click.stop="toggleFaultDetails(fault.id)"
                   >
-                    <ChevronDown class="h-4 w-4 transition" :class="isFaultExpanded(fault.id) ? 'rotate-180' : ''" />
-                    <span class="hidden sm:inline">{{ isFaultExpanded(fault.id) ? 'Zwiń' : 'Rozwiń' }}</span>
-                  </button>
-                  <template v-if="!isFaultEditing(fault.id)">
-                    <AppIconButton label="Opcje usterki" size="sm" variant="ghost" aria-haspopup="menu" :aria-expanded="faultMenuId === fault.id" @click.stop="toggleFaultMenu(fault.id, $event)"><Ellipsis class="h-4 w-4" /></AppIconButton>
-                    <AppDropdown :open="faultMenuId === fault.id" :anchor="faultMenuAnchor" role="menu" :match-width="false" content-class="min-w-40 p-1" @close="faultMenuId = null">
-                      <AppDropdownItem role="menuitem" :disabled="isMutating || !canEditFaults" @click.stop="faultMenuId = null; startFaultEdit(fault)"><SquarePen class="h-4 w-4" />Edytuj</AppDropdownItem>
-                      <AppDropdownItem role="menuitem" class="text-danger-600 dark:text-danger-400" :disabled="isMutating || !canDeleteFault(fault)" @click.stop="faultMenuId = null; faultToDelete = fault"><Trash2 class="h-4 w-4" />Usuń</AppDropdownItem>
-                    </AppDropdown>
-                  </template>
-                  <button
-                    v-if="isFaultEditing(fault.id)"
-                    type="button"
-                    class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
-                    aria-label="Anuluj edycję usterki"
-                    :disabled="isMutating || !canEditFaults"
-                    @click.stop="cancelFaultEdit"
-                  >
-                    <X class="h-4 w-4" />
-                    <span class="hidden sm:inline">Anuluj</span>
-                  </button>
-                  <button
-                    v-if="isFaultEditing(fault.id)"
-                    type="button"
-                    class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
-                    aria-label="Zapisz usterkę"
-                    :disabled="isMutating || !canEditFaults"
-                    @click.stop="saveFaultRow(fault)"
-                  >
+                    <Photo class="h-4 w-4 shrink-0" />
+                    <span class="hidden lg:inline">Zdjęcia</span>
+                    <span class="text-xs tabular-nums">{{ fault.photos?.length || 0 }}</span>
+                    <ChevronDown class="hidden h-3.5 w-3.5 transition-transform lg:block" :class="{ 'rotate-180': isFaultExpanded(fault.id) }" />
+                  </AppButton>
+                  <AppIconButton label="Opcje usterki" size="sm" variant="ghost" aria-haspopup="menu" :aria-expanded="faultMenuId === fault.id" @click.stop="toggleFaultMenu(fault.id, $event)">
+                    <Ellipsis class="h-4 w-4" />
+                  </AppIconButton>
+                  <AppDropdown :open="faultMenuId === fault.id" :anchor="faultMenuAnchor" role="menu" :match-width="false" content-class="min-w-40 p-1" @close="faultMenuId = null">
+                    <AppDropdownItem role="menuitem" :disabled="isMutating || !canEditFaults" @click="faultMenuId = null; startFaultEdit(fault)">
+                      <SquarePen class="h-4 w-4" />
+                      Edytuj
+                    </AppDropdownItem>
+                    <AppDropdownItem role="menuitem" class="text-danger-600 dark:text-danger-400" :disabled="isMutating || !canDeleteFault(fault)" @click="faultMenuId = null; faultToDelete = fault">
+                      <Trash2 class="h-4 w-4" />
+                      Usuń
+                    </AppDropdownItem>
+                  </AppDropdown>
+                </template>
+                <template v-else>
+                  <AppButton size="sm" variant="ghost" :disabled="isMutating" @click.stop="cancelFaultEdit">Anuluj</AppButton>
+                  <AppButton size="sm" variant="secondary" :loading="isMutating" :disabled="!canEditFaults" @click.stop="saveFaultRow(fault)">
                     <Check class="h-4 w-4" />
-                    <span class="hidden sm:inline">Zapisz</span>
-                  </button>
+                    Zapisz
+                  </AppButton>
+                  <AppIconButton label="Usuń usterkę" size="sm" variant="ghost" :disabled="isMutating || !canDeleteFault(fault)" @click.stop="faultToDelete = fault">
+                    <Trash2 class="h-4 w-4 text-danger-600 dark:text-danger-400" />
+                  </AppIconButton>
+                </template>
+              </div>
+            </header>
+
+            <div v-if="!isFaultEditing(fault.id)" class="flex flex-wrap gap-x-6 gap-y-1 border-t border-ui-divider bg-ui-muted/40 px-4 py-2.5 text-xs leading-5 text-ui-mutedText">
+              <p class="min-w-0 break-words">
+                Planowane miejsce: <span class="font-medium text-ui-text-secondary">{{ fault.placeName || 'Do ustalenia' }}</span>
+              </p>
+              <p class="min-w-0 break-words">
+                Dodano: {{ fault.createdBy?.username || 'brak danych' }}
+                <template v-if="fault.createdAt">
+                  · <time :datetime="fault.createdAt">{{ formatDateTime(fault.createdAt) }}</time>
+                </template>
+              </p>
+              <p v-if="fault.status === 'DONE'" class="min-w-0 break-words">
+                Wykonano: {{ fault.repairedBy?.username || 'brak danych' }}
+                <template v-if="fault.repairedAt">
+                  · <time :datetime="fault.repairedAt">{{ formatDateTime(fault.repairedAt) }}</time>
+                </template>
+              </p>
+            </div>
+
+            <section v-if="isFaultExpanded(fault.id)" :id="'repair-fault-photos-' + fault.id" aria-label="Zdjęcia usterki" class="border-t border-ui-divider px-4 py-4">
+              <div class="grid max-h-56 grid-cols-[repeat(auto-fill,minmax(6rem,8rem))] gap-2 overflow-y-auto">
+                <button
+                  type="button"
+                  class="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-ui-border-strong bg-ui-muted p-2 text-center text-xs font-medium text-ui-mutedText transition hover:bg-ui-hover hover:text-ui-text disabled:cursor-not-allowed disabled:opacity-50"
+                  :disabled="isPhotoMutating || !canAddFaultPhotos"
+                  :title="!canAddFaultPhotos ? 'Brak uprawnienia: fault_photos.add' : undefined"
+                  @click.stop="openFaultPhotoAdd(fault.id)"
+                >
+                  <LoaderCircle v-if="isPhotoMutating" class="h-5 w-5 animate-spin" />
+                  <ImagePlus v-else class="h-5 w-5" />
+                  {{ isPhotoMutating ? 'Wysyłanie' : 'Dodaj zdjęcie' }}
+                </button>
+                <div
+                  v-for="photo in fault.photos || []"
+                  :key="photo.id"
+                  class="relative aspect-square overflow-hidden rounded-lg border border-ui-border bg-ui-muted"
+                >
                   <button
-                    v-if="isFaultEditing(fault.id)"
+                    v-if="photoObjectUrls[photo.id]"
                     type="button"
-                    class="inline-flex h-8 items-center justify-center gap-1 rounded-xl px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-app-elevated dark:hover:text-slate-50"
-                    aria-label="Usuń usterkę"
-                    :disabled="isMutating || !canDeleteFault(fault)"
-                    :title="!canDeleteFault(fault) ? 'Brak uprawnienia do usunięcia tej usterki' : undefined"
-                    @click.stop="faultToDelete = fault"
+                    class="block h-full w-full cursor-zoom-in"
+                    :aria-label="'Powiększ zdjęcie ' + photo.originalFilename"
+                    @click.stop="photoPreview = { ...photo, faultId: fault.id }"
                   >
-                    <Trash2 class="h-4 w-4" />
-                    <span class="hidden sm:inline">Usuń</span>
+                    <img :src="photoObjectUrls[photo.id]" :alt="photo.originalFilename" class="h-full w-full object-cover" />
+                  </button>
+                  <div v-else class="grid h-full place-items-center text-ui-mutedText">
+                    <ImageOff v-if="photoLoadFailures[photo.id]" class="h-4 w-4" />
+                    <LoaderCircle v-else class="h-4 w-4 animate-spin" />
+                  </div>
+                  <button
+                    v-if="canDeleteFaultPhoto(photo)"
+                    type="button"
+                    class="absolute right-1 top-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-950/70 text-white transition hover:bg-slate-950"
+                    :disabled="isPhotoMutating"
+                    aria-label="Usuń zdjęcie"
+                    @click.stop="photoToDelete = { ...photo, faultId: fault.id }"
+                  >
+                    <X class="h-3.5 w-3.5" />
                   </button>
                 </div>
               </div>
-
-            </article>
-
-            <div v-if="!repair.faults.length" class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
-              Brak usterek.
-            </div>
-          </div>
-        </AppCard>
-
-        <AppCard v-else class="order-2 min-w-0" title="Usterki" :icon="Wrench" compact content-class="!p-3">
-          <div class="rounded-2xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-app-border dark:text-slate-400">
-            Brak uprawnień do wyświetlania usterek.
-          </div>
-        </AppCard>
-
-      </div>
+              <p v-if="!fault.photos?.length" class="mt-2 text-xs text-ui-mutedText">Brak zdjęć.</p>
+              <p v-if="faultPhotoErrors[fault.id]" class="mt-2 text-xs font-medium text-danger-600 dark:text-danger-400">{{ faultPhotoErrors[fault.id] }}</p>
+            </section>
+          </article>
+        </div>
+      </section>
+    </div>
 
     <AppModal
       :open="isAddFaultModalOpen"
@@ -463,6 +372,7 @@
     >
           <div class="space-y-4">
             <AppInput v-model="newDetailFault.description" label="Usterka" placeholder="Opis usterki" />
+            <AppSearchSelect v-model="newDetailFault.placeId" label="Planowane miejsce" placeholder="Do ustalenia" :options="placeOptions" />
 
             <section class="rounded-[var(--rw-radius-panel)] border border-ui-border bg-ui-muted p-3">
               <div class="mb-3 flex items-center justify-between gap-2">
@@ -703,13 +613,39 @@
 </template>
 
 <script setup lang="ts">
-import { useWorkspaceActive, useWorkspaceDirty, useWorkspaceTitle } from '@/composables/useWorkspace'
+import { useWorkspaceActive, useWorkspaceDirty, useWorkspacePolling, useWorkspaceTitle } from '@/composables/useWorkspace'
 const workspaceActive = useWorkspaceActive()
 import { useWorkspacePortal } from '@/composables/useWorkspace'
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, CalendarCheck, CalendarClock, Camera, Check, ChevronDown, Ellipsis, Circle, CircleCheck, FileText, ImageOff, ImagePlus, Info, LoaderCircle, MapPin, Plus, SquarePen, Trash2, Truck, UserRound, Wrench, X } from 'lucide-vue-next'
+import {
+  IconArrowLeft as ArrowLeft,
+  IconCalendarDue as CalendarDue,
+  IconCalendarPlus as CalendarPlus,
+  IconCalendarTime as CalendarClock,
+  IconCamera as Camera,
+  IconCheck as Check,
+  IconChevronDown as ChevronDown,
+  IconDots as Ellipsis,
+  IconCircle as Circle,
+  IconCircleCheck as CircleCheck,
+  IconFileText as FileText,
+  IconPhoto as Photo,
+  IconPhotoOff as ImageOff,
+  IconPhotoPlus as ImagePlus,
+  IconFlag as Flag,
+  IconHash as Hash,
+  IconListDetails as ListDetails,
+  IconLoader2 as LoaderCircle,
+  IconPlus as Plus,
+  IconEdit as SquarePen,
+  IconTrash as Trash2,
+  IconTruck as Truck,
+  IconUser as UserRound,
+  IconTool as Wrench,
+  IconX as X,
+} from '@tabler/icons-vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
@@ -722,11 +658,15 @@ import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppIconLink from '@/components/ui/AppIconLink.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppSearchSelect, { type AppSearchSelectOption } from '@/components/ui/AppSearchSelect.vue'
-import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import AppSwitch from '@/components/ui/AppSwitch.vue'
+import RepairInfoTile from '@/components/repairs/RepairInfoTile.vue'
+import { normalizeRepairStatus, repairStatusBadgeLabel, repairStatusOptions, repairStatusVariant } from '@/utils/repairPresentation'
 import { repairService } from '@/services/repairService'
 import { useAuthStore } from '@/stores/authStore'
 import { useRepairStore } from '@/stores/repairStore'
 import { useUiStore } from '@/stores/uiStore'
+import { useWorkspaceTabsStore } from '@/stores/workspaceTabsStore'
 import type { Repair, RepairFault, RepairFaultPhoto, RepairPhoto, RepairStatus } from '@/types/repair'
 
 interface NewFaultPhotoDraft {
@@ -744,6 +684,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const uiStore = useUiStore()
 const repairStore = useRepairStore()
+const workspace = useWorkspaceTabsStore()
 const {
   repairDetailsById,
   places,
@@ -784,17 +725,18 @@ const photoObjectUrls = reactive<Record<number, string>>({})
 const photoLoadFailures = reactive<Record<number, boolean>>({})
 const pendingPhotoLoads = new Map<number, symbol>()
 let photoLoadErrorShown = false
-const newDetailFault = reactive({ description: '' })
+const newDetailFault = reactive({ description: '', placeId: '' })
 const newFaultPhotoDrafts = ref<NewFaultPhotoDraft[]>([])
 const newFaultPhotoError = ref('')
-const faultEditRows = reactive<Record<number, { description: string }>>({})
+const faultEditRows = reactive<Record<number, { description: string; placeId: string }>>({})
 
 const expandedFaultIds = ref<Set<number>>(new Set())
 
 const faultPhotoErrors = reactive<Record<number, string>>({})
 const editForm = reactive({
-  status: 'planned' as RepairStatus,
-  placeId: '',
+  status: 'new' as RepairStatus,
+  initialStatus: 'new' as RepairStatus,
+  urgent: false,
   arrivalAt: '',
   departureAt: '',
 })
@@ -821,86 +763,15 @@ const canDeleteAnyFaultPhotos = computed(() => hasPermission('fault_photos.delet
 const ALLOWED_PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 const MAX_PHOTO_SIZE = 20 * 1024 * 1024
 
-const repairStatusOptions: AppSelectOption[] = [
-  { label: 'Nowa', value: 'new' },
-  { label: 'Zaplanowana', value: 'planned' },
-  { label: 'Gotowa do naprawy', value: 'ready_to_be_repaired' },
-  { label: 'W lokalizacji', value: 'at_location' },
-  { label: 'W terenie', value: 'IN_FIELD' },
-  { label: 'Zakończona', value: 'done' },
-  { label: 'Anulowana', value: 'cancelled' },
-]
 
-const placeOptions = computed<AppSearchSelectOption[]>(() => places.value.map((place) => ({
+const placeOptions = computed<AppSearchSelectOption[]>(() => [{ value: '', label: 'Do ustalenia' }, ...places.value.map((place) => ({
   value: String(place.id),
   label: place.name,
-})))
+}))])
 
-function normalizeRepairStatus(status: string | null | undefined): RepairStatus {
-  const normalized = String(status || 'new').trim()
-  const lower = normalized.toLowerCase()
-
-  if (lower === 'in_field' || lower === 'infield') {
-    return 'IN_FIELD'
-  }
-
-  if (lower === 'ready_to_be_repaired') {
-    return 'ready_to_be_repaired'
-  }
-
-  if (lower === 'at_location') {
-    return 'at_location'
-  }
-
-  if (['new', 'planned', 'done', 'cancelled'].includes(lower)) {
-    return lower as RepairStatus
-  }
-
-  return 'new'
-}
-
-function statusLabel(status: string | null | undefined) {
-  const labels: Record<RepairStatus, string> = {
-    new: 'Nowa',
-    planned: 'Zaplanowana',
-    ready_to_be_repaired: 'Gotowa',
-    at_location: 'W lokalizacji',
-    IN_FIELD: 'W terenie',
-    done: 'Zakończona',
-    cancelled: 'Anulowana',
-  }
-
-  return labels[normalizeRepairStatus(status)]
-}
-
-function statusVariant(status: string | null | undefined): 'neutral' | 'success' | 'warning' | 'error' | 'info' {
-  const normalized = normalizeRepairStatus(status)
-
-  if (normalized === 'done') {
-    return 'success'
-  }
-
-  if (normalized === 'cancelled') {
-    return 'neutral'
-  }
-
-  if (normalized === 'IN_FIELD') {
-    return 'info'
-  }
-
-  if (normalized === 'at_location' || normalized === 'ready_to_be_repaired') {
-    return 'warning'
-  }
-
-  return 'neutral'
-}
 
 function repairVehicleLabel(value: Repair) {
-  return value.vehicle?.licensePlate || value.vehicleLicensePlate || `Pojazd #${value.vehicleId}`
-}
-
-function repairPlaceLabel(value: Repair) {
-  return value.place?.name || value.placeName || (value.placeId ? `Miejsce #${value.placeId}` : 'Brak miejsca')
+  return value.vehicle?.licensePlate || value.vehicleLicensePlate || 'Pojazd #' + value.vehicleId
 }
 
 function repairCreatorName(value: Repair) {
@@ -1157,17 +1028,16 @@ function toIsoDateTime(value: string) {
   return Number.isNaN(parsedDate.getTime()) ? null : parsedDate.toISOString()
 }
 
-function mechanicIdValue(value: string) {
+function placeIdValue(value: string) {
   const parsed = Number(value)
   return Number.isFinite(parsed) && value !== '' ? parsed : null
 }
 
 function resetEditForm(value: Repair) {
-  const placeId = value.place?.id ?? value.placeId ?? ''
-
   Object.assign(editForm, {
     status: normalizeRepairStatus(value.status),
-    placeId: placeId ? String(placeId) : '',
+    initialStatus: normalizeRepairStatus(value.status),
+    urgent: Boolean(value.urgent),
     arrivalAt: dateTimeInputValue(value.plannedArrivalAt, '08:00'),
     departureAt: dateTimeInputValue(value.plannedDepartureAt, '16:00'),
   })
@@ -1212,6 +1082,7 @@ function syncFaultEditRows(faults: RepairFault[]) {
   faults.forEach((fault) => {
     faultEditRows[fault.id] = {
       description: fault.description,
+      placeId: String(fault.placeId ?? ''),
     }
   })
 }
@@ -1252,6 +1123,7 @@ function startFaultEdit(fault: RepairFault) {
 
   faultEditRows[fault.id] = {
     description: fault.description,
+    placeId: String(fault.placeId ?? ''),
   }
   editingFaultId.value = fault.id
 }
@@ -1276,6 +1148,7 @@ function openAddFaultModal() {
   }
 
   newDetailFault.description = ''
+  newDetailFault.placeId = ''
   newFaultPhotoError.value = ''
   clearNewFaultPhotoDrafts()
   isAddFaultModalOpen.value = true
@@ -1639,10 +1512,10 @@ async function updateRepairDetails() {
 
   try {
     await repairStore.updateRepair(repair.value.id, {
-      placeId: mechanicIdValue(editForm.placeId),
+      urgent: editForm.urgent,
       plannedArrivalAt: toIsoDateTime(editForm.arrivalAt),
       plannedDepartureAt: toIsoDateTime(editForm.departureAt),
-      status: editForm.status,
+      ...(editForm.status !== editForm.initialStatus ? { status: editForm.status } : {}),
     })
     infoEditMode.value = false
     uiStore.addToast({
@@ -1683,7 +1556,7 @@ async function confirmRepairStatusChange() {
   }
 
   const action = repairStatusAction.value
-  const nextStatus = action === 'close' ? 'done' : 'at_location'
+  const nextStatus = action === 'close' ? 'done' : 'new'
 
   try {
     await repairStore.updateRepair(repair.value.id, { status: nextStatus })
@@ -1693,7 +1566,7 @@ async function confirmRepairStatusChange() {
       title: action === 'close' ? 'Naprawa zamknięta' : 'Naprawa otwarta',
       message: action === 'close'
         ? 'Status naprawy zmieniono na zakończona.'
-        : 'Status naprawy zmieniono na „W lokalizacji”.',
+        : 'Status naprawy zmieniono na „Nowa”.',
     })
   } catch {
     showMutationError(
@@ -1798,6 +1671,7 @@ async function saveFaultRow(fault: RepairFault) {
   try {
     await repairStore.updateRepairFault(repair.value.id, fault.id, {
       description: row.description.trim(),
+      placeId: placeIdValue(row.placeId),
       assignedMechanicId: null,
     })
     editingFaultId.value = null
@@ -1818,7 +1692,7 @@ async function saveAllFaultRows() {
 
   const changedFaults = (repair.value.faults || []).filter((fault) => {
     const row = faultEditRows[fault.id]
-    return row && row.description.trim() !== fault.description
+    return row && (row.description.trim() !== fault.description || row.placeId !== String(fault.placeId ?? ''))
   })
 
   const hasInvalidDescription = changedFaults.some((fault) => !faultEditRows[fault.id]?.description.trim())
@@ -1836,6 +1710,7 @@ async function saveAllFaultRows() {
     for (const fault of changedFaults) {
       await repairStore.updateRepairFault(repair.value.id, fault.id, {
         description: faultEditRows[fault.id].description.trim(),
+        placeId: placeIdValue(faultEditRows[fault.id].placeId),
         assignedMechanicId: null,
       })
     }
@@ -1868,6 +1743,7 @@ async function addFaultToDetail() {
   try {
     const createdFault = await repairStore.addRepairFault(repair.value.id, {
       description: newDetailFault.description.trim(),
+      placeId: placeIdValue(newDetailFault.placeId),
       assignedMechanicId: null,
     })
     let failedUploads = 0
@@ -1888,6 +1764,7 @@ async function addFaultToDetail() {
     }
 
     newDetailFault.description = ''
+    newDetailFault.placeId = ''
     isAddFaultModalOpen.value = false
     clearNewFaultPhotoDrafts()
     uiStore.addToast({
@@ -1907,17 +1784,31 @@ async function confirmDeleteRepair() {
     return
   }
 
+  const id = repairToDelete.value.id
+  const workspaceEpoch = workspace.epoch
   try {
-    await repairStore.deleteRepair(repairToDelete.value.id)
-    repairToDelete.value = null
-    uiStore.addToast({
-      type: 'success',
-      title: 'Naprawa usunięta',
-      message: 'Usunięto naprawę.',
-    })
-    await router.push({ name: 'repairs' })
+    await repairStore.deleteRepair(id)
   } catch {
     showMutationError('Nie udało się usunąć naprawy', 'Spróbuj ponownie za chwilę.')
+    return
+  }
+
+  if (workspace.epoch !== workspaceEpoch) return
+
+  repairToDelete.value = null
+  const recordId = String(id)
+  const deletedTab = workspace.tabs.find(tab => tab.name === 'repair-detail' && tab.recordId === recordId)
+  if (deletedTab) workspace.close(deletedTab.id)
+
+  uiStore.addToast({
+    type: 'success',
+    title: 'Naprawa usunięta',
+    message: 'Usunięto naprawę.',
+  })
+
+  const currentRoute = router.currentRoute.value
+  if (currentRoute.name === 'repair-detail' && currentRoute.params.id === recordId) {
+    await router.replace({ name: 'repairs' })
   }
 }
 
@@ -1944,50 +1835,26 @@ onBeforeUnmount(() => {
   revokeAllPhotoObjectUrls()
   repairStore.clearCurrentRepair()
 })
+useWorkspacePolling(async () => {
+  if (repair.value && !isLoading.value && !isMutating.value && !isPhotoMutating.value
+    && !infoEditMode.value && editingFaultId.value === null && !faultsEditMode.value) {
+    await repairStore.loadRepairDetail(repairId.value, { silent: true, background: true })
+  }
+}, 30_000)
+
 const workspacePortal = useWorkspacePortal()
-useWorkspaceDirty(computed(() => infoEditMode.value || editingFaultId.value !== null || newDetailFault.description.trim().length > 0 || newFaultPhotoDrafts.value.length > 0))
+useWorkspaceDirty(computed(() => infoEditMode.value || editingFaultId.value !== null || newDetailFault.description.trim().length > 0 || Boolean(newDetailFault.placeId) || newFaultPhotoDrafts.value.length > 0))
 </script>
 
 <style scoped>
-.repair-detail-row {
-  display: grid;
-  grid-template-columns: 1rem minmax(0, 1fr);
-  align-items: center;
-  gap: 0.625rem;
-  padding-block: 0.75rem;
+.repair-overview {
+  container-type: inline-size;
 }
 
-.repair-detail-row__icon {
-  width: 1rem;
-  height: 1rem;
-  color: rgb(var(--rw-icon));
-}
-
-.repair-detail-row__value {
-  margin-top: 0.125rem;
-  overflow-wrap: anywhere;
-  font-size: 0.8125rem;
-  line-height: 1.25rem;
-  font-weight: 600;
-  color: rgb(var(--rw-text-primary));
-}
-
-.fault-description-scroll {
-  scrollbar-color: rgb(var(--rw-app-border)) transparent;
-  scrollbar-width: thin;
-}
-
-.fault-description-scroll::-webkit-scrollbar {
-  height: 4px;
-}
-
-.fault-description-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.fault-description-scroll::-webkit-scrollbar-thumb {
-  border-radius: 9999px;
-  background: rgb(var(--rw-app-border));
+@container (min-width: 48rem) {
+  .repair-overview-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .repair-hidden-file-input {

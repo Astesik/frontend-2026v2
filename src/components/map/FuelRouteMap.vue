@@ -13,7 +13,7 @@
 </template>
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch, h, render } from 'vue'
-import { Fuel, Layers, Moon, Sun } from 'lucide-vue-next'
+import { IconGasStation as Fuel, IconStack2 as Layers, IconMoon as Moon, IconSun as Sun } from '@tabler/icons-vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
 import FuelRouteStationPopup from './FuelRouteStationPopup.vue'
 import { useFuelRouteStore } from '@/stores/fuelRouteStore'
@@ -57,7 +57,7 @@ function drawRoute() {
   if (result.fuel.reserveReachedPoint) marker(result.fuel.reserveReachedPoint, 'R', colors.YELLOW)
   if (result.fuel.fuelRunsOutPoint) marker(result.fuel.fuelRunsOutPoint, '!', colors.RED)
   result.stations.forEach(station => {
-    const svg = document.createElement('div'); render(h(Fuel, { size: 18, color: '#ffffff', strokeWidth: 2 }), svg)
+    const svg = document.createElement('div'); render(h(Fuel, { size: 18, color: '#ffffff' }), svg)
     const icon = svg.innerHTML; render(null, svg)
     const image = '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"><rect x="1" y="1" width="28" height="28" rx="6" fill="#334155" stroke="white" stroke-width="2"/><g transform="translate(6 6)">' + icon + '</g></svg>'
     const item = new google.maps.Marker({ map, position: station.position, icon: { url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(image), scaledSize: new google.maps.Size(30, 30), anchor: new google.maps.Point(15, 15) }, zIndex: 10 })

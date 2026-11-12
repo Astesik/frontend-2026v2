@@ -49,7 +49,15 @@
 import { toRef } from 'vue'
 import { useWorkspaceViewState } from '@/composables/useWorkspace'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { Fuel, History, Plus, Power, PowerOff, SquarePen, Upload } from 'lucide-vue-next'
+import {
+  IconGasStation as Fuel,
+  IconHistory as History,
+  IconPlus as Plus,
+  IconToggleRight as Power,
+  IconToggleLeft as PowerOff,
+  IconEdit as SquarePen,
+  IconUpload as Upload,
+} from '@tabler/icons-vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppSwitch from '@/components/ui/AppSwitch.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'

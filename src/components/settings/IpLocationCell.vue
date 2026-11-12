@@ -11,7 +11,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Globe2 } from 'lucide-vue-next'
+import { IconWorld as Globe2 } from '@tabler/icons-vue'
 import 'flag-icons/css/flag-icons.min.css'
 import type { IpLocation } from '@/types/auth'
 

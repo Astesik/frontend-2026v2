@@ -35,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import { ChartColumn } from 'lucide-vue-next'
+import { IconChartBar as ChartColumn } from '@tabler/icons-vue'
 import DriverSelect from '@/components/selects/DriverSelect.vue'
 import VehicleSelect from '@/components/selects/VehicleSelect.vue'
 import AppButton from '@/components/ui/AppButton.vue'

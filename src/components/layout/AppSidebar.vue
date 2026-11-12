@@ -127,20 +127,20 @@
 import { computed, type Component } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  ChevronLeft,
-  ChevronRight,
-  Cpu,
-  Fuel,
-  House,
-  LogOut,
-  MapPinned,
-  Route,
-  Settings,
-  Truck,
-  UserRound,
-  Wrench,
-  X,
-} from 'lucide-vue-next'
+  IconChevronLeft as ChevronLeft,
+  IconChevronRight as ChevronRight,
+  IconCpu as Cpu,
+  IconGasStation as Fuel,
+  IconHome as House,
+  IconLogout as LogOut,
+  IconMapPinned as MapPinned,
+  IconRoute as Route,
+  IconSettings as Settings,
+  IconTruck as Truck,
+  IconUser as UserRound,
+  IconTool as Wrench,
+  IconX as X,
+} from '@tabler/icons-vue'
 import SidebarItem from './SidebarItem.vue'
 import { features } from '@/config/features'
 import ThemeToggle from '@/components/ui/ThemeToggle.vue'

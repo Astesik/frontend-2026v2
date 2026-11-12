@@ -9,7 +9,7 @@
 </template>
 <script setup lang="ts">
 import { computed, getCurrentInstance, h, onBeforeUnmount, onMounted, ref, render, watch } from 'vue'
-import { Flag, Fuel, Scan, TriangleAlert } from 'lucide-vue-next'
+import { IconFlag as Flag, IconGasStation as Fuel, IconScan as Scan, IconAlertTriangle as TriangleAlert } from '@tabler/icons-vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
 import LocalHistoryPointPopup from './LocalHistoryPointPopup.vue'
 import { loadGoogleMaps } from '@/services/googleMapsLoader'
@@ -37,7 +37,7 @@ function show(point:LocalHistoryPoint|undefined,event:LocalFuelEvent|undefined,p
   render(node,popup);info.setContent(popup);info.setPosition(position);info.open({map,shouldFocus:false})
 }
 function svgIcon(component:any,color:string) {
-  const wrapper=document.createElement('div');render(h(component,{size:20,color,strokeWidth:2.4}),wrapper)
+  const wrapper=document.createElement('div');render(h(component,{size:20,color,stroke:'2.4'}),wrapper)
   const svg=wrapper.innerHTML;render(null,wrapper)
   return {url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg),scaledSize:new google.maps.Size(22,22),anchor:new google.maps.Point(11,11)}
 }

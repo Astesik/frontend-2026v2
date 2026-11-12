@@ -70,7 +70,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { LoaderCircle, Search } from 'lucide-vue-next'
+import { IconLoader2 as LoaderCircle, IconSearch as Search } from '@tabler/icons-vue'
 import AppDropdown from '@/components/ui/AppDropdown.vue'
 import AppDropdownItem from '@/components/ui/AppDropdownItem.vue'
 import AppFormField from '@/components/ui/AppFormField.vue'

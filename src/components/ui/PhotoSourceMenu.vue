@@ -17,7 +17,7 @@
 
 <script setup lang="ts">
 import { useWorkspacePortal } from '@/composables/useWorkspace'
-import { Camera, ImagePlus, X } from 'lucide-vue-next'
+import { IconCamera as Camera, IconPhotoPlus as ImagePlus, IconX as X } from '@tabler/icons-vue'
 import AppButton from './AppButton.vue'
 import AppIconButton from './AppIconButton.vue'
 

@@ -75,7 +75,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
-import { Plus, X } from 'lucide-vue-next'
+import { IconPlus as Plus, IconX as X } from '@tabler/icons-vue'
 import AppDropdown from '@/components/ui/AppDropdown.vue'
 import AppDropdownItem from '@/components/ui/AppDropdownItem.vue'
 import AppFormField from '@/components/ui/AppFormField.vue'

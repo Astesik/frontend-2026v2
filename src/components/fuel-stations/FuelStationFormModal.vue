@@ -16,7 +16,7 @@
 import { computed } from 'vue'
 import { useWorkspaceDirty } from '@/composables/useWorkspace'
 import { reactive, ref, watch } from 'vue'
-import { Save } from 'lucide-vue-next'
+import { IconDeviceFloppy as Save } from '@tabler/icons-vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'

@@ -20,7 +20,7 @@
 </template>
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { TriangleAlert } from 'lucide-vue-next'
+import { IconAlertTriangle as TriangleAlert } from '@tabler/icons-vue'
 import AppPopover from '@/components/ui/AppPopover.vue'
 import type { ReturnVehicle } from '@/types/vehicleReturn'
 import { formatDisplayDate } from '@/utils/date'

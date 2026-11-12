@@ -36,7 +36,7 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Eye, EyeOff } from 'lucide-vue-next'
+import { IconEye as Eye, IconEyeOff as EyeOff } from '@tabler/icons-vue'
 import AppFormField from './AppFormField.vue'
 import AppIconButton from './AppIconButton.vue'
 

@@ -33,7 +33,7 @@
 <script setup lang="ts">
 import { features } from '@/config/features'
 import { computed, ref, watch } from 'vue'
-import { CalendarCheck, Info } from 'lucide-vue-next'
+import { IconCalendarCheck as CalendarCheck, IconInfoCircle as Info } from '@tabler/icons-vue'
 import AppTabs from '@/components/ui/AppTabs.vue'
 import type { VehicleReturnEntry } from '@/types/vehicleReturn'
 import { formatDisplayDate } from '@/utils/date'

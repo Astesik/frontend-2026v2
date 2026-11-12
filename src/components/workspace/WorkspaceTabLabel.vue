@@ -6,6 +6,6 @@
 </template>
 <script setup lang="ts">
 import type { Component } from 'vue'
-import { Pin } from 'lucide-vue-next'
+import { IconPinned as Pin } from '@tabler/icons-vue'
 defineProps<{ icon: Component; title: string; pinned: boolean; dirty: boolean }>()
 </script>

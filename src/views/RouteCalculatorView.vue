@@ -306,19 +306,19 @@
 import { onActivated } from 'vue'
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import {
-  Calculator,
-  ChevronDown,
-  ChevronUp,
-  FileJson,
-  GripVertical,
-  Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Sun,
-  Trash2,
-  X,
-} from 'lucide-vue-next'
+  IconCalculator as Calculator,
+  IconChevronDown as ChevronDown,
+  IconChevronUp as ChevronUp,
+  IconJson as FileJson,
+  IconGripVertical as GripVertical,
+  IconMoon as Moon,
+  IconLayoutSidebarLeftCollapse as PanelLeftClose,
+  IconLayoutSidebarLeftExpand as PanelLeftOpen,
+  IconPlus as Plus,
+  IconSun as Sun,
+  IconTrash as Trash2,
+  IconX as X,
+} from '@tabler/icons-vue'
 import HereLocationInput from '@/components/selects/HereLocationInput.vue'
 import VehicleSearchSelect from '@/components/selects/VehicleSearchSelect.vue'
 import AppButton from '@/components/ui/AppButton.vue'

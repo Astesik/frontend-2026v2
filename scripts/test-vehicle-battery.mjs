@@ -50,8 +50,8 @@ for (const [value, expected] of [[100, 100], [60, 60], [0, 0], [null, null], [un
   assert.equal(indicator.batteryLevel.value, expected, 'Display battery: ' + value)
 }
 props.level = 100
-assert.equal(indicator.batteryIcon.value, require('lucide-vue-next').BatteryFull)
+assert.equal(indicator.batteryIcon.value, require('@tabler/icons-vue').IconBattery4)
 props.level = 0
-assert.equal(indicator.batteryIcon.value, require('lucide-vue-next').Battery)
+assert.equal(indicator.batteryIcon.value, require('@tabler/icons-vue').IconBattery)
 scope.stop()
 console.log('PASS: battery API fallback, live position updates, zero/unknown, isolated vehicles, assignment responses, validation and no extra requests.')

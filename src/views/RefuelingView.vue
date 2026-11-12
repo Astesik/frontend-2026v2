@@ -61,7 +61,17 @@
 import { onActivated, onDeactivated } from 'vue'
 import { useWorkspaceActive } from '@/composables/useWorkspace'
 import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue'
-import { ChevronDown, ChevronUp, Fuel, MapPin, PanelLeftClose, PanelLeftOpen, Plus, TriangleAlert, X } from 'lucide-vue-next'
+import {
+  IconChevronDown as ChevronDown,
+  IconChevronUp as ChevronUp,
+  IconGasStation as Fuel,
+  IconMapPin as MapPin,
+  IconLayoutSidebarLeftCollapse as PanelLeftClose,
+  IconLayoutSidebarLeftExpand as PanelLeftOpen,
+  IconPlus as Plus,
+  IconAlertTriangle as TriangleAlert,
+  IconX as X,
+} from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppInput from '@/components/ui/AppInput.vue'

@@ -60,7 +60,7 @@
 defineOptions({ inheritAttrs: false })
 
 import { computed, nextTick, ref, watch } from 'vue'
-import { Check, Search } from 'lucide-vue-next'
+import { IconCheck as Check, IconSearch as Search } from '@tabler/icons-vue'
 import AppDropdown from './AppDropdown.vue'
 import AppDropdownItem from './AppDropdownItem.vue'
 import AppFormField from './AppFormField.vue'

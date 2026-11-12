@@ -8,12 +8,12 @@ import { computed, reactive, ref } from 'vue'
 const source = readFileSync(new URL('../src/views/MapView.vue', import.meta.url), 'utf8')
 const script = parse(source).descriptor.scriptSetup.content
 const ast = ts.createSourceFile('MapView.ts', script, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-const names = new Set(['REPAIRS_FLEET_ID', 'visibleVehicleTypeGroups', 'vehiclesWithRepairsCount', 'fleetSelectOptions', 'mapFleetSelectOptions', 'filteredVehicles', 'mapMarkerVehicles', 'activeRepairsByVehicleId'])
+const names = new Set(['REPAIRS_FLEET_ID', 'NO_SIGNAL_FLEET_ID', 'NO_SIGNAL_AGE_MS', 'POSITION_REFRESH_INTERVAL_MS', 'visibleVehicleTypeGroups', 'vehiclesWithRepairsCount', 'vehiclesWithoutSignalIds', 'systemFleetSelectOptions', 'customFleetSelectOptions', 'fleetSelectOptions', 'mapFleetSelectOptions', 'filteredVehicles', 'mapMarkerVehicles', 'activeRepairsByVehicleId'])
 const nodes = ast.statements.filter(node =>
   ts.isVariableStatement(node) && node.declarationList.declarations.some(item => names.has(item.name.getText(ast))) ||
-  ts.isFunctionDeclaration(node) && node.name?.text === 'vehicleHasActiveRepair')
+  ts.isFunctionDeclaration(node) && ['vehicleHasActiveRepair', 'vehicleAlertItems', 'positionAgeHours', 'formatSignalAge', 'vehicleUpdateAgeBadge'].includes(node.name?.text))
 const code = ts.transpileModule(nodes.map(node => node.getText(ast)).join('\n'), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-const vehicle = (id, hasPosition = true) => ({ id: String(id), backendId: id, plateNumber: `TEST ${id}`, name: 'Pojazd', model: 'Model', hasPosition })
+const vehicle = (id, hasPosition = true, positionTimestamp = null) => ({ id: String(id), backendId: id, plateNumber: `TEST ${id}`, name: 'Pojazd', model: 'Model', hasPosition, positionTimestamp })
 const repairs = ref([
   { id: 1, vehicleId: 1, status: 'new' },
   { id: 2, vehicle: { id: 1 }, status: 'planned' },
@@ -23,10 +23,16 @@ const repairs = ref([
   { id: 6, vehicleId: 999, status: 'new' },
 ])
 const fetched = []
+const now = Date.parse('2026-11-06T12:00:00Z')
 const state = {
   computed, repairs, selectedFleetId: ref('status:repairs'), vehicleSearch: ref(''), activeMode: ref('list'),
+  positionRefreshNextAt: ref(now + 10_000),
+  Date: class extends Date { static now() { return now } },
   fleetStore: reactive({
-    vehicles: [vehicle(1), vehicle(2), vehicle(3), vehicle(4, false), vehicle(5)],
+    vehicles: [
+      vehicle(1, true, '2026-10-30T11:59:59Z'), vehicle(2, true, '2026-10-30T12:00:00Z'),
+      vehicle(3, true, 'invalid'), vehicle(4, false), vehicle(5, true, '2026-11-06T11:00:00Z'),
+    ],
     vehicleTypeGroups: [{ id: 'type:truck', name: 'Ciągniki', vehiclesCount: 3 }, { id: 'type:trailer', name: 'Naczepy', vehiclesCount: 2 }, { id: 'status:inspection-due', name: 'Do przeglądu', vehiclesCount: 1 }],
     vehicleGroups: [{ id: '10', name: 'Flota', vehiclesCount: 1 }],
     isVehicleInGroup: (group, id) => group === '10' && id === '5',
@@ -34,11 +40,19 @@ const state = {
   }),
   vehicleDriverLabel: () => '', sortVehicles: values => values, localStorage: { setItem() {} }, selectedFleetStorageKey: () => 'fleet',
 }
-vm.runInNewContext(code + '\nthis.result = { filteredVehicles, mapMarkerVehicles, mapFleetSelectOptions }', state)
+vm.runInNewContext(code + '\nthis.result = { filteredVehicles, mapMarkerVehicles, fleetSelectOptions, mapFleetSelectOptions, vehicleAlertItems, vehicleUpdateAgeBadge }', state)
 const ids = () => Array.from(state.result.filteredVehicles.value, item => item.id)
 assert.deepEqual(ids(), ['1', '4'], 'Include active repairs once per known vehicle, including vehicles without GPS')
 assert.deepEqual(Array.from(state.result.mapMarkerVehicles.value, item => item.id), ['1'])
 assert.equal(state.result.mapFleetSelectOptions.value[4].label, 'Naprawy (2)')
+const menuLabels = () => Array.from(state.result.mapFleetSelectOptions.value, option => option.menuLabel ?? option.label)
+assert.deepEqual(menuLabels(), [
+  '1. Wszystkie pojazdy', '2. Ciągniki (3)', '3. Naczepy (2)', '4. Do przeglądu (1)',
+  '5. Naprawy (2)', '6. Brak sygnału >7 dni (1)', 'Flota (1)',
+])
+assert.equal(state.result.mapFleetSelectOptions.value[0].label, 'Wszystkie pojazdy')
+assert.equal(state.result.fleetSelectOptions.value[0].label, 'Wszystkie pojazdy')
+assert.ok(state.result.fleetSelectOptions.value.every(option => option.menuLabel === undefined))
 state.vehicleSearch.value = 'TEST 4'
 assert.deepEqual(ids(), ['4'])
 state.vehicleSearch.value = ''
@@ -54,18 +68,20 @@ const watcher = ast.statements.find(node => ts.isExpressionStatement(node) && ts
 const callback = ts.transpileModule('const onFleetChange = ' + watcher.expression.arguments[1].getText(ast), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
 vm.runInNewContext(callback + '\nthis.onFleetChange = onFleetChange', state)
 state.onFleetChange('status:repairs')
-assert.deepEqual(fetched, [], 'The local repairs filter must not request a server fleet')
+state.onFleetChange('status:no-signal-7d')
+assert.deepEqual(fetched, [], 'Local status filters must not request a server fleet')
 state.onFleetChange('10')
 assert.deepEqual(fetched, ['10'])
 console.log('PASS: repairs filter, unique vehicle count, status updates, search, GPS markers, existing fleets and no synthetic fleet request.')
 
 state.fleetStore.vehicleTypeGroups[0].vehiclesCount = 0
 state.fleetStore.vehicleTypeGroups[2].vehiclesCount = 0
-assert.deepEqual(Array.from(state.result.mapFleetSelectOptions.value, option => option.value), ['all', 'type:trailer', 'status:repairs', '10'], 'Hide empty categories while retaining the repairs option and custom fleets')
+assert.deepEqual(Array.from(state.result.mapFleetSelectOptions.value, option => option.value), ['all', 'type:trailer', 'status:repairs', 'status:no-signal-7d', '10'])
+assert.deepEqual(menuLabels(), ['1. Wszystkie pojazdy', '2. Naczepy (2)', '3. Naprawy (1)', '4. Brak sygnału >7 dni (1)', 'Flota (1)'])
 repairs.value[4].status = 'done'
-assert.deepEqual(Array.from(state.result.mapFleetSelectOptions.value, option => option.value), ['all', 'type:trailer', '10'], 'Hide repairs when no known vehicle has an active repair')
+assert.deepEqual(Array.from(state.result.mapFleetSelectOptions.value, option => option.value), ['all', 'type:trailer', 'status:no-signal-7d', '10'], 'Hide repairs when no known vehicle has an active repair')
 state.fleetStore.vehicleTypeGroups[1].vehiclesCount = 0
-assert.deepEqual(Array.from(state.result.mapFleetSelectOptions.value, option => option.value), ['all', '10'])
+assert.deepEqual(Array.from(state.result.mapFleetSelectOptions.value, option => option.value), ['all', 'status:no-signal-7d', '10'])
 state.fleetStore.vehicleTypeGroups[0].vehiclesCount = 1
 assert.ok(state.result.mapFleetSelectOptions.value.some(option => option.value === 'type:truck'), 'Show categories again when vehicles become available')
 const categoryWatcher = ast.statements.find(node => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && node.expression.expression.getText(ast) === 'watch' && node.expression.arguments[0]?.getText(ast) === 'mapFleetSelectOptions')
@@ -75,3 +91,42 @@ state.selectedFleetId.value = 'status:repairs'
 state.onCategoryChange([{ value: 'all' }], [{ value: 'all' }, { value: 'status:repairs' }])
 assert.equal(state.selectedFleetId.value, 'all', 'Return to all vehicles when the selected category becomes empty')
 console.log('PASS: hide/show empty categories and restore all vehicles when the active category disappears.')
+
+const noSignalLabel = () => state.result.mapFleetSelectOptions.value.find(option => option.value === 'status:no-signal-7d').label
+state.selectedFleetId.value = 'status:no-signal-7d'
+assert.equal(noSignalLabel(), 'Brak sygnału >7 dni (1)')
+assert.deepEqual(ids(), ['1'], 'Require a valid last position strictly older than seven days')
+assert.deepEqual(Array.from(state.result.mapMarkerVehicles.value, item => item.id), ['1'])
+state.positionRefreshNextAt.value += 10_000
+assert.deepEqual(ids(), ['1', '2'], 'Recheck the age on every map refresh')
+assert.equal(noSignalLabel(), 'Brak sygnału >7 dni (2)')
+state.vehicleSearch.value = 'TEST 2'
+assert.deepEqual(ids(), ['2'], 'The search still applies inside the no-signal list')
+state.vehicleSearch.value = ''
+for (const item of state.fleetStore.vehicles.slice(0, 2)) item.positionTimestamp = '2026-11-06T12:00:00Z'
+assert.deepEqual(ids(), [], 'A recent reading removes the vehicle from the list')
+assert.equal(noSignalLabel(), 'Brak sygnału >7 dni (0)')
+console.log('PASS: live no-signal list, strict seven-day threshold, unknown dates, polling, search and count.')
+
+const gpsAlertFor = (positionTimestamp) => state.result.vehicleAlertItems({ backendId: 50, alerts: [], positionTimestamp })[0]
+assert.equal(gpsAlertFor(null)?.id, 'gps-no-position')
+assert.equal(gpsAlertFor('invalid')?.title, 'Brak pozycji GPS')
+assert.equal(gpsAlertFor('2026-11-05T12:00:00Z')?.id, 'gps-offline')
+assert.equal(gpsAlertFor('2026-11-05T12:00:01Z'), undefined)
+console.log('PASS: missing GPS position and stale GPS signal produce distinct alerts.')
+
+const badgeFor = positionTimestamp => state.result.vehicleUpdateAgeBadge({ positionTimestamp }, now)
+assert.equal(badgeFor(null), null)
+assert.equal(badgeFor('invalid'), null)
+assert.equal(badgeFor('2026-11-06T09:00:00Z'), null, 'Show the badge only after three hours')
+for (const [timestamp, label, variant] of [
+  ['2026-11-06T08:59:59Z', '3h', 'warning'],
+  ['2026-11-05T12:00:01Z', '23h', 'warning'],
+  ['2026-11-05T12:00:00Z', '1d', 'error'],
+  ['2026-11-03T11:00:00Z', '3d', 'error'],
+]) {
+  const badge = badgeFor(timestamp)
+  assert.equal(badge?.label, label)
+  assert.equal(badge?.variant, variant)
+}
+console.log('PASS: drawer GPS age badge threshold, hour/day formatting and severity.')

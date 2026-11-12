@@ -163,7 +163,15 @@
 <script setup lang="ts">
 import { useWorkspacePortal } from '@/composables/useWorkspace'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { Download, ImagePlus, Images, Trash2, X, ZoomIn, ZoomOut } from 'lucide-vue-next'
+import {
+  IconDownload as Download,
+  IconPhotoPlus as ImagePlus,
+  IconLibraryPhoto as Images,
+  IconTrash as Trash2,
+  IconX as X,
+  IconZoomIn as ZoomIn,
+  IconZoomOut as ZoomOut,
+} from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import PhotoSourceMenu from '@/components/ui/PhotoSourceMenu.vue'
 import { vehicleService } from '@/services/vehicleService'

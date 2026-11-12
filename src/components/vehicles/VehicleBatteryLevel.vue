@@ -7,7 +7,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Battery, BatteryFull, BatteryLow, BatteryMedium } from 'lucide-vue-next'
+import { IconBattery as Battery, IconBattery4 as BatteryFull, IconBattery1 as BatteryLow, IconBattery2 as BatteryMedium } from '@tabler/icons-vue'
 
 const props = defineProps<{ level?: number | null; iconClass?: string }>()
 const batteryLevel = computed(() => typeof props.level === 'number' && Number.isFinite(props.level) && props.level >= 0 && props.level <= 100 ? Math.round(props.level) : null)

@@ -19,7 +19,7 @@
 </template>
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Check, X } from 'lucide-vue-next'
+import { IconCheck as Check, IconX as X } from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppSearchSelect from '@/components/ui/AppSearchSelect.vue'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'

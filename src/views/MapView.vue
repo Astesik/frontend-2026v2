@@ -107,6 +107,7 @@
                       >
                         {{ vehicleAlertItems(vehicle).length }}
                       </span>
+                      <PlugConnectedX v-else-if="vehicleAlertItems(vehicle)[0]?.id === 'gps-no-position'" class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
                       <GlobeX v-else-if="vehicleAlertItems(vehicle)[0]?.id === 'gps-offline'" class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
                       <Wrench v-else-if="vehicleAlertItems(vehicle)[0]?.repairId" class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
                       <TriangleAlert v-else class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
@@ -212,7 +213,6 @@
         <AppDateTimePicker
           :model-value="historyFilters.dateTo"
           label="Do"
-          hint="Jeśli wybierzesz późniejszą datę lub godzinę, wyszukamy historię do teraz."
           size="sm"
           default-time="23:59"
           reset-time-on-date-select
@@ -655,7 +655,13 @@
                   :refresh-key="positionRefreshNextAt"
                 />
                 <div class="flex items-center justify-between gap-3 px-3 py-2">
-                  <dt class="text-ui-mutedText">Aktualizacja</dt><dd class="text-right font-semibold text-ui-text">{{ vehicleSignalLabel(selectedVehicle) }}</dd>
+                  <dt class="text-ui-mutedText">Aktualizacja</dt>
+                  <dd class="flex min-w-0 flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-right font-semibold text-ui-text">
+                    <span>{{ formatDateTimeLabel(selectedVehicle.positionTimestamp) }}</span>
+                    <AppBadge v-if="selectedVehicleUpdateBadge" :variant="selectedVehicleUpdateBadge.variant" class="shrink-0">
+                      {{ selectedVehicleUpdateBadge.label }}
+                    </AppBadge>
+                  </dd>
                 </div>
               </dl>
 
@@ -692,7 +698,7 @@
                     <div class="min-w-0 space-y-1 text-[11px] text-ui-text-secondary">
                       <p class="flex items-start gap-1.5">
                         <MapPin class="mt-0.5 h-3.5 w-3.5 shrink-0 text-ui-icon" />
-                        <span class="min-w-0 break-words">Miejsce: <span class="font-medium text-ui-text">{{ repair.place?.name || repair.placeName || '—' }}</span></span>
+                        <span class="min-w-0 break-words">Planowane miejsca: <span class="font-medium text-ui-text">{{ repairPlannedPlacesLabel(repair) }}</span></span>
                       </p>
                       <p class="flex items-start gap-1.5">
                         <UserRound class="mt-0.5 h-3.5 w-3.5 shrink-0 text-ui-icon" />
@@ -703,10 +709,14 @@
                       <ArrowRight class="h-4 w-4" />
                     </AppIconButton>
                   </div>
+                  <RepairStatusBadges :repair="repair" />
                   <ul v-if="openRepairFaults(repair).length" class="divide-y divide-ui-divider">
                     <li v-for="fault in openRepairFaults(repair)" :key="fault.id" class="flex items-start gap-2 py-2 first:pt-0 last:pb-0 text-sm text-ui-text">
                       <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-danger-500"></span>
-                      <span class="min-w-0 whitespace-pre-wrap break-words font-semibold">{{ fault.description }}</span>
+                      <div class="min-w-0">
+                        <p class="whitespace-pre-wrap break-words font-semibold">{{ fault.description }}</p>
+                        <p class="text-xs text-ui-mutedText">Planowane miejsce: {{ fault.placeName || 'Do ustalenia' }}</p>
+                      </div>
                     </li>
                   </ul>
                   <p v-else class="py-1 text-[11px] text-ui-mutedText">Brak otwartych usterek.</p>
@@ -733,8 +743,7 @@
         quick-report
         :existing-repairs="repairs"
         @close="isRepairCreateModalOpen = false"
-        @created="handleRepairCreated"
-        @open-repair="openRepairDetails"
+        @fault-reported="handleFaultReported"
       />
 
       <div
@@ -780,13 +789,14 @@
             <div class="min-w-0 space-y-1 text-[11px] text-ui-text-secondary">
               <p class="flex items-start gap-1.5">
                 <MapPin class="mt-0.5 h-3.5 w-3.5 shrink-0 text-ui-icon" />
-                <span class="min-w-0 break-words">Miejsce: <span class="font-medium text-ui-text">{{ alert.placeName }}</span></span>
+                <span class="min-w-0 break-words">Planowane miejsca: <span class="font-medium text-ui-text">{{ alert.placeName }}</span></span>
               </p>
               <p class="flex items-start gap-1.5">
                 <UserRound class="mt-0.5 h-3.5 w-3.5 shrink-0 text-ui-icon" />
                 <span class="min-w-0 break-words">Dodał: {{ alert.createdByName }}</span>
               </p>
             </div>
+            <RepairStatusBadges v-if="alert.repair" :repair="alert.repair" />
             <ul v-if="alert.faults.length" class="divide-y divide-ui-divider">
               <li v-for="(fault, index) in alert.faults" :key="index" class="flex items-start gap-2 py-2 first:pt-0 last:pb-0 text-sm text-ui-text">
                 <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-danger-500"></span>
@@ -796,7 +806,8 @@
             <p v-else class="py-1 text-[11px] text-ui-mutedText">Brak otwartych usterek.</p>
           </div>
           <div v-else class="mt-1 flex items-center gap-1.5 text-[11px] text-ui-text-secondary">
-            <GlobeX v-if="alert.id === 'gps-offline'" class="h-3.5 w-3.5 shrink-0 text-ui-icon" />
+            <PlugConnectedX v-if="alert.id === 'gps-no-position'" class="h-3.5 w-3.5 shrink-0 text-ui-icon" />
+            <GlobeX v-else-if="alert.id === 'gps-offline'" class="h-3.5 w-3.5 shrink-0 text-ui-icon" />
             <CircleAlert v-else class="h-3.5 w-3.5 shrink-0 text-ui-icon" />
             <span v-if="alert.dateLabel">
               Do:
@@ -842,17 +853,49 @@
 </template>
 <script setup lang="ts">
 import { onActivated, onDeactivated } from 'vue'
-import { useWorkspaceActive } from '@/composables/useWorkspace'
+import { useWorkspaceActive, useWorkspacePolling } from '@/composables/useWorkspace'
 import { useWorkspacePortal } from '@/composables/useWorkspace'
 import { storeToRefs } from 'pinia'
 import { computed, defineComponent, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref, render, shallowRef, watch, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { ArrowDown, ArrowRight, ArrowUp, ArrowUpDown, Check, CircleAlert, Container, Copy, Flag, GlobeX, History, Layers, List, LocateFixed, MapPin, MapPinPlus, Pencil, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus, Search, Settings, TicketCheck, Trash2, TriangleAlert, Truck, UserRound, Wrench, X } from 'lucide-vue-next'
+import {
+  IconArrowDown as ArrowDown,
+  IconArrowRight as ArrowRight,
+  IconArrowUp as ArrowUp,
+  IconArrowsSort as ArrowUpDown,
+  IconCheck as Check,
+  IconAlertCircle as CircleAlert,
+  IconCopy as Copy,
+  IconFlag as Flag,
+  IconWorldX as GlobeX,
+  IconHistory as History,
+  IconStack2 as Layers,
+  IconList as List,
+  IconCurrentLocation as LocateFixed,
+  IconMapPin as MapPin,
+  IconMapPinPlus as MapPinPlus,
+  IconPencil as Pencil,
+  IconLayoutSidebarLeftCollapse as PanelLeftClose,
+  IconLayoutSidebarLeftExpand as PanelLeftOpen,
+  IconLayoutSidebarRightCollapse as PanelRightClose,
+  IconLayoutSidebarRightExpand as PanelRightOpen,
+  IconPlugConnectedX as PlugConnectedX,
+  IconPlus as Plus,
+  IconSearch as Search,
+  IconSettings as Settings,
+  IconTicket as TicketCheck,
+  IconTrash as Trash2,
+  IconAlertTriangle as TriangleAlert,
+  IconTruck as Truck,
+  IconUser as UserRound,
+  IconTool as Wrench,
+  IconX as X,
+} from '@tabler/icons-vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import VehicleBatteryLevel from '@/components/vehicles/VehicleBatteryLevel.vue'
 import VehicleTodayStatistics from '@/components/vehicles/VehicleTodayStatistics.vue'
 import FleetVehicleList from '@/components/map/FleetVehicleList.vue'
-import { Fuel } from 'lucide-vue-next'
+import { IconGasStation as Fuel } from '@tabler/icons-vue'
 import FuelStationMapLayer from '@/components/fuel-stations/FuelStationMapLayer.vue'
 import FuelStationMapControls from '@/components/fuel-stations/FuelStationMapControls.vue'
 import { features } from '@/config/features'
@@ -873,7 +916,9 @@ import { historyLocalValue as toLocalDateTimeValue, customHistoryRange, historyP
 import { historyMetric, historyPointSpeed, historyPointFuel, fuelEventLabel, validHistoryPosition } from '@/utils/localPositionHistory'
 import { loadGoogleMaps } from '@/services/googleMapsLoader'
 import { DARK_STYLES } from '@/services/googleMapStyles'
-import { fleetMarkerIconSvg } from '@/utils/fleetMarker'
+import { fleetMarkerIconSvg, routePointHeadingIconSvg } from '@/utils/fleetMarker'
+import { repairPlannedPlacesLabel } from '@/utils/repairPresentation'
+import RepairStatusBadges from '@/components/repairs/RepairStatusBadges.vue'
 import type { LocalHistoryPoint as ApiPositionHistoryPoint, LocalFuelEvent } from '@/types/localPositionHistory'
 import { useAuthStore } from '@/stores/authStore'
 import { useFleetStore } from '@/stores/fleetStore'
@@ -904,6 +949,7 @@ type VehicleAlertItem = {
   daysLeft: number | null
   variant: BadgeVariant
   repairId: number | null
+  repair?: Pick<Repair, 'status' | 'urgent' | 'currentPlaces'>
   placeName: string
   createdByName: string
   faults: string[]
@@ -923,6 +969,8 @@ const REFRESH_CIRCLE_RADIUS = 14
 const REFRESH_CIRCLE_CIRCUMFERENCE = 2 * Math.PI * REFRESH_CIRCLE_RADIUS
 const MAP_SELECTED_FLEET_KEY_PREFIX = 'routewise.map.selectedFleet'
 const REPAIRS_FLEET_ID = 'status:repairs'
+const NO_SIGNAL_FLEET_ID = 'status:no-signal-7d'
+const NO_SIGNAL_AGE_MS = 7 * 24 * 60 * 60 * 1000
 const DEFAULT_SELECTED_FLEET_ID = 'type:truck'
 const MOBILE_MAP_MEDIA_QUERY = '(max-width: 767px)'
 const ROUTE_DETAIL_POINT_INTERVAL = 3
@@ -1181,33 +1229,55 @@ const vehiclePanelClasses = computed(() => {
 
 const visibleVehicleTypeGroups = computed(() => fleetStore.vehicleTypeGroups.filter(group => group.vehiclesCount > 0))
 const vehiclesWithRepairsCount = computed(() => fleetStore.vehicles.filter(vehicleHasActiveRepair).length)
+const vehiclesWithoutSignalIds = computed(() => {
+  const cutoff = positionRefreshNextAt.value - POSITION_REFRESH_INTERVAL_MS - NO_SIGNAL_AGE_MS
+  return new Set(fleetStore.vehicles
+    .filter(vehicle => vehicle.positionTimestamp && Date.parse(vehicle.positionTimestamp) < cutoff)
+    .map(vehicle => vehicle.id))
+})
 
-const fleetSelectOptions = computed(() => [
-  { value: 'all', label: 'Wszystkie floty' },
+const systemFleetSelectOptions = computed(() => [
+  { value: 'all', label: 'Wszystkie pojazdy' },
   ...visibleVehicleTypeGroups.value.map((group) => ({
     value: group.id,
     label: `${group.name} (${group.vehiclesCount})`,
   })),
-  ...fleetStore.vehicleGroups.map((group) => ({
-    value: group.id,
-    label: `${group.name} (${group.vehiclesCount})`,
-  })),
 ])
 
-const mapFleetSelectOptions = computed(() => [
-  ...fleetSelectOptions.value.slice(0, 1 + visibleVehicleTypeGroups.value.length),
-  ...(vehiclesWithRepairsCount.value > 0 ? [{
-    value: REPAIRS_FLEET_ID,
-    label: `Naprawy (${vehiclesWithRepairsCount.value})`,
-  }] : []),
-  ...fleetSelectOptions.value.slice(1 + visibleVehicleTypeGroups.value.length),
+const customFleetSelectOptions = computed(() => fleetStore.vehicleGroups.map((group) => ({
+  value: group.id,
+  label: `${group.name} (${group.vehiclesCount})`,
+})))
+
+const fleetSelectOptions = computed(() => [
+  ...systemFleetSelectOptions.value,
+  ...customFleetSelectOptions.value,
 ])
+
+const mapFleetSelectOptions = computed(() => {
+  const systemOptions = [
+    ...systemFleetSelectOptions.value,
+    ...(vehiclesWithRepairsCount.value > 0 ? [{
+      value: REPAIRS_FLEET_ID,
+      label: `Naprawy (${vehiclesWithRepairsCount.value})`,
+    }] : []),
+    { value: NO_SIGNAL_FLEET_ID, label: `Brak sygnału >7 dni (${vehiclesWithoutSignalIds.value.size})` },
+  ]
+
+  return [
+    ...systemOptions.map((option, index) => ({ ...option, menuLabel: `${index + 1}. ${option.label}` })),
+    ...customFleetSelectOptions.value,
+  ]
+})
 
 const selectedVehicle = computed(() => (
   selectedVehicleId.value
     ? fleetStore.vehicles.find((vehicle) => vehicle.id === selectedVehicleId.value) || null
     : null
 ))
+const selectedVehicleUpdateBadge = computed(() => selectedVehicle.value
+  ? vehicleUpdateAgeBadge(selectedVehicle.value, positionRefreshNextAt.value - POSITION_REFRESH_INTERVAL_MS)
+  : null)
 const canReadVehiclePhotos = computed(() => authStore.hasActiveCompanyPermission('vehicle_photos.read'))
 const hasSelectedVehicleBattery = computed(() => {
   const level = selectedVehicle.value?.batteryLevel
@@ -1268,12 +1338,15 @@ const ukVignetteRows = computed(() => fleetStore.vehicles
 
 const filteredVehicles = computed(() => {
   const query = vehicleSearch.value.trim().toLowerCase()
+  const fleetId = selectedFleetId.value
 
   const matchedVehicles = fleetStore.vehicles.filter((vehicle) => {
     const driver = vehicleDriverLabel(vehicle).toLowerCase()
-    const matchesFleet = selectedFleetId.value === REPAIRS_FLEET_ID
-      ? vehicleHasActiveRepair(vehicle)
-      : selectedFleetId.value === 'all' || fleetStore.isVehicleInGroup(selectedFleetId.value, vehicle.id)
+    const matchesFleet = fleetId === NO_SIGNAL_FLEET_ID
+      ? vehiclesWithoutSignalIds.value.has(vehicle.id)
+      : fleetId === REPAIRS_FLEET_ID
+        ? vehicleHasActiveRepair(vehicle)
+        : fleetId === 'all' || fleetStore.isVehicleInGroup(fleetId, vehicle.id)
     const matchesQuery = !query ||
       vehicle.plateNumber.toLowerCase().includes(query) ||
       vehicle.name.toLowerCase().includes(query) ||
@@ -1675,12 +1748,13 @@ function formatPositionUpdatedAt(value: string | null) {
 }
 
 function formatSignalAge(vehicle: Vehicle) {
-  const ageHours = positionAgeHours(vehicle)
+  const age = positionAgeHours(vehicle)
 
-  if (ageHours === null) {
+  if (age === null) {
     return ''
   }
 
+  const ageHours = Math.floor(age)
   const days = Math.floor(ageHours / 24)
   const hours = ageHours % 24
 
@@ -1691,13 +1765,11 @@ function formatSignalAge(vehicle: Vehicle) {
   return `${ageHours}h`
 }
 
-function vehicleSignalLabel(vehicle: Vehicle) {
-  if (isPositionStale(vehicle)) {
-    const age = formatSignalAge(vehicle)
-    return age ? `Brak sygnału GPS ${age} temu` : 'Brak sygnału GPS'
-  }
-
-  return formatDateTimeLabel(vehicle.positionTimestamp)
+function vehicleUpdateAgeBadge(vehicle: Vehicle, now: number): { label: string; variant: 'warning' | 'error' } | null {
+  const ageHours = positionAgeHours(vehicle, now)
+  if (ageHours === null || ageHours <= 3) return null
+  if (ageHours < 24) return { label: `${Math.floor(ageHours)}h`, variant: 'warning' }
+  return { label: `${Math.floor(ageHours / 24)}d`, variant: 'error' }
 }
 
 function parseDate(value: string | null) {
@@ -1761,7 +1833,7 @@ function copyVehiclePosition(vehicle: Vehicle) {
   })
 }
 
-function positionAgeHours(vehicle: Vehicle) {
+function positionAgeHours(vehicle: Vehicle, now = Date.now()) {
   if (!vehicle.positionTimestamp) {
     return null
   }
@@ -1772,7 +1844,7 @@ function positionAgeHours(vehicle: Vehicle) {
     return null
   }
 
-  return Math.floor((Date.now() - timestamp) / (60 * 60 * 1000))
+  return (now - timestamp) / (60 * 60 * 1000)
 }
 
 function vehicleAlertItems(vehicle: Vehicle): VehicleAlertItem[] {
@@ -1793,13 +1865,14 @@ function vehicleAlertItems(vehicle: Vehicle): VehicleAlertItem[] {
   const repairAlerts = (activeRepairsByVehicleId.value.get(String(vehicle.backendId)) || []).map((repair) => ({
     id: `repair-${repair.id}`,
     title: `Naprawa #${repair.id}`,
-    description: repair.placeName || repair.place?.name || 'Brak przypisanego miejsca',
+    description: '',
     dateLabel: '',
-    daysLabel: repairStatusLabel(repair.status),
+    daysLabel: '',
     daysLeft: null,
     variant: 'info' as BadgeVariant,
     repairId: repair.id,
-    placeName: repair.placeName || repair.place?.name || 'Brak przypisanego miejsca',
+    repair,
+    placeName: repairPlannedPlacesLabel(repair),
     createdByName: repairCreatedByName(repair),
     faults: openRepairFaults(repair).map((fault) => fault.description).filter(Boolean),
   }))
@@ -1809,14 +1882,15 @@ function vehicleAlertItems(vehicle: Vehicle): VehicleAlertItem[] {
   const ageHours = positionAgeHours(vehicle)
 
   if (ageHours === null || ageHours >= 24) {
+    const hasLastPosition = ageHours !== null
     const signalAge = formatSignalAge(vehicle)
 
     alerts.unshift({
-      id: 'gps-offline',
-      title: 'Brak sygnału GPS',
+      id: hasLastPosition ? 'gps-offline' : 'gps-no-position',
+      title: hasLastPosition ? 'Brak sygnału GPS' : 'Brak pozycji GPS',
       description: signalAge ? `${signalAge} temu` : 'Brak aktualnej pozycji',
       dateLabel: '',
-      daysLabel: signalAge || '>24h',
+      daysLabel: signalAge || 'Brak danych',
       daysLeft: null,
       variant: 'error',
       repairId: null,
@@ -1827,20 +1901,6 @@ function vehicleAlertItems(vehicle: Vehicle): VehicleAlertItem[] {
   }
 
   return alerts
-}
-
-function repairStatusLabel(status: Repair['status']) {
-  const normalized = String(status || '').trim().toLowerCase()
-  const labels: Record<string, string> = {
-    new: 'Nowa',
-    planned: 'Zaplanowana',
-    ready_to_be_repaired: 'Gotowa',
-    at_location: 'W lokalizacji',
-    in_field: 'W terenie',
-    infield: 'W terenie',
-  }
-
-  return labels[normalized] || 'Aktywna'
 }
 
 function repairCreatedByName(repair: Repair) {
@@ -1864,7 +1924,7 @@ function openCreateRepairFromDrawer() {
   isRepairCreateModalOpen.value = true
 }
 
-function handleRepairCreated(repair: Repair) {
+function handleFaultReported() {
   vehicleDrawerTab.value = 'repairs'
 }
 
@@ -2442,10 +2502,6 @@ function markerState(vehicle: Vehicle) {
   return 'idle'
 }
 
-function markerIconSvg(vehicle: Vehicle) {
-  return fleetMarkerIconSvg(markerState(vehicle), vehicle.vehicleType)
-}
-
 function vehicleHasActiveRepair(vehicle: Vehicle) {
   return (activeRepairsByVehicleId.value.get(String(vehicle.backendId)) || []).length > 0
 }
@@ -2472,7 +2528,7 @@ function markerIconHtml(vehicle: Vehicle) {
 
   return `
     <span class="rw-fleet-marker-icon rw-fleet-marker-${state}" style="--rw-marker-heading: ${vehicle.heading ?? 0}deg">
-      ${markerIconSvg(vehicle)}
+      ${fleetMarkerIconSvg(state)}
     </span>
   `
 }
@@ -2572,7 +2628,7 @@ function routeInfoActionIcon(action: 'copy' | 'maps' | 'close') {
   render(h(icon, {
     class: 'rw-route-info-action-icon',
     'aria-hidden': 'true',
-    strokeWidth: 2.2,
+    stroke: '2.2',
   }), iconContainer)
 
   if (action === 'copy') routeInfoCopyIconHtml = iconContainer.innerHTML
@@ -2715,7 +2771,7 @@ function routePointIconSvg(kind: RoutePointMarkerKind) {
       render(h(Flag, {
         class: 'rw-route-endpoint-flag',
         'aria-hidden': 'true',
-        strokeWidth: 2.4,
+        stroke: '2.4',
       }), iconContainer)
       routeFlagIconHtml = iconContainer.innerHTML
     }
@@ -2723,7 +2779,7 @@ function routePointIconSvg(kind: RoutePointMarkerKind) {
     return routeFlagIconHtml
   }
 
-  return '<svg class="rw-route-point-heading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16"></path><path d="m6 10 6-6 6 6"></path></svg>'
+  return routePointHeadingIconSvg
 }
 
 function createRoutePointMarker(position: RouteLatLng, recordIndex: number, kind: RoutePointMarkerKind) {
@@ -2963,7 +3019,7 @@ function syncFuelEventMarkers() {
       continue
     }
     const container = document.createElement('div')
-    render(h(event.type === 'POSSIBLE_REFUEL' ? Fuel : TriangleAlert, {size:20, color:event.type === 'POSSIBLE_REFUEL' ? '#16a34a' : '#eab308', strokeWidth:2.4}), container)
+    render(h(event.type === 'POSSIBLE_REFUEL' ? Fuel : TriangleAlert, {size:20, color:event.type === 'POSSIBLE_REFUEL' ? '#16a34a' : '#eab308', stroke:'2.4'}), container)
     const svg = container.innerHTML
     render(null, container)
     const marker = new window.google.maps.Marker({map:googleMap.value, position:{lat:event.lat, lng:event.lng}, title:fuelEventLabel(event), zIndex:15,
@@ -3433,7 +3489,7 @@ watch(mapFleetSelectOptions, (options, previousOptions) => {
 watch(selectedFleetId, (fleetId) => {
   localStorage.setItem(selectedFleetStorageKey(), fleetId)
 
-  if (fleetId !== 'all' && fleetId !== REPAIRS_FLEET_ID) {
+  if (fleetId !== 'all' && fleetId !== REPAIRS_FLEET_ID && fleetId !== NO_SIGNAL_FLEET_ID) {
     void fleetStore.fetchVehicleGroup(fleetId)
   }
 }, { immediate: true })
@@ -3529,6 +3585,12 @@ onBeforeUnmount(() => {
   googleMap.value = null
   fleetStore.clearPositionHistory()
 })
+useWorkspacePolling(async () => {
+  if (authStore.hasActiveCompanyPermission('repairs.read') && !repairStore.isMutating) {
+    await repairStore.loadRepairs({ silent: true, background: true })
+  }
+}, 30_000)
+
 const workspacePortal = useWorkspacePortal()
 </script>
 

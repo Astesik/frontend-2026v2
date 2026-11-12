@@ -47,7 +47,7 @@
 import { useWorkspaceActive, useWorkspacePortal } from '@/composables/useWorkspace'
 const workspaceActive = useWorkspaceActive()
 import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { X } from 'lucide-vue-next'
+import { IconX as X } from '@tabler/icons-vue'
 import AppIconButton from './AppIconButton.vue'
 
 const props = withDefaults(defineProps<{

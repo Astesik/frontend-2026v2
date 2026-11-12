@@ -40,7 +40,14 @@
 <script setup lang="ts">
 import { onActivated, onDeactivated } from 'vue'
 import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
-import { ChartNoAxesCombined, Fuel, Gauge, LoaderCircle, RefreshCw, Route } from 'lucide-vue-next'
+import {
+  IconChartLine as ChartNoAxesCombined,
+  IconGasStation as Fuel,
+  IconGauge as Gauge,
+  IconLoader2 as LoaderCircle,
+  IconRefresh as RefreshCw,
+  IconRoute as Route,
+} from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'

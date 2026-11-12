@@ -162,7 +162,13 @@
 import { useWorkspaceViewState, useWorkspaceDirty } from '@/composables/useWorkspace'
 import { computed, defineComponent, h, onMounted, reactive, ref, watch, type PropType } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus, SquarePen } from 'lucide-vue-next'
+import {
+  IconArrowDown as ArrowDown,
+  IconArrowUp as ArrowUp,
+  IconArrowsSort as ArrowUpDown,
+  IconPlus as Plus,
+  IconEdit as SquarePen,
+} from '@tabler/icons-vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'

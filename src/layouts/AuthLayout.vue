@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
-import { Route } from 'lucide-vue-next'
+import { IconRoute as Route } from '@tabler/icons-vue'
 import { features } from '@/config/features'
 import ThemeToggle from '@/components/ui/ThemeToggle.vue'
 </script>

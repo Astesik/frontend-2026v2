@@ -44,7 +44,12 @@
 
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-vue-next'
+import {
+  IconChevronLeft as ChevronLeft,
+  IconChevronRight as ChevronRight,
+  IconChevronsLeft as ChevronsLeft,
+  IconChevronsRight as ChevronsRight,
+} from '@tabler/icons-vue'
 import AppSelect, { type AppSelectOption } from './AppSelect.vue'
 
 const props = withDefaults(defineProps<{

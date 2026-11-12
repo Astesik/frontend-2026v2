@@ -18,7 +18,7 @@
   </AppModal>
 </template>
 <script setup lang="ts">
-import { Search } from 'lucide-vue-next'
+import { IconSearch as Search } from '@tabler/icons-vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppButton from '@/components/ui/AppButton.vue'

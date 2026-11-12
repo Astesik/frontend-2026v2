@@ -88,7 +88,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { isAxiosError } from 'axios'
-import { Camera, History, KeyRound, LogOut, MonitorSmartphone, UserRound } from 'lucide-vue-next'
+import {
+  IconCamera as Camera,
+  IconHistory as History,
+  IconKey as KeyRound,
+  IconLogout as LogOut,
+  IconDevices as MonitorSmartphone,
+  IconUser as UserRound,
+} from '@tabler/icons-vue'
 import { useRouter } from 'vue-router'
 import { api } from '@/services/api'
 import { useAuthStore } from '@/stores/authStore'

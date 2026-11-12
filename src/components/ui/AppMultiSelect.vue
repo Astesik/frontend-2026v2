@@ -64,7 +64,7 @@
 defineOptions({ inheritAttrs: false })
 
 import { computed, ref } from 'vue'
-import { Check, ChevronDown, Minus } from 'lucide-vue-next'
+import { IconCheck as Check, IconChevronDown as ChevronDown, IconMinus as Minus } from '@tabler/icons-vue'
 import AppDropdown from './AppDropdown.vue'
 import AppDropdownItem from './AppDropdownItem.vue'
 import AppFormField from './AppFormField.vue'

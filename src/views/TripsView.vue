@@ -79,7 +79,17 @@ import { useWorkspaceActive, useWorkspaceDirty, useWorkspaceViewState } from '@/
 import { toRef } from 'vue'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ChevronDown, ChevronLeft, ChevronRight, LoaderCircle, Plus, Route, SquarePen, Trash2, Truck } from 'lucide-vue-next'
+import {
+  IconChevronDown as ChevronDown,
+  IconChevronLeft as ChevronLeft,
+  IconChevronRight as ChevronRight,
+  IconLoader2 as LoaderCircle,
+  IconPlus as Plus,
+  IconRoute as Route,
+  IconEdit as SquarePen,
+  IconTrash as Trash2,
+  IconTruck as Truck,
+} from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'

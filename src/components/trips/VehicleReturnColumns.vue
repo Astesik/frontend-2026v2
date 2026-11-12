@@ -15,7 +15,12 @@
 </template>
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ChevronDown, ChevronUp, Columns3, GripVertical } from 'lucide-vue-next'
+import {
+  IconChevronDown as ChevronDown,
+  IconChevronUp as ChevronUp,
+  IconColumns3 as Columns3,
+  IconGripVertical as GripVertical,
+} from '@tabler/icons-vue'
 import AppPopover from '@/components/ui/AppPopover.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'

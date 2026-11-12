@@ -77,7 +77,15 @@
 import { useWorkspaceDirty, useWorkspaceTitle } from '@/composables/useWorkspace'
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Check, Ellipsis, Info, SquarePen, Trash2, X } from 'lucide-vue-next'
+import {
+  IconArrowLeft as ArrowLeft,
+  IconCheck as Check,
+  IconDots as Ellipsis,
+  IconInfoCircle as Info,
+  IconEdit as SquarePen,
+  IconTrash as Trash2,
+  IconX as X,
+} from '@tabler/icons-vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppIconLink from '@/components/ui/AppIconLink.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'

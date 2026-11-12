@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { X } from 'lucide-vue-next'
+import { IconX as X } from '@tabler/icons-vue'
 import AppFormField from './AppFormField.vue'
 
 const props = withDefaults(defineProps<{

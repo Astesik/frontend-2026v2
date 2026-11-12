@@ -10,11 +10,23 @@ const localStorage = { getItem: () => null, setItem() {}, removeItem() {} }
 function evaluate(source, mocks, globals = {}) {
   const exports = {}
   const code = ts.transpileModule(source.replaceAll('import.meta.env.VITE_GOOGLE_MAPS_API_KEY', "'test-key'"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
-  vm.runInNewContext(code, { exports, console, localStorage, AbortController, ...globals, require: name => mocks[name] || require(name) })
+  vm.runInNewContext(code, { exports, console, localStorage, AbortController, ...globals, require: name => {
+    if (name.startsWith('@tabler/icons/outline/') && name.endsWith('?raw')) {
+      return { __esModule: true, default: readFileSync(require.resolve(name.slice(0, -4)), 'utf8') }
+    }
+    return mocks[name] || require(name)
+  } })
   return exports
 }
 const source = filename => readFileSync(new URL('../' + filename, import.meta.url), 'utf8')
 const markerUtils = evaluate(source('src/utils/fleetMarker.ts'), {})
+assert.match(markerUtils.fleetMarkerIconSvg('repair'), /icon-tabler-tool/)
+assert.equal(markerUtils.fleetMarkerIconSvg('idle'), '', 'Stationary markers have an empty center')
+assert.equal(markerUtils.fleetMarkerIconSvg('ignition-on'), '', 'Ignition-on markers use the same empty center')
+assert.match(markerUtils.fleetMarkerIconSvg('power'), /icon-tabler-world-x/)
+assert.match(markerUtils.fleetMarkerIconSvg('alert'), /icon-tabler-alert-hexagon/)
+assert.match(markerUtils.fleetMarkerIconSvg('moving-low'), /rw-fleet-marker-heading.*icons-tabler-outline icon-tabler-arrow-big-up/)
+assert.match(markerUtils.routePointHeadingIconSvg, /rw-route-point-heading.*icon-tabler-navigation/)
 let now = Date.parse('2026-10-20T12:00:00.000Z')
 let resolvePositions, calls = 0
 pinia.setActivePinia(pinia.createPinia())
@@ -85,12 +97,12 @@ assert.equal(maps[0].options.styles, null, 'Preview always uses the main map lig
 assert.match(markers[0].node.className, /rw-fleet-vehicle-marker-trailer/)
 assert.equal(markers[0].node.children[1].className, 'rw-fleet-marker-plate')
 assert.equal(markers[0].node.children[1].children[0].textContent, 'QA123')
-assert.equal(markers[0].node.children[0].innerHTML, markerUtils.fleetMarkerIconSvg('idle', 'trailer'))
+assert.equal(markers[0].node.children[0].innerHTML, markerUtils.fleetMarkerIconSvg('idle'))
 fleet.lastPositions = [{ vehicleId: 98, deviceId: 46, lat: 53, lon: 20, ts: new Date(now).toISOString(), speedKph: 40, heading: 120 }]; await vue.nextTick()
 assert.equal(markers.length, 1, 'Update marker, do not accumulate markers')
 assert.equal(markers[0].node.style.left, '530px')
 assert.match(markers[0].node.children[0].className, /rw-fleet-marker-idle/)
-assert.equal(markers[0].node.children[0].innerHTML, markerUtils.fleetMarkerIconSvg('idle', 'trailer'), 'Moving vehicle keeps the default stationary icon')
+assert.equal(markers[0].node.children[0].innerHTML, markerUtils.fleetMarkerIconSvg('idle'), 'Moving vehicle keeps the default stationary marker')
 await preview.copyLocation()
 assert.equal(copied.at(-1), '53.00000, 20.00000')
 assert.equal(toasts.at(-1).type, 'success')

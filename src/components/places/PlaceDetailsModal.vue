@@ -159,7 +159,7 @@
 import { useWorkspaceActive } from '@/composables/useWorkspace'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { ArrowDown, ArrowUp, ArrowUpDown, Pencil } from 'lucide-vue-next'
+import { IconArrowDown as ArrowDown, IconArrowUp as ArrowUp, IconArrowsSort as ArrowUpDown, IconPencil as Pencil } from '@tabler/icons-vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'

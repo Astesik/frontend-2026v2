@@ -26,7 +26,7 @@
 </template>
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { FileSpreadsheet, LoaderCircle, Upload } from 'lucide-vue-next'
+import { IconFileSpreadsheet as FileSpreadsheet, IconLoader2 as LoaderCircle, IconUpload as Upload } from '@tabler/icons-vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'

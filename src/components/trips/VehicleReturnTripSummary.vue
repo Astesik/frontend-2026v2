@@ -42,7 +42,7 @@
 </template>
 <script setup lang="ts">
 import { computed, watch } from 'vue'
-import { Fuel, Gauge, Milestone, RefreshCw } from 'lucide-vue-next'
+import { IconGasStation as Fuel, IconGauge as Gauge, IconSignRight as Milestone, IconRefresh as RefreshCw } from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import LocalVehicleHistoryMap from '@/components/map/LocalVehicleHistoryMap.vue'
 import { useLocalVehicleHistory } from '@/composables/useLocalVehicleHistory'

@@ -17,9 +17,10 @@ export interface ReturnRepair {
   description: string | null
   placeId: number | null
   placeName: string | null
+  urgent?: boolean
   plannedArrivalAt: string | null
   plannedDepartureAt: string | null
-  faults: { id: number; repairId: number; description: string; status: string; note: string | null }[]
+  faults: { id: number; repairId: number; description: string; status: string; note: string | null; placeId?: number | null; placeName?: string | null }[]
 }
 export interface ReturnVehicle {
   id: number

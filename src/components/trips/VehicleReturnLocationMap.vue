@@ -13,7 +13,7 @@
 </template>
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { LoaderCircle, MapPin } from 'lucide-vue-next'
+import { IconLoader2 as LoaderCircle, IconMapPin as MapPin } from '@tabler/icons-vue'
 import { loadGoogleMaps } from '@/services/googleMapsLoader'
 import { useFleetStore } from '@/stores/fleetStore'
 import { useVehicleReturnStore } from '@/stores/vehicleReturnStore'

@@ -34,7 +34,13 @@
 </template>
 
 <script setup lang="ts">
-import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-vue-next'
+import {
+  IconAlertTriangle as AlertTriangle,
+  IconCircleCheck as CheckCircle2,
+  IconInfoCircle as Info,
+  IconX as X,
+  IconCircleX as XCircle,
+} from '@tabler/icons-vue'
 import { useUiStore } from '@/stores/uiStore'
 
 const uiStore = useUiStore()

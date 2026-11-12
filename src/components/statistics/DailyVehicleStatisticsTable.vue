@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { ArrowDown, ArrowUp, ArrowUpDown, Truck } from 'lucide-vue-next'
+import { IconArrowDown as ArrowDown, IconArrowUp as ArrowUp, IconArrowsSort as ArrowUpDown, IconTruck as Truck } from '@tabler/icons-vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import type { DailyVehicleStatistics } from '@/types/dailyStatistics'
 import { formatStatisticsMetric, sortDailyVehicleStatistics, type DailyStatisticsSortKey } from '@/utils/dailyStatistics'

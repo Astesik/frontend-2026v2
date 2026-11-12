@@ -24,7 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import { Check } from 'lucide-vue-next'
+import { IconCheck as Check } from '@tabler/icons-vue'
 
 withDefaults(defineProps<{
   modelValue: boolean

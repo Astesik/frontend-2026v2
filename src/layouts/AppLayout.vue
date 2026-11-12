@@ -1,7 +1,7 @@
 <template>
-  <div class="flex h-dvh overflow-hidden bg-ui-canvas text-ui-text">
+  <div class="flex h-full overflow-hidden bg-ui-canvas text-ui-text supports-[height:100dvh]:h-dvh">
     <AppSidebar />
-    <main class="flex h-dvh min-w-0 flex-1 flex-col overflow-hidden bg-ui-canvas">
+    <main class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-ui-canvas">
       <header class="flex h-14 shrink-0 items-center justify-between border-b border-ui-border bg-ui-surface px-3 md:hidden">
         <AppIconButton label="Otwórz menu" size="lg" @click="uiStore.toggleMobileSidebar()">
           <Menu class="h-5 w-5" />
@@ -13,7 +13,7 @@
         <WorkspaceTabs />
         <div class="min-h-0 flex-1 overflow-hidden"><WorkspaceOutlet /></div>
       </template>
-      <div v-else data-app-scroll-container class="min-h-0 flex-1 overflow-y-auto">
+      <div v-else data-app-scroll-container class="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
         <div :class="contentClasses">
           <RouterView />
         </div>
@@ -25,7 +25,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
-import { Menu } from 'lucide-vue-next'
+import { IconMenu2 as Menu } from '@tabler/icons-vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
 import WorkspaceTabs from '@/components/workspace/WorkspaceTabs.vue'

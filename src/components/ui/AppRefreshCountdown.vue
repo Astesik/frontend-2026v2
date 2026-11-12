@@ -9,7 +9,7 @@
   </span>
 </template>
 <script setup lang="ts">
-import { LoaderCircle } from 'lucide-vue-next'
+import { IconLoader2 as LoaderCircle } from '@tabler/icons-vue'
 defineProps<{ remaining: number; seconds: number; loading: boolean }>()
 const circumference = 2 * Math.PI * 13
 </script>

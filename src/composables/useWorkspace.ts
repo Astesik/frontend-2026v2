@@ -4,6 +4,41 @@ import { useWorkspaceTabsStore, type WorkspaceSafeState } from '@/stores/workspa
 export interface WorkspaceContext { id: string; active: Ref<boolean>; portal: HTMLElement; registerDirty: (key: symbol, value: boolean) => void }
 export const workspaceContextKey: InjectionKey<WorkspaceContext> = Symbol('workspace-view')
 export function useWorkspaceActive() { const context = inject(workspaceContextKey, null); return context?.active || computed(() => true) }
+export function useWorkspacePolling(refresh: () => Promise<unknown>, intervalMs: number) {
+  const active = useWorkspaceActive()
+  let timer: number | undefined
+  let pending = false
+
+  async function poll() {
+    if (!active.value || document.hidden || pending) return
+    pending = true
+    try {
+      await refresh()
+    } catch {
+      // The next poll retries transient failures.
+    } finally {
+      pending = false
+    }
+  }
+
+  function stop() {
+    window.clearInterval(timer)
+    timer = undefined
+  }
+
+  function start() {
+    stop()
+    if (active.value) timer = window.setInterval(poll, intervalMs)
+  }
+
+  onMounted(start)
+  watch(active, enabled => {
+    start()
+    if (enabled) void poll()
+  })
+  onBeforeUnmount(stop)
+}
+
 export function useWorkspacePortal() { return inject(workspaceContextKey, null)?.portal || 'body' }
 export function useWorkspaceTitle(title: ComputedRef<string | null | undefined>) {
   const context = inject(workspaceContextKey, null)

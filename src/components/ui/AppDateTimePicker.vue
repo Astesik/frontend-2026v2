@@ -14,6 +14,7 @@
             isOpen ? '!border-ui-input-focus !bg-ui-input-hover ring-2 ring-ui-focus/60' : '',
             error ? '!border-danger-500' : '',
           ]"
+          :aria-label="ariaLabel"
           :aria-expanded="isOpen"
           aria-haspopup="dialog"
           :aria-describedby="describedBy"
@@ -52,7 +53,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { CalendarClock, X } from 'lucide-vue-next'
+import { IconCalendarTime as CalendarClock, IconX as X } from '@tabler/icons-vue'
 import AppButton from './AppButton.vue'
 import AppCalendarPanel from './AppCalendarPanel.vue'
 import AppDropdown from './AppDropdown.vue'
@@ -64,6 +65,7 @@ import { toDateValue } from '@/utils/date'
 const props = withDefaults(defineProps<{
   modelValue: string
   label?: string
+  ariaLabel?: string
   hint?: string
   error?: string
   placeholder?: string

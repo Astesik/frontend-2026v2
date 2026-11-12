@@ -43,7 +43,7 @@
         @mouseenter="activeIndex = index"
         @click="selectOption(option)"
       >
-        <span class="min-w-0 flex-1 truncate" :class="size === 'sm' ? 'text-xs' : 'text-sm'">{{ option.label }}</span>
+        <span class="min-w-0 flex-1 truncate" :class="size === 'sm' ? 'text-xs' : 'text-sm'">{{ option.menuLabel ?? option.label }}</span>
         <Check v-if="option.value === modelValue" class="h-4 w-4 shrink-0 text-ui-icon" />
       </AppDropdownItem>
       <p v-if="!options.length" class="px-3 py-2 ui-body-sm text-ui-mutedText">{{ emptyText }}</p>
@@ -55,13 +55,14 @@
 defineOptions({ inheritAttrs: false })
 
 import { computed, nextTick, ref, watch } from 'vue'
-import { Check, ChevronDown } from 'lucide-vue-next'
+import { IconCheck as Check, IconChevronDown as ChevronDown } from '@tabler/icons-vue'
 import AppDropdown from './AppDropdown.vue'
 import AppDropdownItem from './AppDropdownItem.vue'
 import AppFormField from './AppFormField.vue'
 
 export interface AppSelectOption {
   label: string
+  menuLabel?: string
   value: string
   disabled?: boolean
 }

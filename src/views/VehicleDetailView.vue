@@ -206,7 +206,7 @@
           <VehiclePhotoGallery :vehicle-id="vehicle.id" />
         </AppCard>
     </div>
-    <RepairCreateModal :open="isRepairCreateOpen" :initial-vehicle-id="vehicle?.id" lock-vehicle quick-report @close="isRepairCreateOpen = false" @created="loadRepairHistory" @open-repair="openCreatedRepair" />
+    <RepairCreateModal :open="isRepairCreateOpen" :initial-vehicle-id="vehicle?.id" lock-vehicle quick-report @close="isRepairCreateOpen = false" @fault-reported="loadRepairHistory" />
     <AppModal
       :open="isServiceHistoryOpen"
       title="Historia serwisowa"
@@ -423,8 +423,36 @@ import { useWorkspaceDirty, useWorkspaceTitle, useWorkspaceViewState } from '@/c
 import { computed, defineComponent, h, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, type PropType } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, Battery, CalendarCheck, Check, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleCheck, Copy, Cpu, Ellipsis, ExternalLink, FileText, Files, History, Images, Info, MapPin, Plus, RefreshCw, SquarePen, Truck, Unplug, Wrench, X } from 'lucide-vue-next'
+import {
+  IconArrowLeft as ArrowLeft,
+  IconBattery as Battery,
+  IconCalendarCheck as CalendarCheck,
+  IconCheck as Check,
+  IconChevronDown as ChevronDown,
+  IconChevronLeft as ChevronLeft,
+  IconChevronRight as ChevronRight,
+  IconCircle as Circle,
+  IconCircleCheck as CircleCheck,
+  IconCopy as Copy,
+  IconCpu as Cpu,
+  IconDots as Ellipsis,
+  IconExternalLink as ExternalLink,
+  IconFileText as FileText,
+  IconFiles as Files,
+  IconHistory as History,
+  IconLibraryPhoto as Images,
+  IconInfoCircle as Info,
+  IconMapPin as MapPin,
+  IconPlus as Plus,
+  IconRefresh as RefreshCw,
+  IconEdit as SquarePen,
+  IconTruck as Truck,
+  IconPlugOff as Unplug,
+  IconTool as Wrench,
+  IconX as X,
+} from '@tabler/icons-vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
+import { normalizeRepairStatus, repairStatusLabel, repairStatusVariant as getRepairStatusVariant } from '@/utils/repairPresentation'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
@@ -1005,12 +1033,10 @@ function serviceRepairEnd(repair: RepairHistoryLike) {
 }
 
 function serviceCalendarRepairClass(repair: RepairHistoryLike) {
-  const status = String(repair.status || '').toLowerCase()
+  const status = normalizeRepairStatus(repair.status)
 
   if (status === 'done') return 'bg-success-100/80 text-success-700 dark:bg-success-400/15 dark:text-success-400'
-  if (status === 'cancelled') return 'bg-ui-muted text-ui-mutedText'
-  if (status === 'at_location' || status === 'ready_to_be_repaired') return 'bg-warning-100/80 text-warning-700 dark:bg-warning-400/15 dark:text-warning-400'
-  if (status === 'in_field') return 'bg-info-100/80 text-info-700 dark:bg-info-400/15 dark:text-info-400'
+  if (status === 'ready_to_be_repaired') return 'bg-warning-100/80 text-warning-700 dark:bg-warning-400/15 dark:text-warning-400'
   return 'bg-ui-selected text-ui-text'
 }
 
@@ -1325,38 +1351,12 @@ function repairTitle(repair: RepairHistoryLike) {
 }
 
 function repairStatus(repair: RepairHistoryLike) {
-  const labels: Record<string, string> = {
-    new: 'Nowa',
-    planned: 'Zaplanowana',
-    ready_to_be_repaired: 'Gotowa',
-    at_location: 'W lokalizacji',
-    IN_FIELD: 'W terenie',
-    in_field: 'W terenie',
-    done: 'Zakończona',
-    cancelled: 'Anulowana',
-  }
-
-  return labels[String(repair.status || '')] || String(repair.status || 'Historia')
+  return repairStatusLabel(repair.status)
 }
 
 function repairStatusVariant(repair: RepairHistoryLike): BadgeVariant {
-  const status = String(repair.status || '').toLowerCase()
-
-  if (status === 'done') {
-    return 'success'
-  }
-
-  if (status === 'cancelled') {
-    return 'error'
-  }
-
-  if (status === 'at_location' || status === 'in_field') {
-    return 'warning'
-  }
-
-  return 'neutral'
+  return getRepairStatusVariant(repair.status)
 }
-
 function repairDate(repair: RepairHistoryLike) {
   return formatDateTime(repair.plannedArrivalAt || repair.startedAt || repair.createdAt || repair.updatedAt || null)
 }
@@ -1366,6 +1366,11 @@ function repairDescription(repair: RepairHistoryLike) {
 }
 
 function repairPlace(repair: RepairHistoryLike) {
+  const names = new Set(repair.faults?.flatMap(fault =>
+    typeof fault !== 'string' && 'placeName' in fault && fault.placeName ? [fault.placeName] : [],
+  ))
+  if (names.size) return [...names].join(', ')
+  if (repair.faults?.length) return 'Do ustalenia'
   if (typeof repair.place === 'string') {
     return repair.place
   }
@@ -1534,11 +1539,6 @@ async function loadRepairHistory() {
       message: 'Historia serwisowa pojazdu jest chwilowo niedostępna.',
     })
   }
-}
-
-function openCreatedRepair(repair: Repair) {
-  isRepairCreateOpen.value = false
-  void router.push({ name: 'repair-detail', params: { id: repair.id } })
 }
 
 onMounted(async () => {

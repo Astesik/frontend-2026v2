@@ -15,7 +15,7 @@
 </template>
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RefreshCw } from 'lucide-vue-next'
+import { IconRefresh as RefreshCw } from '@tabler/icons-vue'
 import { RouterLink } from 'vue-router'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import AppMultiSelect from '@/components/ui/AppMultiSelect.vue'

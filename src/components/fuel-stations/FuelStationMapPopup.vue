@@ -6,7 +6,7 @@
   </section>
 </template>
 <script setup lang="ts">
-import { History, X } from 'lucide-vue-next'
+import { IconHistory as History, IconX as X } from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
 import type { FuelStation } from '@/types/fuelStation'

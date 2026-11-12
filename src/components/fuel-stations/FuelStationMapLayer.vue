@@ -1,7 +1,7 @@
 <template><FuelStationHistoryModal /></template>
 <script setup lang="ts">
 import { getCurrentInstance, h, onBeforeUnmount, render, watch } from 'vue'
-import { Fuel } from 'lucide-vue-next'
+import { IconGasStation as Fuel } from '@tabler/icons-vue'
 import FuelStationMapPopup from './FuelStationMapPopup.vue'
 import FuelStationHistoryModal from './FuelStationHistoryModal.vue'
 import { useFuelStationStore } from '@/stores/fuelStationStore'

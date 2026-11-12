@@ -35,7 +35,21 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Component } from 'vue'
 import { useRouter } from 'vue-router'
-import { Cpu, Fuel, House, MapPinned, Pin, PinOff, Route, Settings, Truck, UserRound, Wrench, X, ChartNoAxesCombined } from 'lucide-vue-next'
+import {
+  IconCpu as Cpu,
+  IconGasStation as Fuel,
+  IconHome as House,
+  IconMapPinned as MapPinned,
+  IconPinned as Pin,
+  IconPinnedOff as PinOff,
+  IconRoute as Route,
+  IconSettings as Settings,
+  IconTruck as Truck,
+  IconUser as UserRound,
+  IconTool as Wrench,
+  IconX as X,
+  IconChartLine as ChartNoAxesCombined,
+} from '@tabler/icons-vue'
 import AppConfirmModal from '@/components/ui/AppConfirmModal.vue'
 import AppDropdown from '@/components/ui/AppDropdown.vue'
 import AppDropdownItem from '@/components/ui/AppDropdownItem.vue'

@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { CarFront, Hammer, Pause } from 'lucide-vue-next'
+import { IconCar as CarFront, IconHammer as Hammer, IconPlayerPause as Pause } from '@tabler/icons-vue'
 import type { TripActivityDay, TripActivityType } from '@/stores/tripStore'
 
 const props = defineProps<{ days: TripActivityDay[] }>()

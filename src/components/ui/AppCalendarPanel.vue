@@ -33,7 +33,12 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-vue-next'
+import {
+  IconChevronLeft as ChevronLeft,
+  IconChevronRight as ChevronRight,
+  IconChevronsLeft as ChevronsLeft,
+  IconChevronsRight as ChevronsRight,
+} from '@tabler/icons-vue'
 import AppIconButton from './AppIconButton.vue'
 import { parseDateValue, toDateValue } from '@/utils/date'
 

@@ -13,7 +13,7 @@
 </template>
 
 <script setup lang="ts">
-import { LoaderCircle } from 'lucide-vue-next'
+import { IconLoader2 as LoaderCircle } from '@tabler/icons-vue'
 
 withDefaults(defineProps<{
   label: string

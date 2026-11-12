@@ -1,4 +1,5 @@
 import { api } from './api'
+import { normalizeRepairStatus } from '@/utils/repairPresentation'
 import type {
   Repair,
   RepairComment,
@@ -11,7 +12,6 @@ import type {
   RepairFaultUpdatePayload,
   RepairPayload,
   RepairPhoto,
-  RepairStatus,
   RepairUpdatePayload,
 } from '@/types/repair'
 
@@ -64,29 +64,6 @@ function normalizeFaultPhoto(photo: RepairFaultPhoto): RepairFaultPhoto {
     ...photo,
     uploadedBy: photo.uploadedBy || null,
   }
-}
-
-function normalizeRepairStatus(status: string | null | undefined): RepairStatus {
-  const normalized = String(status || 'new').trim()
-  const lower = normalized.toLowerCase()
-
-  if (lower === 'in_field' || lower === 'infield') {
-    return 'IN_FIELD'
-  }
-
-  if (lower === 'ready_to_be_repaired') {
-    return 'ready_to_be_repaired'
-  }
-
-  if (lower === 'at_location') {
-    return 'at_location'
-  }
-
-  if (['new', 'planned', 'done', 'cancelled'].includes(lower)) {
-    return lower as RepairStatus
-  }
-
-  return 'new'
 }
 
 function normalizeFaultStatus(status: string | null | undefined): RepairFaultStatus {
@@ -271,6 +248,13 @@ export const repairService = {
   async addRepairComment(repairId: number | string, text: string) {
     const { data } = await api.post<RepairComment>(`/api/repairs/${repairId}/comments`, { text })
     return normalizeComment(data)
+  },
+
+  async reportVehicleFault(vehicleId: number, payload: { description: string; placeId?: number | null; urgent: boolean }) {
+    const { data } = await api.post<{ repairId: number; faultId: number }>(`/api/repairs/vehicle/${vehicleId}/faults`, payload, {
+      skipErrorToast: true,
+    })
+    return data
   },
 
   async addRepairFault(repairId: number | string, payload: RepairFaultPayload, options?: { silent?: boolean }) {

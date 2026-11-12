@@ -161,20 +161,20 @@ import { useWorkspaceDirty } from '@/composables/useWorkspace'
 import { useWorkspacePortal } from '@/composables/useWorkspace'
 import { computed, nextTick, onMounted, reactive, ref, shallowRef, watch } from 'vue'
 import {
-  ChevronRight,
-  Ellipsis,
-  KeyRound,
-  Plus,
-  Save,
-  ShieldCheck,
-  SquarePen,
-  Trash2,
-  UserRound,
-  UserRoundCheck,
-  UserRoundX,
-  Users,
-  X,
-} from 'lucide-vue-next'
+  IconChevronRight as ChevronRight,
+  IconDots as Ellipsis,
+  IconKey as KeyRound,
+  IconPlus as Plus,
+  IconDeviceFloppy as Save,
+  IconShieldCheck as ShieldCheck,
+  IconEdit as SquarePen,
+  IconTrash as Trash2,
+  IconUser as UserRound,
+  IconUserCheck as UserRoundCheck,
+  IconUserX as UserRoundX,
+  IconUsers as Users,
+  IconX as X,
+} from '@tabler/icons-vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'

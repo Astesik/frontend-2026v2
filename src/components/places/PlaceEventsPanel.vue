@@ -10,7 +10,7 @@
           </div>
           <p class="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{{ definition.description }}</p>
           <AppSelect v-model="forms[definition.type].vehicleScope" class="mt-3" label="Zakres pojazdów" :options="scopeOptions" size="sm" />
-          <EmailChipInput v-model="forms[definition.type].recipients" class="mt-3" label="Odbiorcy" />
+          <EmailChipInput v-model="forms[definition.type].recipients" class="mt-3" :label="definition.type === 'repair_status_change' ? 'Odbiorcy (opcjonalnie)' : 'Odbiorcy'" />
           <div class="mt-3 flex flex-wrap justify-end gap-2">
             <AppButton v-if="hasRule(definition.type)" size="sm" variant="ghost" :loading="isMutating" @click="removeRule(definition.type)">Usuń regułę</AppButton>
             <AppButton size="sm" variant="secondary" :loading="isMutating" @click="saveRule(definition.type)">Zapisz</AppButton>
@@ -27,9 +27,9 @@
       <div class="mt-3 max-h-56 space-y-2 overflow-y-auto pr-1">
         <article v-for="(event, index) in events" :key="event.id || index" class="flex items-start justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 dark:bg-app-dark">
           <div class="min-w-0">
-            <p class="text-xs font-semibold text-slate-950 dark:text-slate-50">{{ event.eventType === 'entry' ? 'Wjazd do strefy' : 'Wyjazd ze strefy' }} · {{ event.vehicleLicensePlate || event.vehicle?.licensePlate || `Pojazd #${event.vehicleId || event.vehicle?.id || '—'}` }}</p>
+            <p class="text-xs font-semibold text-slate-950 dark:text-slate-50">{{ eventTypeLabel(event.eventType) }} · {{ event.vehicleLicensePlate || event.vehicle?.licensePlate || `Pojazd #${event.vehicleId || event.vehicle?.id || '—'}` }}</p>
             <p class="mt-1 truncate text-[11px] text-slate-500 dark:text-app-muted">{{ eventPosition(event) }} · {{ event.notificationRecipients.join(', ') || 'Bez odbiorców' }}</p>
-            <p v-if="event.changedRepair?.id" class="mt-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">Naprawa #{{ event.changedRepair.id }} → {{ event.changedRepair.status === 'at_location' ? 'W lokalizacji' : event.changedRepair.status }}</p>
+            <p v-if="event.changedRepair?.id" class="mt-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">Naprawa #{{ event.changedRepair.id }} → {{ repairStatusLabel(event.changedRepair.status) }}</p>
           </div>
           <time class="shrink-0 text-[10px] text-slate-400">{{ formatDate(event.occurredAt || event.createdAt) }}</time>
         </article>
@@ -51,6 +51,14 @@ import { usePlaceStore } from '@/stores/placeStore'
 import { useUiStore } from '@/stores/uiStore'
 import type { PlaceEventRuleType, PlaceVehicleScope } from '@/types/place'
 
+import { repairStatusLabel } from '@/utils/repairPresentation'
+
+function eventTypeLabel(type: string) {
+  if (type === 'entry') return 'Wjazd do strefy'
+  if (type === 'exit') return 'Wyjazd ze strefy'
+  return 'Zmiana statusu naprawy'
+}
+
 const props = withDefaults(defineProps<{ placeId: number; showHistory?: boolean }>(), {
   showHistory: true,
 })
@@ -59,7 +67,7 @@ const uiStore = useUiStore()
 const { eventRulesByPlace, vehicleEventsByPlace, isMutating } = storeToRefs(placeStore)
 const definitions: Array<{ type: PlaceEventRuleType; label: string; description: string }> = [
   { type: 'email_notification', label: 'Powiadomienie e-mail', description: 'Wysyła wiadomość przy wjeździe i wyjeździe pojazdu ze strefy.' },
-  { type: 'repair_status_change', label: 'Zmiana statusu naprawy', description: 'Przy wjeździe zmienia zaplanowaną naprawę bieżącego tygodnia na „W lokalizacji” i wysyła e-mail.' },
+  { type: 'repair_status_change', label: 'Przenoś naprawy do gotowych po wjeździe', description: 'Przenosi nowe naprawy z usterkami do gotowych. E-mail jest opcjonalny.' },
 ]
 const forms = reactive<Record<PlaceEventRuleType, { enabled: boolean; vehicleScope: PlaceVehicleScope; recipients: string[] }>>({
   email_notification: { enabled: false, vehicleScope: 'all', recipients: [] },
@@ -90,7 +98,7 @@ async function load() {
 }
 
 async function saveRule(type: PlaceEventRuleType) {
-  if (forms[type].enabled && !forms[type].recipients.length) {
+  if (type === 'email_notification' && forms[type].enabled && !forms[type].recipients.length) {
     uiStore.addToast({ type: 'warning', title: 'Brak odbiorców', message: 'Aktywna reguła wymaga przynajmniej jednego adresu e-mail.' })
     return
   }
