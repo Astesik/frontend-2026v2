@@ -1,18 +1,19 @@
 <template>
   <div class="space-y-5 md:flex md:h-full md:min-h-0 md:flex-col md:space-y-0 md:gap-4 md:overflow-hidden">
-    <header class="flex shrink-0 flex-col gap-4">
-      <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+    <ResponsiveListToolbar v-model:sort-key="sortKey" v-model:sort-direction="sortDirection" :columns="sortableColumns">
+      <template #search>
         <AppInput
           v-model="searchQuery"
-          class="w-full sm:w-72"
           label="Wyszukaj"
           placeholder="Szukaj po rejestracji, marce, VIN, roku"
           size="sm"
           clearable
         />
+      </template>
+      <template #filters>
         <AppMultiSelect
           v-model="statusFilters"
-          class="w-full sm:w-36"
+          class="min-w-0 lg:w-36"
           label="Status"
           :options="statusFilterOptions"
           all-selected-label="Wszystkie"
@@ -21,13 +22,15 @@
         />
         <AppMultiSelect
           v-model="typeFilters"
-          class="w-full sm:w-40"
+          class="min-w-0 lg:w-40"
           label="Typ pojazdu"
           :options="typeFilterOptions"
           all-selected-label="Wszystkie typy"
           placeholder="Brak typów"
           size="sm"
         />
+      </template>
+      <template #actions>
         <AppButton
           size="sm"
           :disabled="!canCreateVehicles"
@@ -37,8 +40,8 @@
           <Plus class="h-4 w-4" />
           Dodaj pojazd
         </AppButton>
-      </div>
-    </header>
+      </template>
+    </ResponsiveListToolbar>
 
     <AppCard compact class="md:min-h-0 md:flex-1 md:overflow-hidden" content-class="md:flex md:h-full md:min-h-0 md:flex-col">
       <div class="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3 ui-caption">
@@ -46,31 +49,34 @@
         <span v-if="fleetStore.isVehiclesLoading">Pobieranie danych...</span>
       </div>
 
-      <div class="overflow-x-auto md:min-h-0 md:flex-1 md:overflow-y-auto">
-        <table class="ui-table min-w-[980px]">
+      <div class="min-w-0 md:min-h-0 md:flex-1 md:overflow-y-auto lg:overflow-x-auto">
+        <ul v-if="paginatedVehicles.length" class="divide-y divide-ui-divider lg:hidden" aria-label="Pojazdy">
+          <li v-for="vehicle in paginatedVehicles" :key="vehicle.id">
+            <RouterLink
+              class="flex min-w-0 items-center gap-2 rounded-md py-3 transition hover:bg-ui-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ui-focus"
+              :to="{ name: 'vehicle-detail', params: { id: vehicle.id } }"
+            >
+              <div class="grid min-w-0 flex-1 grid-flow-col grid-cols-[minmax(0,1fr)_minmax(0,1.75fr)] grid-rows-[auto_auto_auto] items-center gap-x-2 gap-y-1">
+                <span class="text-sm font-semibold text-ui-text [overflow-wrap:anywhere]">{{ vehicle.licensePlate }}</span>
+                <span class="ui-caption [overflow-wrap:anywhere]">{{ vehicle.make || '—' }}</span>
+                <span class="ui-caption tabular-nums">{{ vehicle.productionYear || '—' }}</span>
+                <div v-for="{ key, label } in deadlines" :key="key" class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-1">
+                  <span class="text-[11px] leading-4 text-ui-mutedText [overflow-wrap:anywhere]">{{ label }}</span>
+                  <DateCell :date="vehicle[key]" :tooltip="false" />
+                </div>
+              </div>
+              <ChevronRight class="h-4 w-4 shrink-0 text-ui-icon" aria-hidden="true" />
+            </RouterLink>
+          </li>
+        </ul>
+        <p v-else-if="!fleetStore.isVehiclesLoading" class="py-8 text-center ui-body-sm text-ui-mutedText lg:hidden">Brak pojazdów pasujących do filtrów.</p>
+
+        <table class="ui-table hidden min-w-[980px] lg:table">
           <thead class="ui-table-head">
             <tr>
               <th class="w-12 py-2 pr-3 font-medium">#</th>
-              <th class="py-2 pr-3 font-medium">
-                <SortButton label="Numer rejestracyjny" column="licensePlate" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
-              </th>
-              <th class="py-2 pr-3 font-medium">
-                <SortButton label="Typ pojazdu" column="type" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
-              </th>
-              <th class="py-2 pr-3 font-medium">
-                <SortButton label="Marka" column="make" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
-              </th>
-              <th class="py-2 pr-3 font-medium">
-                <SortButton label="Rok produkcji" column="productionYear" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
-              </th>
-              <th class="py-2 pr-3 font-medium">
-                <SortButton label="Przegląd techniczny" column="technicalInspection" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
-              </th>
-              <th class="py-2 pr-3 font-medium">
-                <SortButton label="Legalizacja tachografu" column="tachographInspection" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
-              </th>
-              <th class="py-2 pr-3 font-medium">
-                <SortButton label="Winieta UK" column="vignetteUk" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
+              <th v-for="column in sortableColumns" :key="column.key" class="py-2 pr-3 font-medium">
+                <SortButton :label="column.label" :column="column.key" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
               </th>
               <th class="sticky right-0 z-10 w-16 bg-ui-muted py-2 pr-1 text-right font-medium shadow-[-1px_0_0_0_rgb(var(--rw-border))]">Akcje</th>
             </tr>
@@ -166,6 +172,7 @@ import {
   IconArrowDown as ArrowDown,
   IconArrowUp as ArrowUp,
   IconArrowsSort as ArrowUpDown,
+  IconChevronRight as ChevronRight,
   IconPlus as Plus,
   IconEdit as SquarePen,
 } from '@tabler/icons-vue'
@@ -177,6 +184,7 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppMultiSelect from '@/components/ui/AppMultiSelect.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
+import ResponsiveListToolbar from '@/components/ui/ResponsiveListToolbar.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import AppTextarea from '@/components/ui/AppTextarea.vue'
 import VehicleTypeIcon from '@/components/vehicles/VehicleTypeIcon.vue'
@@ -239,6 +247,21 @@ const vehicleStatusFormOptions: AppSelectOption[] = [
   { label: 'Aktywny', value: 'ACTIVE' },
   { label: 'Nieaktywny', value: 'INACTIVE' },
 ]
+
+const sortableColumns: { key: VehicleSortKey; label: string }[] = [
+  { key: 'licensePlate', label: 'Numer rejestracyjny' },
+  { key: 'type', label: 'Typ pojazdu' },
+  { key: 'make', label: 'Marka' },
+  { key: 'productionYear', label: 'Rok produkcji' },
+  { key: 'technicalInspection', label: 'Przegląd techniczny' },
+  { key: 'tachographInspection', label: 'Legalizacja tachografu' },
+  { key: 'vignetteUk', label: 'Winieta UK' },
+]
+const deadlines = [
+  { key: 'technicalInspection', label: 'Przegląd' },
+  { key: 'tachographInspection', label: 'Tachograf' },
+  { key: 'vignetteUk', label: 'Winieta UK' },
+] as const
 
 const filteredVehicles = computed(() => {
   const query = searchQuery.value.trim().toLowerCase()
@@ -337,26 +360,27 @@ const DateCell = defineComponent({
       type: String as PropType<string | null>,
       default: null,
     },
+    tooltip: {
+      type: Boolean,
+      default: true,
+    },
   },
   setup(props) {
     return () => {
       if (!props.date) {
-        return h('span', { class: 'text-slate-400 dark:text-app-muted' }, '-')
+        return props.tooltip ? h('span', { class: 'text-slate-400 dark:text-app-muted' }, '-') : h('span', { class: 'justify-self-end text-xs text-ui-mutedText' }, '—')
       }
 
       const days = daysUntil(props.date)
+      const tooltipText = deadlineTooltipText(days)
+      const badge = () => h(AppBadge, {
+        variant: deadlineDateVariant(days),
+        class: props.tooltip ? 'cursor-help tabular-nums' : 'tabular-nums',
+        tabindex: props.tooltip ? 0 : undefined,
+        title: props.tooltip ? undefined : tooltipText,
+      }, () => formatDate(props.date))
 
-      return h(
-        AppTooltip,
-        { text: deadlineTooltipText(days) },
-        {
-          default: () => h(AppBadge, {
-            variant: deadlineDateVariant(days),
-            class: 'cursor-help tabular-nums',
-            tabindex: 0,
-          }, () => formatDate(props.date)),
-        },
-      )
+      return props.tooltip ? h(AppTooltip, { text: tooltipText }, { default: badge }) : badge()
     }
   },
 })

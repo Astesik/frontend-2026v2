@@ -70,3 +70,11 @@
 .rw-fleet-marker-plate-number { flex-shrink: 0; }
 .rw-fleet-marker-description { min-width: 0; max-width: 90px; color: rgb(var(--rw-app-muted)); font-size: 8px; font-weight: 500; }
 .rw-fleet-marker-driver { color: rgb(var(--rw-app-muted)); font-size: 8px; font-weight: 600; min-width: 0; }
+.rw-fleet-marker-driver-info {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: rgb(var(--rw-app-muted));
+  cursor: help;
+  pointer-events: auto;
+}
+.rw-fleet-marker-driver-info svg { width: 12px; height: 12px; }

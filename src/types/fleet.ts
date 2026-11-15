@@ -20,6 +20,7 @@ export interface ApiVehicle {
   assignedDeviceName: string | null
   fuelTank: number | null
   intermodalSideCode?: string | null
+  lastSeenDriver?: LastSeenDriver | null
   status: string | null
   lastPositionAt: string | null
   batteryLevel?: number | null
@@ -72,6 +73,13 @@ export interface PositionDriver {
   lastName: string | null
 }
 
+export interface LastSeenDriver {
+  cardId: string
+  seenAt: string
+  firstName: string | null
+  lastName: string | null
+}
+
 export interface ApiLastPosition {
   deviceId: number
   companyId: number
@@ -91,6 +99,7 @@ export interface ApiLastPosition {
   raw: unknown
   driver0: PositionDriver | null
   driver1: PositionDriver | null
+  lastSeenDriver?: LastSeenDriver | null
 }
 
 export interface VehicleLifecycleAlert {
@@ -122,6 +131,7 @@ export interface Vehicle {
   driverId?: string
   driverName?: string
   driverTachographId?: string
+  lastSeenDriver?: LastSeenDriver | null
   status: VehicleStatus
   rawStatus: string | null
   speed: number

@@ -114,7 +114,17 @@
                     </button>
           </template>
           <template #fuel="{ vehicle }">{{ formatFuel(vehicle) }}</template>
-          <template #driver="{ vehicle }">[{{ vehicleDriverLabel(vehicle) }}]</template>
+          <template #driver="{ vehicle }">
+            <span class="truncate">[{{ lastSeenDrivers.get(vehicle.id)?.label || vehicleDriverLabel(vehicle) }}]</span>
+            <span
+              v-if="lastSeenDrivers.has(vehicle.id)"
+              class="inline-flex shrink-0 cursor-help items-center"
+              :title="lastSeenDrivers.get(vehicle.id)?.description"
+            >
+              <History class="h-3 w-3" aria-hidden="true" />
+              <span class="sr-only">{{ lastSeenDrivers.get(vehicle.id)?.description }}</span>
+            </span>
+          </template>
         </FleetVehicleList>
       </div>
 
@@ -625,8 +635,11 @@
               <dl class="divide-y divide-ui-divider text-xs">
                 <div v-if="selectedVehicle.vehicleType !== 'trailer'" class="flex items-center justify-between gap-3 px-3 py-2">
                   <dt class="text-ui-mutedText">Kierowca</dt>
-                  <dd class="flex min-w-0 items-center justify-end gap-1.5">
-                    <span class="truncate font-semibold text-ui-text">{{ vehicleDriverLabel(selectedVehicle) || '[]' }}</span>
+                  <dd class="min-w-0 text-right">
+                    <p class="break-words font-semibold text-ui-text">{{ selectedVehicleLastSeenDriver?.label || vehicleDriverLabel(selectedVehicle) || 'Brak danych' }}</p>
+                    <p v-if="selectedVehicleLastSeenDriver" class="mt-0.5 text-[10px] text-ui-mutedText">
+                      Ostatni odczyt: <time :datetime="selectedVehicleLastSeenDriver.seenAt">{{ formatDateTimeLabel(selectedVehicleLastSeenDriver.seenAt) }}</time>
+                    </p>
                   </dd>
                 </div>
                 <div v-if="selectedVehicle.vehicleType !== 'trailer'" class="flex items-center justify-between gap-3 px-3 py-2">
@@ -916,7 +929,7 @@ import { historyLocalValue as toLocalDateTimeValue, customHistoryRange, historyP
 import { historyMetric, historyPointSpeed, historyPointFuel, fuelEventLabel, validHistoryPosition } from '@/utils/localPositionHistory'
 import { loadGoogleMaps } from '@/services/googleMapsLoader'
 import { DARK_STYLES } from '@/services/googleMapStyles'
-import { fleetMarkerIconSvg, routePointHeadingIconSvg } from '@/utils/fleetMarker'
+import { fleetMarkerIconSvg, lastDriverInfoIconSvg, routePointHeadingIconSvg } from '@/utils/fleetMarker'
 import { repairPlannedPlacesLabel } from '@/utils/repairPresentation'
 import RepairStatusBadges from '@/components/repairs/RepairStatusBadges.vue'
 import type { LocalHistoryPoint as ApiPositionHistoryPoint, LocalFuelEvent } from '@/types/localPositionHistory'
@@ -970,6 +983,7 @@ const REFRESH_CIRCLE_CIRCUMFERENCE = 2 * Math.PI * REFRESH_CIRCLE_RADIUS
 const MAP_SELECTED_FLEET_KEY_PREFIX = 'routewise.map.selectedFleet'
 const REPAIRS_FLEET_ID = 'status:repairs'
 const NO_SIGNAL_FLEET_ID = 'status:no-signal-7d'
+const NO_POSITION_FLEET_ID = 'status:no-position'
 const NO_SIGNAL_AGE_MS = 7 * 24 * 60 * 60 * 1000
 const DEFAULT_SELECTED_FLEET_ID = 'type:truck'
 const MOBILE_MAP_MEDIA_QUERY = '(max-width: 767px)'
@@ -1232,9 +1246,13 @@ const vehiclesWithRepairsCount = computed(() => fleetStore.vehicles.filter(vehic
 const vehiclesWithoutSignalIds = computed(() => {
   const cutoff = positionRefreshNextAt.value - POSITION_REFRESH_INTERVAL_MS - NO_SIGNAL_AGE_MS
   return new Set(fleetStore.vehicles
-    .filter(vehicle => vehicle.positionTimestamp && Date.parse(vehicle.positionTimestamp) < cutoff)
+    .filter(vehicle => vehicle.assignedDeviceId != null && vehicle.hasPosition && vehicle.positionTimestamp && Date.parse(vehicle.positionTimestamp) < cutoff)
     .map(vehicle => vehicle.id))
 })
+
+const vehiclesWithoutPositionIds = computed(() => new Set(fleetStore.vehicles
+  .filter(vehicle => vehicle.assignedDeviceId == null || !vehicle.hasPosition)
+  .map(vehicle => vehicle.id)))
 
 const systemFleetSelectOptions = computed(() => [
   { value: 'all', label: 'Wszystkie pojazdy' },
@@ -1262,6 +1280,7 @@ const mapFleetSelectOptions = computed(() => {
       label: `Naprawy (${vehiclesWithRepairsCount.value})`,
     }] : []),
     { value: NO_SIGNAL_FLEET_ID, label: `Brak sygnału >7 dni (${vehiclesWithoutSignalIds.value.size})` },
+    { value: NO_POSITION_FLEET_ID, label: `Brak urządzenia lub pozycji (${vehiclesWithoutPositionIds.value.size})` },
   ]
 
   return [
@@ -1275,6 +1294,17 @@ const selectedVehicle = computed(() => (
     ? fleetStore.vehicles.find((vehicle) => vehicle.id === selectedVehicleId.value) || null
     : null
 ))
+const lastSeenDrivers = computed(() => {
+  const drivers = new Map<string, NonNullable<ReturnType<typeof vehicleLastSeenDriver>>>()
+  for (const vehicle of fleetStore.vehicles) {
+    const driver = vehicleLastSeenDriver(vehicle)
+    if (driver) drivers.set(vehicle.id, driver)
+  }
+  return drivers
+})
+const selectedVehicleLastSeenDriver = computed(() => selectedVehicle.value
+  ? lastSeenDrivers.value.get(selectedVehicle.value.id) ?? null
+  : null)
 const selectedVehicleUpdateBadge = computed(() => selectedVehicle.value
   ? vehicleUpdateAgeBadge(selectedVehicle.value, positionRefreshNextAt.value - POSITION_REFRESH_INTERVAL_MS)
   : null)
@@ -1341,12 +1371,14 @@ const filteredVehicles = computed(() => {
   const fleetId = selectedFleetId.value
 
   const matchedVehicles = fleetStore.vehicles.filter((vehicle) => {
-    const driver = vehicleDriverLabel(vehicle).toLowerCase()
+    const driver = (lastSeenDrivers.value.get(vehicle.id)?.label || vehicleDriverLabel(vehicle)).toLowerCase()
     const matchesFleet = fleetId === NO_SIGNAL_FLEET_ID
       ? vehiclesWithoutSignalIds.value.has(vehicle.id)
-      : fleetId === REPAIRS_FLEET_ID
-        ? vehicleHasActiveRepair(vehicle)
-        : fleetId === 'all' || fleetStore.isVehicleInGroup(fleetId, vehicle.id)
+      : fleetId === NO_POSITION_FLEET_ID
+        ? vehiclesWithoutPositionIds.value.has(vehicle.id)
+        : fleetId === REPAIRS_FLEET_ID
+          ? vehicleHasActiveRepair(vehicle)
+          : fleetId === 'all' || fleetStore.isVehicleInGroup(fleetId, vehicle.id)
     const matchesQuery = !query ||
       vehicle.plateNumber.toLowerCase().includes(query) ||
       vehicle.name.toLowerCase().includes(query) ||
@@ -1599,6 +1631,13 @@ function vehicleDriverLabel(vehicle: Vehicle) {
   }
 
   return vehicle.driverName || (vehicle.driverId ? fleetStore.drivers.find((driver) => driver.id === vehicle.driverId)?.name : null) || ''
+}
+
+function vehicleLastSeenDriver(vehicle: Vehicle) {
+  const driver = vehicle.lastSeenDriver
+  if (!driver || vehicle.vehicleType === 'trailer' || vehicleDriverLabel(vehicle)) return null
+  const label = [driver.firstName, driver.lastName].filter(Boolean).join(' ').trim() || driver.cardId
+  return { label, seenAt: driver.seenAt, description: `Ostatni odczyt: ${formatDateTimeLabel(driver.seenAt)}` }
 }
 
 function formatUnixTimestamp(value: string) {
@@ -2511,9 +2550,13 @@ function markerLabelHtml(vehicle: Vehicle) {
     return ''
   }
 
-  const driver = vehicleDriverLabel(vehicle)
-  const driverHtml = mapSettings.map.showMarkerDriver && driver
-    ? `<span class="rw-fleet-marker-driver">${escapeHtml(driver)}</span>`
+  const lastSeen = mapSettings.map.showMarkerDriver ? lastSeenDrivers.value.get(vehicle.id) : null
+  const driver = mapSettings.map.showMarkerDriver ? lastSeen?.label || vehicleDriverLabel(vehicle) : ''
+  const driverInfo = lastSeen
+    ? `<span class="rw-fleet-marker-driver-info" title="${escapeHtml(lastSeen.description)}">${lastDriverInfoIconSvg}</span>`
+    : ''
+  const driverHtml = driver
+    ? `<span class="rw-fleet-marker-driver">${escapeHtml(driver)}</span>${driverInfo}`
     : ''
   const description = vehicle.description?.trim()
   const descriptionHtml = mapSettings.map.showVehicleDescriptions && description
@@ -3489,7 +3532,7 @@ watch(mapFleetSelectOptions, (options, previousOptions) => {
 watch(selectedFleetId, (fleetId) => {
   localStorage.setItem(selectedFleetStorageKey(), fleetId)
 
-  if (fleetId !== 'all' && fleetId !== REPAIRS_FLEET_ID && fleetId !== NO_SIGNAL_FLEET_ID) {
+  if (!mapFleetSelectOptions.value.some(option => option.value === fleetId && 'menuLabel' in option)) {
     void fleetStore.fetchVehicleGroup(fleetId)
   }
 }, { immediate: true })

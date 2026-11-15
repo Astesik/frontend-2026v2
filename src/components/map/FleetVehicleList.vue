@@ -67,8 +67,8 @@
                       >
                         {{ vehicle.description }}
                       </span>
-                      <span v-if="row.driver && vehicle.vehicleType !== 'trailer'" class="min-w-0 max-w-[6.5rem] truncate text-[9px] leading-none text-slate-500 dark:text-app-muted">
-                        <slot name="driver" :vehicle="vehicle">[{{ vehicle.driverName || '' }}]</slot>
+                      <span v-if="row.driver && vehicle.vehicleType !== 'trailer'" class="inline-flex min-w-0 max-w-[6.5rem] items-center gap-0.5 text-[9px] leading-none text-slate-500 dark:text-app-muted">
+                        <slot name="driver" :vehicle="vehicle"><span class="truncate">[{{ vehicle.driverName || '' }}]</span></slot>
                       </span>
                     </div>
                   </div>

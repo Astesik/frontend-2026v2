@@ -1,18 +1,19 @@
 <template>
   <div class="space-y-5 md:flex md:h-full md:min-h-0 md:flex-col md:space-y-0 md:gap-4 md:overflow-hidden">
-    <header class="flex shrink-0 flex-col gap-4">
-      <div class="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+    <ResponsiveListToolbar v-model:sort-key="sortKey" v-model:sort-direction="sortDirection" :columns="sortableColumns">
+      <template #search>
         <AppInput
           v-model="searchQuery"
-          class="w-full sm:w-72"
           label="Wyszukaj"
           placeholder="Nazwa, numer seryjny, ID"
           size="sm"
           clearable
         />
+      </template>
+      <template #filters>
         <AppMultiSelect
           v-model="providerFilters"
-          class="w-full sm:w-40"
+          class="min-w-0 lg:w-40"
           label="Dostawca"
           :options="providerFilterOptions"
           all-selected-label="Wszyscy"
@@ -21,15 +22,15 @@
         />
         <AppMultiSelect
           v-model="assignmentFilters"
-          class="w-full sm:w-36"
+          class="min-w-0 lg:w-36"
           label="Przypisanie"
           :options="assignmentFilterOptions"
           all-selected-label="Wszystkie"
           placeholder="Brak statusów"
           size="sm"
         />
-      </div>
-    </header>
+      </template>
+    </ResponsiveListToolbar>
 
     <AppCard compact class="md:min-h-0 md:flex-1 md:overflow-hidden" content-class="md:flex md:h-full md:min-h-0 md:flex-col">
       <div class="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3 ui-caption">
@@ -37,8 +38,30 @@
         <span v-if="deviceStore.isLoading">Pobieranie danych...</span>
       </div>
 
-      <div class="overflow-x-auto md:min-h-0 md:flex-1 md:overflow-y-auto">
-        <table class="ui-table min-w-[1120px]">
+      <div class="min-w-0 md:min-h-0 md:flex-1 md:overflow-y-auto lg:overflow-x-auto">
+        <ul v-if="paginatedDevices.length" class="divide-y divide-ui-divider lg:hidden" aria-label="Urządzenia">
+          <li v-for="device in paginatedDevices" :key="device.id">
+            <RouterLink
+              class="flex min-w-0 items-center gap-3 rounded-md py-3 transition hover:bg-ui-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ui-focus"
+              :to="{ name: 'device-detail', params: { id: device.id } }"
+            >
+              <div class="min-w-0 flex-1 space-y-1">
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span class="text-sm font-semibold text-ui-text [overflow-wrap:anywhere]">{{ device.deviceName || `Urządzenie #${device.id}` }}</span>
+                  <AppBadge :variant="device.status === 'ACTIVE' ? 'success' : 'neutral'">{{ deviceStatusLabel(device.status) }}</AppBadge>
+                </div>
+                <p class="ui-caption [overflow-wrap:anywhere]">{{ providerLabel(device.provider) }} · {{ deviceAssignmentLabel(device) }}</p>
+                <p class="ui-caption" :title="device.lastPositionAt ? formatDateTime(device.lastPositionAt) : undefined">
+                  Ostatnia pozycja <span class="ml-1 font-medium" :class="lastPositionClasses(device.lastPositionAt)">{{ formatPositionAge(device.lastPositionAt) }}</span>
+                </p>
+              </div>
+              <ChevronRight class="h-4 w-4 shrink-0 text-ui-icon" aria-hidden="true" />
+            </RouterLink>
+          </li>
+        </ul>
+        <p v-else-if="!deviceStore.isLoading" class="py-8 text-center ui-body-sm text-ui-mutedText lg:hidden">Brak urządzeń pasujących do filtrów.</p>
+
+        <table class="ui-table hidden min-w-[1120px] lg:table">
           <thead class="ui-table-head">
             <tr>
               <th class="w-12 py-2 pr-3 font-medium">#</th>
@@ -110,12 +133,13 @@
 import { useWorkspaceViewState } from '@/composables/useWorkspace'
 import { computed, onMounted, ref, watch, type Component } from 'vue'
 import { RouterLink } from 'vue-router'
-import { IconArrowDown as ArrowDown, IconArrowUp as ArrowUp, IconArrowsSort as ArrowUpDown, IconEdit as SquarePen } from '@tabler/icons-vue'
+import { IconArrowDown as ArrowDown, IconArrowUp as ArrowUp, IconArrowsSort as ArrowUpDown, IconChevronRight as ChevronRight, IconEdit as SquarePen } from '@tabler/icons-vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppMultiSelect from '@/components/ui/AppMultiSelect.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
+import ResponsiveListToolbar from '@/components/ui/ResponsiveListToolbar.vue'
 import type { AppSelectOption } from '@/components/ui/AppSelect.vue'
 import { useDeviceStore } from '@/stores/deviceStore'
 import type { DeviceListItem, DeviceProvider, DeviceStatus, DeviceType } from '@/types/device'
@@ -136,6 +160,7 @@ const sortKey = ref<DeviceSortKey>('deviceName')
 const sortDirection = ref<SortDirection>('asc')
 const currentPage = ref(1)
 const pageSize = ref(10)
+const positionAgeFormatter = new Intl.RelativeTimeFormat('pl-PL', { style: 'short' })
 
 const providerFilterOptions: AppSelectOption[] = [
   { label: 'Lokalne', value: 'LOCAL' },
@@ -236,6 +261,25 @@ function deviceStatusLabel(status: DeviceStatus) {
 
 function providerLabel(provider: DeviceProvider) {
   return { LOCAL: 'Lokalne', GPS_ONLINE: 'GPS Online', FLESPI: 'Flespi', ABERG: 'ABERG' }[provider]
+}
+
+function deviceAssignmentLabel(device: DeviceListItem) {
+  if (device.assignedVehicleLicensePlate) return device.assignedVehicleLicensePlate
+  if (device.assignedVehicleId) return `Pojazd #${device.assignedVehicleId}`
+  return device.assignedToVehicle ? 'Przypisane' : 'Wolne'
+}
+
+function formatPositionAge(value: string | null) {
+  const timestamp = value ? new Date(value).getTime() : NaN
+  if (!Number.isFinite(timestamp)) return 'Brak danych'
+
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000))
+  if (minutes === 0) return 'przed chwilą'
+  if (minutes < 60) return positionAgeFormatter.format(-minutes, 'minute')
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return positionAgeFormatter.format(-hours, 'hour')
+  return positionAgeFormatter.format(-Math.floor(hours / 24), 'day')
 }
 
 function formatDateTime(value: string | null) {

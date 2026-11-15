@@ -1,5 +1,6 @@
 import arrowBigUp from '@tabler/icons/outline/arrow-big-up.svg?raw'
 import alertHexagon from '@tabler/icons/outline/alert-hexagon.svg?raw'
+import history from '@tabler/icons/outline/history.svg?raw'
 import navigation from '@tabler/icons/outline/navigation.svg?raw'
 import tool from '@tabler/icons/outline/tool.svg?raw'
 import worldX from '@tabler/icons/outline/world-x.svg?raw'
@@ -15,6 +16,7 @@ const repairIcon = markerSvg(tool, 2.25)
 const alertIcon = markerSvg(alertHexagon, 2.25)
 const noSignalIcon = markerSvg(worldX, 2.25)
 const headingIcon = markerSvg(arrowBigUp, 2.25, 'rw-fleet-marker-heading')
+export const lastDriverInfoIconSvg = markerSvg(history, 2)
 export const routePointHeadingIconSvg = markerSvg(navigation, 2.6, 'rw-route-point-heading')
 
 export function fleetMarkerIconSvg(state: FleetMarkerState) {

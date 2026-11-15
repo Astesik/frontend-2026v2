@@ -5,7 +5,7 @@
     </p>
 
     <div class="flex flex-wrap items-center gap-2">
-      <div class="flex items-center gap-1">
+      <div class="flex flex-wrap items-center gap-1">
         <button type="button" :disabled="page <= 1" class="pagination-button" aria-label="Pierwsza strona" @click="goToPage(1)">
           <ChevronsLeft class="h-4 w-4" />
         </button>

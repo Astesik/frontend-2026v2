@@ -46,16 +46,16 @@ function normalizeDriverName(driver: PositionDriver | null) {
   return name || String(driver.tachoid)
 }
 
-function normalizeVehicleStatus(vehicle: ApiVehicle, position?: ApiLastPosition): VehicleStatus {
+function normalizeVehicleStatus(vehicle: ApiVehicle, hasPosition: boolean, speedKph?: number | null): VehicleStatus {
   if (vehicle.status && vehicle.status !== 'ACTIVE') {
     return 'service'
   }
 
-  if (!position || position.lat === null || position.lon === null) {
+  if (!hasPosition) {
     return 'offline'
   }
 
-  if ((position.speedKph || 0) > 0) {
+  if ((speedKph || 0) > 0) {
     return 'moving'
   }
 
@@ -187,15 +187,24 @@ function requiresInspection(vehicle: Vehicle) {
   ))
 }
 
-function normalizeVehicle(vehicle: ApiVehicle, position?: ApiLastPosition): Vehicle {
-  const driver = position?.driver0 || position?.driver1 || null
-  const driverName = normalizeDriverName(driver)
+function normalizeVehicle(vehicle: ApiVehicle, lastPosition?: ApiLastPosition): Vehicle {
+  const position = vehicle.assignedDeviceId != null && lastPosition?.deviceId === vehicle.assignedDeviceId
+    ? lastPosition : undefined
+  const primaryCard = position?.driverSlot0?.trim()
+  const driver = position?.driver0 || (!primaryCard ? position?.driver1 : null) || null
+  const driverName = normalizeDriverName(driver) || primaryCard || position?.driverSlot1?.trim()
+  const lastSeenDriver = [position?.lastSeenDriver, vehicle.lastSeenDriver].reduce<Vehicle['lastSeenDriver']>((latest, candidate) => {
+    if (!candidate) return latest
+    return !latest || Date.parse(candidate.seenAt) > Date.parse(latest.seenAt) ? candidate : latest
+  }, null)
   const inspectionAlert = createLifecycleAlert('inspection', vehicle.technicalInspection)
   const tachographAlert = createLifecycleAlert('tachograph', vehicle.tachographInspection)
   const alerts = [inspectionAlert, tachographAlert].filter(Boolean) as VehicleLifecycleAlert[]
   const vehicleType = normalizeVehicleType(vehicle.type)
   const model = vehicle.make || (vehicleType === 'trailer' ? 'Naczepa' : 'Pojazd')
-  const hasPosition = Boolean(position && position.lat !== null && position.lon !== null)
+  const lat = position?.lat
+  const lon = position?.lon
+  const hasPosition = lat != null && lon != null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180
 
   return {
     id: String(vehicle.id),
@@ -218,7 +227,8 @@ function normalizeVehicle(vehicle: ApiVehicle, position?: ApiLastPosition): Vehi
     driverId: driver ? String(driver.tachoid) : undefined,
     driverName: driverName || undefined,
     driverTachographId: driver ? String(driver.tachoid) : undefined,
-    status: normalizeVehicleStatus(vehicle, position),
+    lastSeenDriver,
+    status: normalizeVehicleStatus(vehicle, hasPosition, position?.speedKph),
     rawStatus: vehicle.status,
     speed: Math.round(position?.speedKph ?? 0),
     fuelLevel: Math.round(position?.fuelPct ?? 0),
@@ -237,10 +247,10 @@ function normalizeVehicle(vehicle: ApiVehicle, position?: ApiLastPosition): Vehi
     assignedDeviceId: vehicle.assignedDeviceId ?? null,
     assignedDeviceName: vehicle.assignedDeviceName || null,
     ignitionState: position?.ignitionState || null,
-    batteryLevel: (position && position.deviceId === vehicle.assignedDeviceId ? position.batteryLevel ?? vehicle.batteryLevel : vehicle.batteryLevel) ?? null,
+    batteryLevel: position?.batteryLevel ?? vehicle.batteryLevel ?? null,
     heading: position?.heading ?? null,
     lastPositionAt: vehicle.lastPositionAt,
-    positionTimestamp: position?.ts || null,
+    positionTimestamp: hasPosition ? position?.ts ?? null : null,
   }
 }
 

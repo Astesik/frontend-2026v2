@@ -39,7 +39,22 @@ fleet.upsertApiVehicle({ ...vehicle, batteryLevel: 42 })
 assert.equal(fleet.vehicles[0].batteryLevel, 42, 'Vehicle write/assignment response updates the reading')
 fleet.upsertApiVehicle({ ...vehicle, batteryLevel: undefined })
 assert.equal(fleet.vehicles[0].batteryLevel, null, 'Legacy responses remain supported')
-assert.equal(requests, 0, 'Reading battery adds no requests')
+const oldCard = { cardId: 'OLD-CARD', seenAt: '2026-11-13T10:00:00Z', firstName: 'Jan', lastName: 'Kowalski' }
+const newCard = { cardId: 'NEW-CARD', seenAt: '2026-11-13T11:00:00Z', firstName: null, lastName: null }
+fleet.upsertApiVehicle({ ...vehicle, lastSeenDriver: oldCard })
+fleet.lastPositions = [{ vehicleId: 1, deviceId: 46, lat: 52, lon: 20, lastSeenDriver: newCard }]
+assert.equal(fleet.vehicles[0].lastSeenDriver.cardId, 'NEW-CARD')
+assert.equal(fleet.vehicles[0].driverName, undefined, 'A historic card does not become the current driver')
+fleet.lastPositions[0].driverSlot0 = 'UNKNOWN-CURRENT'
+fleet.lastPositions[0].driver1 = { tachoid: 11, firstName: 'Drugi', lastName: 'Kierowca' }
+assert.equal(fleet.vehicles[0].driverName, 'UNKNOWN-CURRENT', 'An anonymous primary card still takes priority')
+fleet.upsertApiVehicle({ ...vehicle, assignedDeviceId: null, lastSeenDriver: newCard })
+assert.equal(fleet.vehicles[0].hasPosition, false)
+assert.equal(fleet.vehicles[0].positionTimestamp, null)
+assert.equal(fleet.vehicles[0].driverName, undefined, 'An unassigned device does not provide a current driver')
+assert.equal(fleet.vehicles[0].lastSeenDriver.cardId, 'NEW-CARD', 'Last seen card remains available without a device')
+assert.equal(fleet.vehicles[1].lastSeenDriver, null, 'Historical cards are isolated by vehicle')
+assert.equal(requests, 0, 'Reading battery or the last seen card adds no requests')
 const descriptor = parse(source('src/components/vehicles/VehicleBatteryLevel.vue')).descriptor
 const component = load(compileScript(descriptor, { id: 'battery-test' }).content).default
 const props = vue.reactive({ level: 100 })

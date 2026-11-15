@@ -6,14 +6,18 @@ import { parse } from '@vue/compiler-sfc'
 import { computed, reactive, ref } from 'vue'
 
 const source = readFileSync(new URL('../src/views/MapView.vue', import.meta.url), 'utf8')
-const script = parse(source).descriptor.scriptSetup.content
+const { scriptSetup, template } = parse(source).descriptor
+const script = scriptSetup.content
 const ast = ts.createSourceFile('MapView.ts', script, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-const names = new Set(['REPAIRS_FLEET_ID', 'NO_SIGNAL_FLEET_ID', 'NO_SIGNAL_AGE_MS', 'POSITION_REFRESH_INTERVAL_MS', 'visibleVehicleTypeGroups', 'vehiclesWithRepairsCount', 'vehiclesWithoutSignalIds', 'systemFleetSelectOptions', 'customFleetSelectOptions', 'fleetSelectOptions', 'mapFleetSelectOptions', 'filteredVehicles', 'mapMarkerVehicles', 'activeRepairsByVehicleId'])
+const names = new Set(['REPAIRS_FLEET_ID', 'NO_SIGNAL_FLEET_ID', 'NO_POSITION_FLEET_ID', 'NO_SIGNAL_AGE_MS', 'POSITION_REFRESH_INTERVAL_MS', 'visibleVehicleTypeGroups', 'vehiclesWithRepairsCount', 'vehiclesWithoutSignalIds', 'vehiclesWithoutPositionIds', 'systemFleetSelectOptions', 'customFleetSelectOptions', 'fleetSelectOptions', 'mapFleetSelectOptions', 'filteredVehicles', 'mapMarkerVehicles', 'activeRepairsByVehicleId', 'lastSeenDrivers', 'selectedVehicleLastSeenDriver'])
 const nodes = ast.statements.filter(node =>
   ts.isVariableStatement(node) && node.declarationList.declarations.some(item => names.has(item.name.getText(ast))) ||
-  ts.isFunctionDeclaration(node) && ['vehicleHasActiveRepair', 'vehicleAlertItems', 'positionAgeHours', 'formatSignalAge', 'vehicleUpdateAgeBadge'].includes(node.name?.text))
+  ts.isFunctionDeclaration(node) && ['vehicleHasActiveRepair', 'vehicleDriverLabel', 'vehicleLastSeenDriver', 'formatDateTimeLabel', 'escapeHtml', 'markerLabelHtml', 'vehicleAlertItems', 'positionAgeHours', 'formatSignalAge', 'vehicleUpdateAgeBadge'].includes(node.name?.text))
 const code = ts.transpileModule(nodes.map(node => node.getText(ast)).join('\n'), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
-const vehicle = (id, hasPosition = true, positionTimestamp = null) => ({ id: String(id), backendId: id, plateNumber: `TEST ${id}`, name: 'Pojazd', model: 'Model', hasPosition, positionTimestamp })
+const vehicle = (id, hasPosition = true, positionTimestamp = null, assignedDeviceId = id) => ({
+  id: String(id), backendId: id, plateNumber: `TEST ${id}`, name: 'Pojazd', model: 'Model',
+  hasPosition, positionTimestamp, assignedDeviceId,
+})
 const repairs = ref([
   { id: 1, vehicleId: 1, status: 'new' },
   { id: 2, vehicle: { id: 1 }, status: 'planned' },
@@ -31,16 +35,19 @@ const state = {
   fleetStore: reactive({
     vehicles: [
       vehicle(1, true, '2026-10-30T11:59:59Z'), vehicle(2, true, '2026-10-30T12:00:00Z'),
-      vehicle(3, true, 'invalid'), vehicle(4, false), vehicle(5, true, '2026-11-06T11:00:00Z'),
+      vehicle(3, false, null, null), vehicle(4, false), vehicle(5, true, '2026-11-06T11:00:00Z'),
     ],
     vehicleTypeGroups: [{ id: 'type:truck', name: 'Ciągniki', vehiclesCount: 3 }, { id: 'type:trailer', name: 'Naczepy', vehiclesCount: 2 }, { id: 'status:inspection-due', name: 'Do przeglądu', vehiclesCount: 1 }],
     vehicleGroups: [{ id: '10', name: 'Flota', vehiclesCount: 1 }],
     isVehicleInGroup: (group, id) => group === '10' && id === '5',
     fetchVehicleGroup: id => fetched.push(id),
   }),
-  vehicleDriverLabel: () => '', sortVehicles: values => values, localStorage: { setItem() {} }, selectedFleetStorageKey: () => 'fleet',
+  selectedVehicle: ref(null),
+  mapSettings: { map: { showMarkerLabels: true, showMarkerDriver: true, showVehicleDescriptions: false } },
+  lastDriverInfoIconSvg: '<svg class="icon-tabler-history" aria-hidden="true"></svg>',
+  sortVehicles: values => values, localStorage: { setItem() {} }, selectedFleetStorageKey: () => 'fleet',
 }
-vm.runInNewContext(code + '\nthis.result = { filteredVehicles, mapMarkerVehicles, fleetSelectOptions, mapFleetSelectOptions, vehicleAlertItems, vehicleUpdateAgeBadge }', state)
+vm.runInNewContext(code + '\nthis.result = { filteredVehicles, mapMarkerVehicles, fleetSelectOptions, mapFleetSelectOptions, vehicleAlertItems, vehicleUpdateAgeBadge, selectedVehicleLastSeenDriver, markerLabelHtml }', state)
 const ids = () => Array.from(state.result.filteredVehicles.value, item => item.id)
 assert.deepEqual(ids(), ['1', '4'], 'Include active repairs once per known vehicle, including vehicles without GPS')
 assert.deepEqual(Array.from(state.result.mapMarkerVehicles.value, item => item.id), ['1'])
@@ -48,7 +55,7 @@ assert.equal(state.result.mapFleetSelectOptions.value[4].label, 'Naprawy (2)')
 const menuLabels = () => Array.from(state.result.mapFleetSelectOptions.value, option => option.menuLabel ?? option.label)
 assert.deepEqual(menuLabels(), [
   '1. Wszystkie pojazdy', '2. Ciągniki (3)', '3. Naczepy (2)', '4. Do przeglądu (1)',
-  '5. Naprawy (2)', '6. Brak sygnału >7 dni (1)', 'Flota (1)',
+  '5. Naprawy (2)', '6. Brak sygnału >7 dni (1)', '7. Brak urządzenia lub pozycji (2)', 'Flota (1)',
 ])
 assert.equal(state.result.mapFleetSelectOptions.value[0].label, 'Wszystkie pojazdy')
 assert.equal(state.result.fleetSelectOptions.value[0].label, 'Wszystkie pojazdy')
@@ -69,6 +76,8 @@ const callback = ts.transpileModule('const onFleetChange = ' + watcher.expressio
 vm.runInNewContext(callback + '\nthis.onFleetChange = onFleetChange', state)
 state.onFleetChange('status:repairs')
 state.onFleetChange('status:no-signal-7d')
+state.onFleetChange('status:no-position')
+state.onFleetChange('type:truck')
 assert.deepEqual(fetched, [], 'Local status filters must not request a server fleet')
 state.onFleetChange('10')
 assert.deepEqual(fetched, ['10'])
@@ -76,12 +85,12 @@ console.log('PASS: repairs filter, unique vehicle count, status updates, search,
 
 state.fleetStore.vehicleTypeGroups[0].vehiclesCount = 0
 state.fleetStore.vehicleTypeGroups[2].vehiclesCount = 0
-assert.deepEqual(Array.from(state.result.mapFleetSelectOptions.value, option => option.value), ['all', 'type:trailer', 'status:repairs', 'status:no-signal-7d', '10'])
-assert.deepEqual(menuLabels(), ['1. Wszystkie pojazdy', '2. Naczepy (2)', '3. Naprawy (1)', '4. Brak sygnału >7 dni (1)', 'Flota (1)'])
+assert.deepEqual(Array.from(state.result.mapFleetSelectOptions.value, option => option.value), ['all', 'type:trailer', 'status:repairs', 'status:no-signal-7d', 'status:no-position', '10'])
+assert.deepEqual(menuLabels(), ['1. Wszystkie pojazdy', '2. Naczepy (2)', '3. Naprawy (1)', '4. Brak sygnału >7 dni (1)', '5. Brak urządzenia lub pozycji (2)', 'Flota (1)'])
 repairs.value[4].status = 'done'
-assert.deepEqual(Array.from(state.result.mapFleetSelectOptions.value, option => option.value), ['all', 'type:trailer', 'status:no-signal-7d', '10'], 'Hide repairs when no known vehicle has an active repair')
+assert.deepEqual(Array.from(state.result.mapFleetSelectOptions.value, option => option.value), ['all', 'type:trailer', 'status:no-signal-7d', 'status:no-position', '10'], 'Hide repairs when no known vehicle has an active repair')
 state.fleetStore.vehicleTypeGroups[1].vehiclesCount = 0
-assert.deepEqual(Array.from(state.result.mapFleetSelectOptions.value, option => option.value), ['all', 'status:no-signal-7d', '10'])
+assert.deepEqual(Array.from(state.result.mapFleetSelectOptions.value, option => option.value), ['all', 'status:no-signal-7d', 'status:no-position', '10'])
 state.fleetStore.vehicleTypeGroups[0].vehiclesCount = 1
 assert.ok(state.result.mapFleetSelectOptions.value.some(option => option.value === 'type:truck'), 'Show categories again when vehicles become available')
 const categoryWatcher = ast.statements.find(node => ts.isExpressionStatement(node) && ts.isCallExpression(node.expression) && node.expression.expression.getText(ast) === 'watch' && node.expression.arguments[0]?.getText(ast) === 'mapFleetSelectOptions')
@@ -107,6 +116,49 @@ for (const item of state.fleetStore.vehicles.slice(0, 2)) item.positionTimestamp
 assert.deepEqual(ids(), [], 'A recent reading removes the vehicle from the list')
 assert.equal(noSignalLabel(), 'Brak sygnału >7 dni (0)')
 console.log('PASS: live no-signal list, strict seven-day threshold, unknown dates, polling, search and count.')
+
+state.selectedFleetId.value = 'status:no-position'
+assert.deepEqual(ids(), ['3', '4'], 'Include both unassigned vehicles and devices without a position')
+assert.deepEqual(Array.from(state.result.mapMarkerVehicles.value), [])
+state.vehicleSearch.value = 'TEST 4'
+assert.deepEqual(ids(), ['4'])
+state.vehicleSearch.value = ''
+state.fleetStore.vehicles[3].hasPosition = true
+assert.deepEqual(ids(), ['3'])
+assert.equal(state.result.mapFleetSelectOptions.value.find(option => option.value === 'status:no-position').label, 'Brak urządzenia lub pozycji (1)')
+console.log('PASS: missing device or position category, count, search and live updates.')
+
+const lastSeenDriver = { cardId: '123', firstName: 'Jan', lastName: 'Kowalski', seenAt: '2026-11-05T12:00:00Z' }
+state.fleetStore.vehicles[0].lastSeenDriver = lastSeenDriver
+state.selectedVehicle.value = state.fleetStore.vehicles[0]
+const markerLabel = () => state.result.markerLabelHtml(state.selectedVehicle.value)
+assert.equal(state.result.selectedVehicleLastSeenDriver.value.label, 'Jan Kowalski')
+assert.equal(state.result.selectedVehicleLastSeenDriver.value.seenAt, lastSeenDriver.seenAt)
+assert.match(markerLabel(), /Jan Kowalski/)
+assert.match(markerLabel(), /title="Ostatni odczyt: [^"]+"/)
+assert.match(markerLabel(), /icon-tabler-history/)
+assert.match(template.content, /#driver="\{ vehicle \}"[\s\S]+?:title="lastSeenDrivers.get\(vehicle.id\)\?\.description"/)
+assert.match(template.content, /Ostatni odczyt: <time :datetime="selectedVehicleLastSeenDriver.seenAt"/)
+state.selectedFleetId.value = 'all'
+state.vehicleSearch.value = 'Kowalski'
+assert.deepEqual(ids(), ['1'], 'The visible last-seen driver can be found in the list')
+state.vehicleSearch.value = ''
+state.mapSettings.map.showMarkerDriver = false
+assert.doesNotMatch(markerLabel(), /Jan Kowalski|icon-tabler-history/)
+state.mapSettings.map.showMarkerDriver = true
+state.selectedVehicle.value.lastSeenDriver.firstName = '<Jan>'
+assert.match(markerLabel(), /&lt;Jan&gt; Kowalski/, 'Marker HTML escapes provider data')
+state.selectedVehicle.value.lastSeenDriver.firstName = null
+state.selectedVehicle.value.lastSeenDriver.lastName = null
+assert.equal(state.result.selectedVehicleLastSeenDriver.value.label, '123')
+state.selectedVehicle.value.driverName = 'Bieżący kierowca'
+assert.equal(state.result.selectedVehicleLastSeenDriver.value, null)
+assert.match(markerLabel(), /Bieżący kierowca/)
+assert.doesNotMatch(markerLabel(), /Ostatni odczyt|icon-tabler-history/)
+state.selectedVehicle.value.vehicleType = 'trailer'
+assert.equal(state.result.selectedVehicleLastSeenDriver.value, null)
+assert.doesNotMatch(markerLabel(), /Bieżący kierowca|icon-tabler-history/)
+console.log('PASS: driver fallback, list search, marker icon and timestamp, drawer date, current driver priority and trailers.')
 
 const gpsAlertFor = (positionTimestamp) => state.result.vehicleAlertItems({ backendId: 50, alerts: [], positionTimestamp })[0]
 assert.equal(gpsAlertFor(null)?.id, 'gps-no-position')
