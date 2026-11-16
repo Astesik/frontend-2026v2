@@ -97,7 +97,9 @@ export interface ApiLastPosition {
   mileage?: number | null
   driverSlot0: string | null
   driverSlot1: string | null
-  raw: unknown
+  satelite?: number | null
+  indicators?: unknown
+  enginespeed?: number | null
   driver0: PositionDriver | null
   driver1: PositionDriver | null
   lastSeenDriver?: LastSeenDriver | null
