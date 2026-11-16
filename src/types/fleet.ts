@@ -14,7 +14,8 @@ export interface ApiVehicle {
   technicalInspection: string | null
   tachographInspection: string | null
   vignetteUk: string | null
-  vignetteLuxembourg: string | null
+  vignetteLuxembourgFrom: string | null
+  vignetteLuxembourgTo: string | null
   vignetteDenmark: string | null
   assignedDeviceId: number | null
   assignedDeviceName: string | null
@@ -143,7 +144,8 @@ export interface Vehicle {
   technicalInspection: string | null
   tachographInspection: string | null
   vignetteUk: string | null
-  vignetteLuxembourg: string | null
+  vignetteLuxembourgFrom: string | null
+  vignetteLuxembourgTo: string | null
   vignetteDenmark: string | null
   assignedDeviceId: number | null
   assignedDeviceName: string | null

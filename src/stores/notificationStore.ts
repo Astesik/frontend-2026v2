@@ -5,6 +5,7 @@ import type {
   CompanyMailSettings,
   CompanyMailSettingsPayload,
   CountryEventHistoryItem,
+  CountryHistoryFilters,
   CountryEventRule,
   CountryEventRulePayload,
 } from '@/types/notifications'
@@ -85,21 +86,26 @@ export const useNotificationStore = defineStore('notifications', () => {
     }
   }
 
-  async function loadCountryHistory(page = 0, size = 100, options?: { silent?: boolean }) {
+  let countryHistoryRequest = 0
+
+  async function loadCountryHistory(page = 0, size = 100, options?: { silent?: boolean; filters?: CountryHistoryFilters }) {
+    const request = ++countryHistoryRequest
     isLoadingCountryHistory.value = true
     try {
       const result = await notificationService.getCountryHistory(page, size, options)
+      if (request !== countryHistoryRequest) return
       countryHistory.value = result.content
       countryHistoryTotal.value = result.totalElements
       countryHistoryPage.value = result.number + 1
       countryHistoryPageSize.value = result.size
       return result
     } finally {
-      isLoadingCountryHistory.value = false
+      if (request === countryHistoryRequest) isLoadingCountryHistory.value = false
     }
   }
 
   function resetApiState() {
+    countryHistoryRequest++
     mailSettings.value = null
     countryRules.value = []
     countryHistory.value = []

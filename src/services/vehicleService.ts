@@ -1,7 +1,9 @@
 import { api } from './api'
 import type { ApiVehicle, SelectOption, VehiclePhoto } from '@/types/fleet'
 
-export type VehiclePayload = Partial<Omit<ApiVehicle, 'id' | 'lastPositionAt' | 'assignedDeviceName' | 'batteryLevel'>>
+export type VehiclePayload = Partial<Omit<ApiVehicle, 'id' | 'lastPositionAt' | 'assignedDeviceName' | 'batteryLevel'>> & {
+  clearLuxembourgVignette?: boolean
+}
 
 export const vehicleService = {
   async getVehicles(options?: { silent?: boolean }) {

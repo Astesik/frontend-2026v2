@@ -3,6 +3,7 @@ import type {
   CompanyMailSettings,
   CompanyMailSettingsPayload,
   CountryEventHistoryItem,
+  CountryHistoryFilters,
   CountryEventRule,
   CountryEventRulePayload,
   PageResult,
@@ -69,9 +70,9 @@ export const notificationService = {
     await api.delete(`/api/country-events/rules/${id}`)
   },
 
-  async getCountryHistory(page = 0, size = 100, options?: { silent?: boolean }) {
+  async getCountryHistory(page = 0, size = 100, options?: { silent?: boolean; filters?: CountryHistoryFilters }) {
     const { data } = await api.get<PageResult<CountryEventHistoryItem> | CountryEventHistoryItem[]>('/api/country-events/history', {
-      params: { page, size },
+      params: { page, size, paged: true, ...options?.filters },
       skipErrorToast: options?.silent,
     })
     const result = normalizePage(data, page, size)

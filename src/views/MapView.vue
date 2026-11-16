@@ -405,8 +405,8 @@
             type="button"
             class="inline-flex h-9 w-9 items-center justify-center rounded-2xl border shadow-sm transition"
             :class="vignetteDrawerOpen ? activeModeClasses : inactiveModeClasses"
-            aria-label="Winiety GB"
-            title="Winiety GB"
+            aria-label="Winiety"
+            title="Winiety"
             @click="toggleVignetteDrawer"
           >
             <TicketCheck class="h-4 w-4" />
@@ -498,58 +498,47 @@
       >
         <aside
           v-if="vignetteDrawerOpen"
-          class="absolute right-0 top-0 z-30 flex h-full w-[22rem] max-w-full flex-col border-l border-slate-200 bg-white shadow-sm dark:border-app-border dark:bg-app-panel"
+          class="absolute inset-y-0 right-0 z-30 flex w-[28rem] max-w-full flex-col border-l border-ui-border bg-ui-canvas shadow-popover"
           @click.stop
         >
-          <header class="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-app-border">
-            <div class="flex min-w-0 items-center gap-2">
-              <TicketCheck class="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-300" />
-              <div class="min-w-0">
-                <h2 class="truncate text-sm font-semibold text-slate-950 dark:text-slate-50">Winiety GB</h2>
-              </div>
-            </div>
-            <button
-              type="button"
-              class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-app-elevated dark:hover:text-slate-100"
-              aria-label="Zamknij winiety GB"
-              @click="vignetteDrawerOpen = false"
-            >
-              <X class="h-4 w-4" />
-            </button>
+          <header class="flex shrink-0 items-center justify-between gap-3 border-b border-ui-divider bg-ui-surface px-4 py-3">
+            <h2 class="flex items-center gap-2 text-sm font-semibold text-ui-text">
+              <TicketCheck class="h-4 w-4 text-ui-icon" aria-hidden="true" />
+              Winiety
+            </h2>
+            <AppIconButton label="Zamknij winiety" size="sm" variant="ghost" @click="vignetteDrawerOpen = false">
+              <X class="h-4 w-4" aria-hidden="true" />
+            </AppIconButton>
           </header>
 
-          <div class="min-h-0 flex-1 overflow-auto">
-            <table class="w-full table-fixed text-left text-xs">
-              <thead class="sticky top-0 z-10 border-b border-slate-200 bg-white text-[10px] uppercase text-slate-500 dark:border-app-border dark:bg-app-panel dark:text-app-muted">
-                <tr>
-                  <th class="w-[34%] px-3 py-2 font-semibold">Numer rej.</th>
-                  <th class="w-[34%] px-2 py-2 font-semibold">Ważna do</th>
-                  <th class="px-2 py-2 text-right font-semibold">Pozostało</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="item in ukVignetteRows"
-                  :key="item.vehicleId"
-                  class="border-b border-slate-100 last:border-0 dark:border-app-border"
-                >
-                  <td class="truncate px-3 py-2 font-semibold text-slate-900 dark:text-slate-100">
-                    {{ item.plateNumber }}
-                  </td>
-                  <td class="px-2 py-2 tabular-nums" :class="vignetteDaysClasses(item.daysLeft)">
-                    {{ item.dateLabel }}
-                  </td>
-                  <td class="px-2 py-2 text-right font-semibold tabular-nums" :class="vignetteDaysClasses(item.daysLeft)">
-                    {{ item.daysLabel }}
-                  </td>
-                </tr>
-                <tr v-if="!ukVignetteRows.length">
-                  <td colspan="3" class="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-                    Brak pojazdów.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="grid min-h-0 flex-1 grid-rows-2 gap-3 p-3">
+            <section v-for="section in vignetteSections" :key="section.country" class="flex min-h-0 flex-col rounded-lg border border-ui-border bg-ui-surface">
+              <div class="flex shrink-0 items-center justify-between gap-2 border-b border-ui-divider px-3 py-2">
+                <h3 class="text-sm font-semibold text-ui-text">{{ section.label }}</h3>
+                <AppPopover v-model:open="vignetteInfoOpen[section.country]" open-on-hover :hover-delay="180" content-class="p-3">
+                  <template #trigger="{ open }">
+                    <button type="button" class="ui-icon-button !h-7 !w-7" :aria-label="`Które pojazdy są na liście ${section.country}?`" :aria-expanded="open" aria-haspopup="dialog">
+                      <InfoCircle class="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </template>
+                  <p class="w-60 max-w-[calc(100vw-2.5rem)] text-xs leading-relaxed text-ui-text-secondary">{{ section.description }}</p>
+                </AppPopover>
+              </div>
+              <div class="min-h-0 flex-1 overflow-y-auto">
+                <ul v-if="section.rows.length" class="divide-y divide-ui-divider">
+                  <li v-for="item in section.rows" :key="item.vehicleId" class="flex items-center justify-between gap-2 px-3 py-2.5">
+                    <div class="min-w-0">
+                      <p class="text-sm font-semibold text-ui-text [overflow-wrap:anywhere]">{{ item.plateNumber }}</p>
+                      <p class="mt-0.5 h-4 truncate text-xs leading-4 tabular-nums text-ui-mutedText" :title="item.dateLabel ?? undefined">
+                        <template v-if="item.dateLabel">{{ section.country === 'GB' ? 'Do ' : '' }}{{ item.dateLabel }}</template>
+                      </p>
+                    </div>
+                    <AppBadge :variant="item.variant" class="max-w-[46%] shrink-0 !whitespace-normal text-right">{{ item.statusLabel }}</AppBadge>
+                  </li>
+                </ul>
+                <p v-else class="px-4 py-5 text-xs text-ui-mutedText">Brak pojazdów.</p>
+              </div>
+            </section>
           </div>
         </aside>
       </Transition>
@@ -579,6 +568,16 @@
               <h2 class="truncate text-sm font-semibold text-slate-950 dark:text-slate-50 md:text-base">
                 {{ selectedVehicle.plateNumber }}
               </h2>
+              <RouterLink
+                v-if="canOpenWorkspace('vehicle-detail', authStore)"
+                class="ui-icon-button !h-6 !w-6 shrink-0 md:!h-7 md:!w-7"
+                :to="{ name: 'vehicle-detail', params: { id: selectedVehicle.backendId } }"
+                aria-label="Otwórz pojazd w zakładce Pojazdy"
+                title="Otwórz pojazd w zakładce Pojazdy"
+                @click.stop
+              >
+                <ExternalLink class="h-3.5 w-3.5" aria-hidden="true" />
+              </RouterLink>
             </div>
             <div class="flex shrink-0 items-center gap-1">
               <button
@@ -617,8 +616,7 @@
 
           <div
             ref="vehicleDrawerBodyElement"
-            class="min-h-0 flex-1 p-2 md:p-2.5"
-            :class="vehicleDrawerTab === 'info' ? 'overflow-y-hidden' : 'overflow-y-auto'"
+            class="min-h-0 flex-1 overflow-y-auto p-2 md:p-2.5"
           >
             <div v-show="vehicleDrawerTab === 'info'" ref="vehicleDrawerInfoElement" class="overflow-hidden rounded-[6px] border border-ui-border">
               <div class="flex items-center justify-between gap-3 bg-ui-muted px-3 py-2">
@@ -681,7 +679,7 @@
               <div class="border-t border-ui-divider bg-ui-muted px-3 py-1.5 text-[10px] font-semibold uppercase text-ui-mutedText">{{ selectedVehicle.vehicleType === 'trailer' ? 'Przeglądy' : 'Przeglądy i winiety' }}</div>
               <div class="divide-y divide-ui-divider">
                 <div v-for="item in selectedVehicleLifecycleItems" :key="item.label" class="flex items-center justify-between gap-2 px-3 py-2">
-                  <div class="min-w-0"><p class="truncate text-xs font-medium text-ui-text">{{ item.label }}</p><p class="text-[10px] text-ui-mutedText">{{ item.dateLabel }}</p></div>
+                  <div class="min-w-0"><p class="truncate text-xs font-medium text-ui-text">{{ item.label }}</p><p v-if="item.dateLabel" class="text-[10px] text-ui-mutedText">{{ item.dateLabel }}</p></div>
                   <AppBadge :variant="item.variant">{{ item.daysLabel }}</AppBadge>
                 </div>
               </div>
@@ -870,7 +868,7 @@ import { useWorkspaceActive, useWorkspacePolling } from '@/composables/useWorksp
 import { useWorkspacePortal } from '@/composables/useWorkspace'
 import { storeToRefs } from 'pinia'
 import { computed, defineComponent, h, markRaw, nextTick, onBeforeUnmount, onMounted, reactive, ref, render, shallowRef, watch, type Component } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import {
   IconArrowDown as ArrowDown,
   IconArrowRight as ArrowRight,
@@ -879,9 +877,11 @@ import {
   IconCheck as Check,
   IconAlertCircle as CircleAlert,
   IconCopy as Copy,
+  IconExternalLink as ExternalLink,
   IconFlag as Flag,
   IconWorldX as GlobeX,
   IconHistory as History,
+  IconInfoCircle as InfoCircle,
   IconStack2 as Layers,
   IconList as List,
   IconCurrentLocation as LocateFixed,
@@ -905,6 +905,8 @@ import {
   IconX as X,
 } from '@tabler/icons-vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
+import { describeLuxembourgVignette, formatVignettePeriod, luxembourgCalendarDate } from '@/utils/vignette'
+import { canOpenWorkspace } from '@/workspace/registry'
 import VehicleBatteryLevel from '@/components/vehicles/VehicleBatteryLevel.vue'
 import VehicleTodayStatistics from '@/components/vehicles/VehicleTodayStatistics.vue'
 import FleetVehicleList from '@/components/map/FleetVehicleList.vue'
@@ -916,6 +918,7 @@ import { useFuelStationPermissions } from '@/composables/useFuelStationPermissio
 import { useFuelStationStore } from '@/stores/fuelStationStore'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
+import AppPopover from '@/components/ui/AppPopover.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
@@ -1168,6 +1171,10 @@ const activeAlertTooltip = ref<AlertTooltip | null>(null)
 const layersMenuOpen = ref(false)
 const placesMenuOpen = ref(false)
 const vignetteDrawerOpen = ref(false)
+const vignetteInfoOpen = reactive({ GB: false, LU: false })
+watch(vignetteDrawerOpen, (open) => {
+  if (!open) Object.assign(vignetteInfoOpen, { GB: false, LU: false })
+})
 const isPlacePlacementMode = ref(false)
 const isPlaceFormOpen = ref(false)
 const selectedPlace = ref<Place | null>(null)
@@ -1334,37 +1341,45 @@ const positionRefreshCircleOffset = computed(() => {
   return REFRESH_CIRCLE_CIRCUMFERENCE * (1 - Math.min(1, Math.max(0, progress)))
 })
 
-const ukVignetteRows = computed(() => fleetStore.vehicles
-  .filter((vehicle) => (
-    vehicle.vehicleType === 'truck' &&
-    vehicle.countryCode?.toUpperCase() === 'GB'
-  ))
-  .map((vehicle) => {
-    const daysLeft = daysUntilDate(vehicle.vignetteUk)
+const ukVignetteRows = computed(() => {
+  const now = positionRefreshNextAt.value - POSITION_REFRESH_INTERVAL_MS
+  return fleetStore.vehicles
+    .filter(vehicle => vehicle.rawType === 'TRUCK' && vehicle.countryCode?.toUpperCase() === 'GB')
+    .map(vehicle => {
+      const daysLeft = daysUntilDate(vehicle.vignetteUk, now)
+      return {
+        vehicleId: vehicle.id,
+        plateNumber: vehicle.plateNumber,
+        daysLeft,
+        dateLabel: vehicle.vignetteUk ? formatVignettePeriod(null, vehicle.vignetteUk) : null,
+        statusLabel: daysLeft === null ? 'Brak winiety' : daysLeft < 0 ? 'Po terminie' : daysLeft === 0 ? 'Dzisiaj' : `${daysLeft} dni`,
+        variant: resolveDaysVariant(daysLeft),
+      }
+    })
+    .sort((a, b) => (a.daysLeft ?? -Infinity) - (b.daysLeft ?? -Infinity)
+      || a.plateNumber.localeCompare(b.plateNumber, 'pl'))
+})
 
-    return {
-      vehicleId: vehicle.id,
-      plateNumber: vehicle.plateNumber,
-      daysLeft,
-      dateLabel: vehicle.vignetteUk ? formatDateLabel(vehicle.vignetteUk) : '—',
-      daysLabel: daysLeft === null
-        ? 'Brak daty'
-        : daysLeft < 0
-          ? 'Po terminie'
-          : daysLeft === 0
-            ? 'Dzisiaj'
-            : `${daysLeft} dni`,
-    }
-  })
-  .sort((first, second) => {
-    if (first.daysLeft === null && second.daysLeft === null) {
-      return first.plateNumber.localeCompare(second.plateNumber, 'pl')
-    }
+const luxembourgToday = computed(() => luxembourgCalendarDate(positionRefreshNextAt.value - POSITION_REFRESH_INTERVAL_MS))
 
-    if (first.daysLeft === null) return 1
-    if (second.daysLeft === null) return -1
-    return first.daysLeft - second.daysLeft || first.plateNumber.localeCompare(second.plateNumber, 'pl')
+const luVignetteRows = computed(() => fleetStore.vehicles
+  .filter(vehicle => vehicle.rawType === 'TRUCK')
+  .map(vehicle => ({
+    vehicleId: vehicle.id,
+    plateNumber: vehicle.plateNumber,
+    inLuxembourg: vehicle.countryCode?.toUpperCase() === 'LU',
+    ...describeLuxembourgVignette(vehicle.vignetteLuxembourgFrom, vehicle.vignetteLuxembourgTo, luxembourgToday.value),
   }))
+  .filter(row => row.inLuxembourg || row.status === 'valid' || row.status === 'not_yet_valid')
+  .sort((a, b) => Number(b.status === 'missing') - Number(a.status === 'missing')
+    || Number(b.status === 'expired') - Number(a.status === 'expired')
+    || Number(b.inLuxembourg && b.status !== 'valid') - Number(a.inLuxembourg && a.status !== 'valid')
+    || a.plateNumber.localeCompare(b.plateNumber, 'pl')))
+
+const vignetteSections = computed(() => [
+  { country: 'GB', label: 'Winieta Wielka Brytania', rows: ukVignetteRows.value, description: 'Ciągniki wykryte w Wielkiej Brytanii.' },
+  { country: 'LU', label: 'Winieta Luksemburg', rows: luVignetteRows.value, description: 'Ciągniki wykryte w Luksemburgu oraz ciągniki w innych krajach z ważną lub przyszłą winietą dla Luksemburga.' },
+] as const)
 
 const filteredVehicles = computed(() => {
   const query = vehicleSearch.value.trim().toLowerCase()
@@ -1486,31 +1501,27 @@ const selectedVehicleLifecycleItems = computed(() => {
     return []
   }
 
-  return [
-    {
-      label: 'Przegląd techniczny',
-      date: selectedVehicle.value.technicalInspection,
-    },
-    ...(selectedVehicle.value.vehicleType === 'trailer' ? [] : [
-      {
-        label: 'Tachograf',
-        date: selectedVehicle.value.tachographInspection,
-      },
-      {
-        label: 'Winieta UK',
-        date: selectedVehicle.value.vignetteUk,
-      },
-    ]),
-  ].map((item) => {
-    const daysLeft = daysUntilDate(item.date)
+  const vehicle = selectedVehicle.value
+  const deadlines = [{ label: 'Przegląd techniczny', date: vehicle.technicalInspection }]
+  if (vehicle.vehicleType !== 'trailer') deadlines.push({ label: 'Tachograf', date: vehicle.tachographInspection })
+  if (vehicle.rawType === 'TRUCK') deadlines.push({ label: 'Winieta Wielka Brytania', date: vehicle.vignetteUk })
 
+  const items = deadlines.map(({ label, date }) => {
+    const daysLeft = daysUntilDate(date)
     return {
-      ...item,
-      dateLabel: item.date ? formatDateLabel(item.date) : '—',
+      label,
+      dateLabel: date ? formatDateLabel(date) : null,
       daysLabel: formatDaysLeft(daysLeft),
       variant: resolveDaysVariant(daysLeft),
     }
   })
+  if (vehicle.rawType === 'TRUCK') {
+    const { dateLabel, statusLabel, variant } = describeLuxembourgVignette(
+      vehicle.vignetteLuxembourgFrom, vehicle.vignetteLuxembourgTo, luxembourgToday.value,
+    )
+    items.push({ label: 'Winieta Luksemburg', dateLabel, daysLabel: statusLabel, variant })
+  }
+  return items
 })
 
 const mapMessage = computed(() => {
@@ -1718,14 +1729,14 @@ function formatFuel(vehicle: Vehicle) {
   return `${Math.round(vehicle.fuelPct)}%`
 }
 
-function daysUntilDate(value: string | null) {
+function daysUntilDate(value: string | null, reference = Date.now()) {
   const dueDate = parseDate(value)
 
   if (!dueDate) {
     return null
   }
 
-  const today = new Date()
+  const today = new Date(reference)
   today.setHours(0, 0, 0, 0)
 
   return Math.ceil((dueDate.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
@@ -2281,21 +2292,6 @@ function resolveDaysVariant(daysLeft: number | null): BadgeVariant {
   return 'neutral'
 }
 
-function vignetteDaysClasses(daysLeft: number | null) {
-  if (daysLeft === null) {
-    return 'text-slate-400 dark:text-app-muted'
-  }
-
-  if (daysLeft < 15) {
-    return 'text-danger-600 dark:text-danger-400'
-  }
-
-  if (daysLeft < 30) {
-    return 'text-warning-600 dark:text-amber-300'
-  }
-
-  return 'text-slate-700 dark:text-slate-200'
-}
 
 function setFuelUnit(value: string) {
   mapSettings.map.fuelUnit = value as FuelUnit

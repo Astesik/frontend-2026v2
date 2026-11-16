@@ -23,7 +23,14 @@ export interface CompanyMailSettingsPayload {
 
 export type CountryEventType = 'country_entry' | 'vignette_check'
 export type CountryVehicleScope = 'all' | 'trucks' | 'trailers'
-export type VignetteStatus = 'valid' | 'missing' | 'expired'
+export type VignetteStatus = 'valid' | 'missing' | 'expired' | 'not_yet_valid'
+
+export interface CountryHistoryFilters {
+  from?: string
+  to?: string
+  country?: string
+  registration?: string
+}
 
 export interface CountryEventRule {
   id: number
@@ -44,6 +51,7 @@ export interface CountryEventHistoryItem {
   vehicleId?: number | null
   vehicleLicensePlate?: string | null
   vignetteStatus: VignetteStatus | null
+  vignetteValidFrom?: string | null
   vignetteValidUntil: string | null
   notificationRecipients: string[]
   createdAt?: string | null

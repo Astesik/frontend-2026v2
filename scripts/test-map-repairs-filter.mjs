@@ -9,13 +9,13 @@ const source = readFileSync(new URL('../src/views/MapView.vue', import.meta.url)
 const { scriptSetup, template } = parse(source).descriptor
 const script = scriptSetup.content
 const ast = ts.createSourceFile('MapView.ts', script, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
-const names = new Set(['REPAIRS_FLEET_ID', 'NO_SIGNAL_FLEET_ID', 'NO_POSITION_FLEET_ID', 'NO_SIGNAL_AGE_MS', 'POSITION_REFRESH_INTERVAL_MS', 'visibleVehicleTypeGroups', 'vehiclesWithRepairsCount', 'vehiclesWithoutSignalIds', 'vehiclesWithoutPositionIds', 'systemFleetSelectOptions', 'customFleetSelectOptions', 'fleetSelectOptions', 'mapFleetSelectOptions', 'filteredVehicles', 'mapMarkerVehicles', 'activeRepairsByVehicleId', 'lastSeenDrivers', 'selectedVehicleLastSeenDriver'])
+const names = new Set(['REPAIRS_FLEET_ID', 'NO_SIGNAL_FLEET_ID', 'NO_POSITION_FLEET_ID', 'NO_SIGNAL_AGE_MS', 'POSITION_REFRESH_INTERVAL_MS', 'visibleVehicleTypeGroups', 'vehiclesWithRepairsCount', 'vehiclesWithoutSignalIds', 'vehiclesWithoutPositionIds', 'systemFleetSelectOptions', 'customFleetSelectOptions', 'fleetSelectOptions', 'mapFleetSelectOptions', 'filteredVehicles', 'mapMarkerVehicles', 'activeRepairsByVehicleId', 'lastSeenDrivers', 'selectedVehicleLastSeenDriver', 'ukVignetteRows', 'luxembourgToday', 'luVignetteRows', 'vignetteSections', 'selectedVehicleLifecycleItems'])
 const nodes = ast.statements.filter(node =>
   ts.isVariableStatement(node) && node.declarationList.declarations.some(item => names.has(item.name.getText(ast))) ||
-  ts.isFunctionDeclaration(node) && ['vehicleHasActiveRepair', 'vehicleDriverLabel', 'vehicleLastSeenDriver', 'formatDateTimeLabel', 'escapeHtml', 'markerLabelHtml', 'vehicleAlertItems', 'positionAgeHours', 'formatSignalAge', 'vehicleUpdateAgeBadge'].includes(node.name?.text))
+  ts.isFunctionDeclaration(node) && ['vehicleHasActiveRepair', 'vehicleDriverLabel', 'vehicleLastSeenDriver', 'formatDateTimeLabel', 'escapeHtml', 'markerLabelHtml', 'vehicleAlertItems', 'positionAgeHours', 'formatSignalAge', 'vehicleUpdateAgeBadge', 'daysUntilDate', 'parseDate', 'formatDateLabel', 'formatDaysLeft', 'resolveDaysVariant'].includes(node.name?.text))
 const code = ts.transpileModule(nodes.map(node => node.getText(ast)).join('\n'), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText
 const vehicle = (id, hasPosition = true, positionTimestamp = null, assignedDeviceId = id) => ({
-  id: String(id), backendId: id, plateNumber: `TEST ${id}`, name: 'Pojazd', model: 'Model',
+  id: String(id), backendId: id, plateNumber: `TEST ${id}`, name: 'Pojazd', model: 'Model', rawType: 'TRUCK',
   hasPosition, positionTimestamp, assignedDeviceId,
 })
 const repairs = ref([
@@ -26,10 +26,19 @@ const repairs = ref([
   { id: 5, vehicleId: 4, status: 'in_field' },
   { id: 6, vehicleId: 999, status: 'new' },
 ])
+const vignetteExports = {}
+const dateExports = {}
+function loadUtil(name, exports, dependencies = {}) {
+  const file = readFileSync(new URL(`../src/utils/${name}.ts`, import.meta.url), 'utf8')
+  const compiled = ts.transpileModule(file, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
+  vm.runInNewContext(compiled, { exports, require: name => dependencies[name] })
+}
+loadUtil('date', dateExports)
+loadUtil('vignette', vignetteExports, { './date': dateExports })
 const fetched = []
 const now = Date.parse('2026-11-06T12:00:00Z')
 const state = {
-  computed, repairs, selectedFleetId: ref('status:repairs'), vehicleSearch: ref(''), activeMode: ref('list'),
+  ...vignetteExports, computed, repairs, selectedFleetId: ref('status:repairs'), vehicleSearch: ref(''), activeMode: ref('list'),
   positionRefreshNextAt: ref(now + 10_000),
   Date: class extends Date { static now() { return now } },
   fleetStore: reactive({
@@ -47,7 +56,7 @@ const state = {
   lastDriverInfoIconSvg: '<svg class="icon-tabler-history" aria-hidden="true"></svg>',
   sortVehicles: values => values, localStorage: { setItem() {} }, selectedFleetStorageKey: () => 'fleet',
 }
-vm.runInNewContext(code + '\nthis.result = { filteredVehicles, mapMarkerVehicles, fleetSelectOptions, mapFleetSelectOptions, vehicleAlertItems, vehicleUpdateAgeBadge, selectedVehicleLastSeenDriver, markerLabelHtml }', state)
+vm.runInNewContext(code + '\nthis.result = { filteredVehicles, mapMarkerVehicles, fleetSelectOptions, mapFleetSelectOptions, vehicleAlertItems, vehicleUpdateAgeBadge, selectedVehicleLastSeenDriver, markerLabelHtml, vignetteSections, selectedVehicleLifecycleItems }', state)
 const ids = () => Array.from(state.result.filteredVehicles.value, item => item.id)
 assert.deepEqual(ids(), ['1', '4'], 'Include active repairs once per known vehicle, including vehicles without GPS')
 assert.deepEqual(Array.from(state.result.mapMarkerVehicles.value, item => item.id), ['1'])
@@ -182,3 +191,49 @@ for (const [timestamp, label, variant] of [
   assert.equal(badge?.variant, variant)
 }
 console.log('PASS: drawer GPS age badge threshold, hour/day formatting and severity.')
+
+state.fleetStore.vehicles = [
+  { ...vehicle(1), vehicleType: 'truck', countryCode: 'GB', vignetteUk: null },
+  { ...vehicle(9), vehicleType: 'truck', countryCode: 'GB', vignetteUk: '2026-11-10' },
+  { ...vehicle(2), vehicleType: 'truck', countryCode: 'PL', vignetteLuxembourgFrom: '2026-11-16', vignetteLuxembourgTo: '2026-11-16' },
+  { ...vehicle(3), vehicleType: 'truck', countryCode: 'LU', vignetteLuxembourgFrom: '2026-11-17', vignetteLuxembourgTo: '2026-11-17' },
+  { ...vehicle(4), vehicleType: 'truck', countryCode: 'LU', vignetteLuxembourgFrom: null, vignetteLuxembourgTo: null },
+  { ...vehicle(5), vehicleType: 'truck', countryCode: 'PL', vignetteLuxembourgFrom: '2026-11-01', vignetteLuxembourgTo: '2026-11-10' },
+  { ...vehicle(6), vehicleType: 'trailer', rawType: 'TRAILER', countryCode: 'LU', vignetteLuxembourgFrom: '2026-11-15', vignetteLuxembourgTo: '2026-11-17' },
+  { ...vehicle(7), vehicleType: 'truck', countryCode: 'LU', vignetteLuxembourgFrom: '2026-11-14', vignetteLuxembourgTo: '2026-11-15' },
+  { ...vehicle(8), vehicleType: 'truck', rawType: 'CAR', countryCode: 'LU', vignetteLuxembourgFrom: '2026-11-15', vignetteLuxembourgTo: '2026-11-17' },
+]
+const vignetteRows = country => Array.from(state.result.vignetteSections.value.find(section => section.country === country).rows,
+  row => [row.vehicleId, row.dateLabel, row.statusLabel])
+state.positionRefreshNextAt.value = Date.parse('2026-11-15T22:59:59Z') + 10_000
+assert.deepEqual(vignetteRows('GB'), [
+  ['1', null, 'Brak winiety'],
+  ['9', '10.11.2026', 'Po terminie'],
+])
+assert.deepEqual(vignetteRows('LU'), [
+  ['4', null, 'Brak winiety'],
+  ['3', '17.11.2026', 'Jeszcze nieważna'],
+  ['2', '16.11.2026', 'Jeszcze nieważna'],
+  ['7', '14.11.2026 – 15.11.2026', 'Ważna'],
+])
+state.positionRefreshNextAt.value = Date.parse('2026-11-15T23:00:00Z') + 10_000
+assert.deepEqual(vignetteRows('LU'), [
+  ['4', null, 'Brak winiety'],
+  ['7', '14.11.2026 – 15.11.2026', 'Nieważna'],
+  ['3', '17.11.2026', 'Jeszcze nieważna'],
+  ['2', '16.11.2026', 'Ważna'],
+])
+assert.match(state.result.vignetteSections.value[0].description, /Wielkiej Brytanii/)
+assert.match(state.result.vignetteSections.value[1].description, /przyszłą winietą dla Luksemburga/)
+assert.match(template.content, /params: \{ id: selectedVehicle.backendId \}/)
+
+state.selectedVehicle.value = state.fleetStore.vehicles.find(vehicle => vehicle.id === '7')
+const lifecycleItems = () => Array.from(state.result.selectedVehicleLifecycleItems.value)
+assert.deepEqual(lifecycleItems().map(item => item.label), ['Przegląd techniczny', 'Tachograf', 'Winieta Wielka Brytania', 'Winieta Luksemburg'])
+assert.equal(lifecycleItems().at(-1).daysLabel, 'Nieważna')
+assert.equal(lifecycleItems().at(-1).dateLabel, '14.11.2026 – 15.11.2026')
+state.selectedVehicle.value = state.fleetStore.vehicles.find(vehicle => vehicle.id === '4')
+assert.equal(lifecycleItems().at(-1).daysLabel, 'Brak winiety')
+state.selectedVehicle.value = state.fleetStore.vehicles.find(vehicle => vehicle.id === '6')
+assert.deepEqual(lifecycleItems().map(item => item.label), ['Przegląd techniczny'])
+console.log('PASS: GB and LU panel eligibility, future and expired ranges, Luxembourg midnight, drawer status and vehicle shortcut.')

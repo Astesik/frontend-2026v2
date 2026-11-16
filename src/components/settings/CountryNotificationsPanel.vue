@@ -90,7 +90,21 @@
     </template>
 
     <template v-else>
-      <div v-if="isLoadingCountryHistory" class="py-8 ui-body-sm text-ui-mutedText">
+      <form class="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="applyHistoryFilters">
+        <AppDatePicker v-model="historyFilters.from" label="Od" size="sm" editable />
+        <AppDatePicker v-model="historyFilters.to" label="Do" size="sm" editable :error="historyDateError || undefined" />
+        <AppSelect v-model="historyFilters.country" label="Kraj" size="sm" :options="historyCountries" />
+        <AppInput v-model="historyFilters.registration" label="Rejestracja" size="sm" placeholder="np. WGM 12345" :maxlength="64" clearable />
+        <div class="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4">
+          <AppButton type="submit" size="sm">Szukaj</AppButton>
+          <AppButton variant="secondary" size="sm" @click="resetHistoryFilters">Wyczyść filtry</AppButton>
+        </div>
+      </form>
+      <div v-if="historyLoadError" class="flex flex-wrap items-center gap-2 py-3" role="alert">
+        <p class="ui-error">{{ historyLoadError }}</p>
+        <AppButton variant="secondary" size="sm" @click="loadHistory">Spróbuj ponownie</AppButton>
+      </div>
+      <div v-else-if="isLoadingCountryHistory" class="py-8 ui-body-sm text-ui-mutedText" role="status">
         Pobieranie historii...
       </div>
 
@@ -122,6 +136,9 @@
                     {{ vignetteLabel(event.vignetteStatus) }}
                   </AppBadge>
                   <span v-else class="ui-caption">-</span>
+                  <p v-if="event.vignetteValidUntil" class="mt-1 ui-caption tabular-nums">
+                    {{ formatVignettePeriod(event.vignetteValidFrom, event.vignetteValidUntil) }}
+                  </p>
                 </td>
                 <td class="py-2 pr-3">
                   <div class="flex max-w-lg flex-wrap gap-1.5">
@@ -139,7 +156,7 @@
 
               <tr v-if="!countryHistory.length">
                 <td colspan="6" class="py-10 text-center ui-body-sm text-ui-mutedText">
-                  Brak historii zdarzeń krajowych.
+                  Brak zdarzeń pasujących do filtrów.
                 </td>
               </tr>
             </tbody>
@@ -192,6 +209,7 @@ import { IconBellRinging as BellRing, IconPencil as Pencil, IconPlus as Plus, Ic
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
+import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppPagination from '@/components/ui/AppPagination.vue'
@@ -201,7 +219,8 @@ import AppTabs from '@/components/ui/AppTabs.vue'
 import EmailChipInput from '@/components/ui/EmailChipInput.vue'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { useUiStore } from '@/stores/uiStore'
-import type { CountryEventHistoryItem, CountryEventRule, CountryEventType, CountryVehicleScope, VignetteStatus } from '@/types/notifications'
+import type { CountryEventHistoryItem, CountryEventRule, CountryEventType, CountryHistoryFilters, CountryVehicleScope, VignetteStatus } from '@/types/notifications'
+import { formatVignettePeriod } from '@/utils/vignette'
 
 const notificationStore = useNotificationStore()
 const uiStore = useUiStore()
@@ -217,6 +236,16 @@ const {
 const activeTab = ref<'rules' | 'history'>('rules')
 const historyPage = ref(1)
 const historyPageSize = ref(10)
+const historyFilters = reactive({ from: '', to: '', country: 'all', registration: '' })
+const appliedHistoryFilters = ref<CountryHistoryFilters>({})
+const historyDateError = ref('')
+const historyLoadError = ref('')
+let historyRequest = 0
+const historyCountries = [
+  { value: 'all', label: 'Wszystkie kraje' },
+  { value: 'GB', label: 'Wielka Brytania (GB)' },
+  { value: 'LU', label: 'Luksemburg (LU)' },
+]
 const isModalOpen = ref(false)
 const ruleToDelete = ref<CountryEventRule | null>(null)
 const formError = ref('')
@@ -337,8 +366,37 @@ async function deleteRule() {
   }
 }
 
+function applyHistoryFilters() {
+  historyDateError.value = ''
+  if (historyFilters.from && historyFilters.to && historyFilters.from > historyFilters.to) {
+    historyDateError.value = 'Data „Do” musi przypadać w dniu „Od” lub później.'
+    return
+  }
+  historyPage.value = 1
+  appliedHistoryFilters.value = {
+    from: historyFilters.from || undefined,
+    to: historyFilters.to || undefined,
+    country: historyFilters.country === 'all' ? undefined : historyFilters.country,
+    registration: historyFilters.registration.trim() || undefined,
+  }
+}
+
+function resetHistoryFilters() {
+  Object.assign(historyFilters, { from: '', to: '', country: 'all', registration: '' })
+  applyHistoryFilters()
+}
+
 async function loadHistory() {
-  await notificationStore.loadCountryHistory(historyPage.value - 1, historyPageSize.value, { silent: true })
+  const request = ++historyRequest
+  historyLoadError.value = ''
+  try {
+    await notificationStore.loadCountryHistory(historyPage.value - 1, historyPageSize.value, {
+      silent: true,
+      filters: appliedHistoryFilters.value,
+    })
+  } catch {
+    if (request === historyRequest) historyLoadError.value = 'Nie udało się pobrać historii powiadomień.'
+  }
 }
 
 function eventTypeLabel(value: CountryEventType) {
@@ -350,7 +408,7 @@ function scopeLabel(value: CountryVehicleScope) {
 }
 
 function vignetteLabel(value: VignetteStatus) {
-  return { valid: 'Ważna', missing: 'Brak', expired: 'Wygasła' }[value]
+  return { valid: 'Ważna', missing: 'Brak', expired: 'Wygasła', not_yet_valid: 'Jeszcze nieważna' }[value]
 }
 
 function vignetteVariant(value: VignetteStatus): 'success' | 'warning' | 'error' {
@@ -359,19 +417,11 @@ function vignetteVariant(value: VignetteStatus): 'success' | 'warning' | 'error'
 
 function formatEventDate(event: CountryEventHistoryItem) {
   const value = event.occurredAt || event.createdAt
-  return value ? new Date(value).toLocaleString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'
+  return value ? new Date(value).toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-'
 }
 
-watch(activeTab, (tab) => {
-  if (tab === 'history' && !countryHistory.value.length) {
-    void loadHistory()
-  }
-})
-
-watch([historyPage, historyPageSize], () => {
-  if (activeTab.value === 'history') {
-    void loadHistory()
-  }
+watch([activeTab, historyPage, historyPageSize, appliedHistoryFilters], () => {
+  if (activeTab.value === 'history') void loadHistory()
 })
 
 onMounted(() => {

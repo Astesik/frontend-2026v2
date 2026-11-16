@@ -141,8 +141,10 @@
             <AppDatePicker v-model="createForm.firstRegistration" editable label="Pierwsza rejestracja" />
             <AppDatePicker v-model="createForm.technicalInspection" editable label="Przegląd techniczny" />
             <AppDatePicker v-model="createForm.tachographInspection" editable label="Legalizacja tachografu" />
-            <AppDatePicker v-model="createForm.vignetteUk" editable label="Winieta UK" />
-            <AppDatePicker v-model="createForm.vignetteLuxembourg" editable label="Winieta Luksemburg" />
+            <AppDatePicker v-model="createForm.vignetteUk" editable label="Winieta Wielka Brytania" />
+            <AppDatePicker v-model="createForm.vignetteLuxembourgFrom" editable label="Winieta Luksemburg – ważna od" />
+            <AppDatePicker v-model="createForm.vignetteLuxembourgTo" editable label="Winieta Luksemburg – ważna do"
+              hint="Zostaw puste dla winiety jednodniowej." :error="luxembourgVignetteError" />
             <AppDatePicker v-model="createForm.vignetteDenmark" editable label="Winieta Dania" />
             <AppInput v-model="createForm.fuelTank" label="Zbiornik paliwa" type="number" />
             <AppSelect v-model="createForm.status" label="Status" :options="vehicleStatusFormOptions" />
@@ -226,6 +228,10 @@ const isCreatingVehicle = ref(false)
 const canCreateVehicles = computed(() => hasPermission('vehicles.create'))
 
 const createForm = reactive(createEmptyVehicleForm())
+const luxembourgVignetteError = computed(() => {
+  const { vignetteLuxembourgFrom: from, vignetteLuxembourgTo: to } = createForm
+  return to && (!from || from > to) ? 'Podaj prawidłowy zakres ważności winiety dla Luksemburga.' : undefined
+})
 
 const typeFilterOptions: AppSelectOption[] = [
   { label: 'Ciągniki', value: 'TRUCK' },
@@ -255,12 +261,12 @@ const sortableColumns: { key: VehicleSortKey; label: string }[] = [
   { key: 'productionYear', label: 'Rok produkcji' },
   { key: 'technicalInspection', label: 'Przegląd techniczny' },
   { key: 'tachographInspection', label: 'Legalizacja tachografu' },
-  { key: 'vignetteUk', label: 'Winieta UK' },
+  { key: 'vignetteUk', label: 'Winieta Wielka Brytania' },
 ]
 const deadlines = [
   { key: 'technicalInspection', label: 'Przegląd' },
   { key: 'tachographInspection', label: 'Tachograf' },
-  { key: 'vignetteUk', label: 'Winieta UK' },
+  { key: 'vignetteUk', label: 'Winieta Wielka Brytania' },
 ] as const
 
 const filteredVehicles = computed(() => {
@@ -515,7 +521,8 @@ function createEmptyVehicleForm() {
     technicalInspection: '',
     tachographInspection: '',
     vignetteUk: '',
-    vignetteLuxembourg: '',
+    vignetteLuxembourgFrom: '',
+    vignetteLuxembourgTo: '',
     vignetteDenmark: '',
     fuelTank: '',
     status: 'ACTIVE',
@@ -554,7 +561,8 @@ function createPayloadFromForm(): VehiclePayload {
     technicalInspection: nullableText(createForm.technicalInspection),
     tachographInspection: nullableText(createForm.tachographInspection),
     vignetteUk: nullableText(createForm.vignetteUk),
-    vignetteLuxembourg: nullableText(createForm.vignetteLuxembourg),
+    vignetteLuxembourgFrom: nullableText(createForm.vignetteLuxembourgFrom),
+    vignetteLuxembourgTo: nullableText(createForm.vignetteLuxembourgTo || createForm.vignetteLuxembourgFrom),
     vignetteDenmark: nullableText(createForm.vignetteDenmark),
     fuelTank: nullableNumber(createForm.fuelTank),
     status: createForm.status || null,
@@ -582,7 +590,7 @@ function closeCreateModal() {
 }
 
 async function submitCreateVehicle() {
-  if (!canCreateVehicles.value || !createForm.licensePlate.trim()) {
+  if (!canCreateVehicles.value || !createForm.licensePlate.trim() || luxembourgVignetteError.value) {
     return
   }
 

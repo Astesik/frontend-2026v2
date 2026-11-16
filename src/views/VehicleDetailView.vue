@@ -101,6 +101,19 @@
             </template>
             <form id="vehicle-inspection-edit-form" class="space-y-1.5" @submit.prevent="submitInspectionEdit">
               <InspectionRow v-for="field in visibleInspectionFields" :key="field.key" v-model="inspectionEditForm[field.key]" :label="field.label" :date="vehicle[field.key]" :editing="isEditingInspections" :disabled="isUpdatingInspections" />
+              <div v-if="vehicleLuxembourgVignette" class="min-w-0 space-y-1 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted px-2.5 py-1.5">
+                <p class="text-xs font-semibold text-ui-text">Winieta Luksemburg</p>
+                <div v-if="isEditingInspections" class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9.5rem),1fr))] gap-2">
+                  <AppDatePicker v-model="inspectionEditForm.vignetteLuxembourgFrom" label="Ważna od" size="sm" editable :disabled="isUpdatingInspections" />
+                  <AppDatePicker v-model="inspectionEditForm.vignetteLuxembourgTo" label="Ważna do" size="sm" editable :disabled="isUpdatingInspections" />
+                  <p class="col-span-full ui-caption">Na jeden dzień wystarczy wypełnić „Ważna od”.</p>
+                  <p v-if="inspectionError" class="col-span-full ui-error" role="alert">{{ inspectionError }}</p>
+                </div>
+                <div v-else class="flex min-h-8 flex-wrap items-center justify-between gap-2">
+                  <AppBadge :variant="vehicleLuxembourgVignette.variant">{{ vehicleLuxembourgVignette.statusLabel }}</AppBadge>
+                  <p v-if="vehicleLuxembourgVignette.dateLabel" class="ui-caption tabular-nums">{{ vehicleLuxembourgVignette.dateLabel }}</p>
+                </div>
+              </div>
             </form>
           </AppCard>
 
@@ -465,6 +478,7 @@ import AppModal from '@/components/ui/AppModal.vue'
 import AppPopover from '@/components/ui/AppPopover.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
+import { describeLuxembourgVignette, luxembourgCalendarDate } from '@/utils/vignette'
 import DeviceSelect from '@/components/selects/DeviceSelect.vue'
 import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
 import VehicleLocationPreview from '@/components/vehicles/VehicleLocationPreview.vue'
@@ -553,11 +567,24 @@ const isUpdatingInspections = ref(false)
 const inspectionFields = [
   { key: 'technicalInspection', label: 'Przegląd techniczny' },
   { key: 'tachographInspection', label: 'Legalizacja tachografu' },
-  { key: 'vignetteUk', label: 'Winieta UK' },
+  { key: 'vignetteUk', label: 'Winieta Wielka Brytania' },
 ] as const
-const visibleInspectionFields = computed(() => inspectionFields.filter(field => vehicle.value?.type !== 'TRAILER' || field.key === 'technicalInspection'))
-type InspectionField = typeof inspectionFields[number]['key']
-const inspectionEditForm = reactive<Record<InspectionField, string>>({ technicalInspection: '', tachographInspection: '', vignetteUk: '' })
+const visibleInspectionFields = computed(() => inspectionFields.filter(({ key }) =>
+  key === 'technicalInspection' || (key === 'vignetteUk' ? vehicle.value?.type === 'TRUCK' : vehicle.value?.type !== 'TRAILER'),
+))
+const vehicleLuxembourgVignette = computed(() => {
+  const current = vehicle.value
+  if (!current || current.type !== 'TRUCK') return null
+  return describeLuxembourgVignette(
+    current.vignetteLuxembourgFrom, current.vignetteLuxembourgTo, luxembourgCalendarDate(Date.now()),
+  )
+})
+type InspectionField = typeof inspectionFields[number]['key'] | 'vignetteLuxembourgFrom' | 'vignetteLuxembourgTo'
+const inspectionEditForm = reactive<Record<InspectionField, string>>({
+  technicalInspection: '', tachographInspection: '', vignetteUk: '',
+  vignetteLuxembourgFrom: '', vignetteLuxembourgTo: '',
+})
+const inspectionError = ref('')
 const originalInspectionForm = ref({ ...inspectionEditForm })
 const isUnassignDeviceModalOpen = ref(false)
 const isAssignDeviceModalOpen = ref(false)
@@ -816,7 +843,6 @@ function createEmptyVehicleForm() {
     technicalInspection: '',
     tachographInspection: '',
     vignetteUk: '',
-    vignetteLuxembourg: '',
     vignetteDenmark: '',
     fuelTank: '',
     status: 'ACTIVE',
@@ -835,7 +861,6 @@ function resetFormFromVehicle(form: VehicleForm, source: ApiVehicle) {
     technicalInspection: dateInputValue(source.technicalInspection),
     tachographInspection: dateInputValue(source.tachographInspection),
     vignetteUk: dateInputValue(source.vignetteUk),
-    vignetteLuxembourg: dateInputValue(source.vignetteLuxembourg),
     vignetteDenmark: dateInputValue(source.vignetteDenmark),
     fuelTank: source.fuelTank ? String(source.fuelTank) : '',
     status: source.status || 'ACTIVE',
@@ -870,7 +895,6 @@ function payloadFromForm(form: VehicleForm, preserveEmptyDescription = false): V
     technicalInspection: nullableText(form.technicalInspection),
     tachographInspection: nullableText(form.tachographInspection),
     vignetteUk: nullableText(form.vignetteUk),
-    vignetteLuxembourg: nullableText(form.vignetteLuxembourg),
     vignetteDenmark: nullableText(form.vignetteDenmark),
     fuelTank: nullableNumber(form.fuelTank),
     status: form.status || null,
@@ -1189,6 +1213,9 @@ function openInspectionEdit() {
   isInspectionMenuOpen.value = false
   if (!vehicle.value || !canUpdateVehicles.value) return
   for (const { key } of visibleInspectionFields.value) inspectionEditForm[key] = dateInputValue(vehicle.value[key])
+  inspectionEditForm.vignetteLuxembourgFrom = dateInputValue(vehicle.value.vignetteLuxembourgFrom)
+  inspectionEditForm.vignetteLuxembourgTo = dateInputValue(vehicle.value.vignetteLuxembourgTo)
+  inspectionError.value = ''
   originalInspectionForm.value = { ...inspectionEditForm }
   isEditingInspections.value = true
 }
@@ -1203,6 +1230,26 @@ async function submitInspectionEdit() {
   for (const { key } of visibleInspectionFields.value) {
     if (inspectionEditForm[key] !== originalInspectionForm.value[key]) payload[key] = nullableText(inspectionEditForm[key])
   }
+
+  inspectionError.value = ''
+  if (vehicle.value.type === 'TRUCK') {
+    const from = inspectionEditForm.vignetteLuxembourgFrom
+    const to = inspectionEditForm.vignetteLuxembourgTo || from
+    const original = originalInspectionForm.value
+    if (from !== original.vignetteLuxembourgFrom || to !== original.vignetteLuxembourgTo) {
+      if ((!from && to) || from > to) {
+        inspectionError.value = 'Podaj prawidłowy zakres ważności winiety dla Luksemburga.'
+        return
+      }
+      if (from) {
+        payload.vignetteLuxembourgFrom = from
+        payload.vignetteLuxembourgTo = to
+      } else {
+        payload.clearLuxembourgVignette = true
+      }
+    }
+  }
+
   if (!Object.keys(payload).length) {
     isEditingInspections.value = false
     return
