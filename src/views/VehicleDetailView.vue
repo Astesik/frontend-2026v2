@@ -198,6 +198,21 @@
       </div>
     </div>
 
+    <VehicleFuelCards
+      v-else-if="activeTab === 'fuel-cards' && canReadFuelCards"
+      :key="`${authStore.activeCompanyId}:${vehicle.id}`"
+      :vehicle-id="vehicle.id"
+      :can-manage="canManageFuelCards"
+      class="min-w-0 md:min-h-0 md:flex-1 md:overflow-y-auto"
+    />
+
+    <FuelTransactionHistory
+      v-else-if="activeTab === 'fuel-history' && canReadFuelHistory"
+      :key="`${authStore.activeCompanyId}:${vehicle.id}:fuel-history`"
+      :vehicle-id="vehicle.id"
+      class="min-w-0 md:min-h-0 md:flex-1 md:overflow-y-auto"
+    />
+
     <div v-else class="vehicle-documents-layout grid min-w-0 gap-3 md:min-h-0 md:flex-1 lg:items-stretch" :class="showPlannedVehicleSections ? 'lg:grid-cols-2' : ''">
         <AppCard v-if="showPlannedVehicleSections" class="flex min-h-0 min-w-0 flex-col" title="Dokumenty pojazdu" :icon="Files" compact content-class="min-h-0 flex-1 overflow-y-auto">
           <div class="grid gap-2">
@@ -448,6 +463,8 @@ import {
   IconCircleCheck as CircleCheck,
   IconCopy as Copy,
   IconCpu as Cpu,
+  IconCreditCard as CreditCard,
+  IconGasStation as GasStation,
   IconDots as Ellipsis,
   IconExternalLink as ExternalLink,
   IconFileText as FileText,
@@ -480,6 +497,8 @@ import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import { describeLuxembourgVignette, luxembourgCalendarDate } from '@/utils/vignette'
 import DeviceSelect from '@/components/selects/DeviceSelect.vue'
+import FuelTransactionHistory from '@/components/fuel/FuelTransactionHistory.vue'
+import VehicleFuelCards from '@/components/vehicles/VehicleFuelCards.vue'
 import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
 import VehicleLocationPreview from '@/components/vehicles/VehicleLocationPreview.vue'
 import VehicleBatteryLevel from '@/components/vehicles/VehicleBatteryLevel.vue'
@@ -546,6 +565,8 @@ const showPlannedVehicleSections = false
 const vehicleTabs: AppTabItem[] = [
   { value: 'information', label: 'Informacje', icon: Info },
   { value: 'service', label: 'Serwis', icon: Wrench },
+  { value: 'fuel-cards', label: 'Karty paliwowe', icon: CreditCard },
+  { value: 'fuel-history', label: 'Tankowania', icon: GasStation },
   { value: 'documents', label: showPlannedVehicleSections ? 'Dokumenty i zdjęcia' : 'Zdjęcia', icon: showPlannedVehicleSections ? Files : Images },
 ]
 useWorkspaceViewState({ activeVehicleTab: activeTab })
@@ -743,7 +764,16 @@ const canUpdateVehicles = computed(() => hasPermission('vehicles.update'))
 const canAssignDevices = computed(() => hasPermission('devices.assign'))
 const canReadDevices = computed(() => hasPermission('devices.read'))
 const canReadVehiclePhotos = computed(() => authStore.hasActiveCompanyPermission('vehicle_photos.read'))
-const visibleVehicleTabs = computed(() => vehicleTabs.filter(tab => tab.value !== 'documents' || showPlannedVehicleSections || canReadVehiclePhotos.value))
+const canReadFuelCards = computed(() => Boolean(authStore.activeCompanyId && vehicle.value && vehicle.value.type !== 'TRAILER' &&
+  hasPermission('vehicles.read') && hasPermission('fuel_cards.read')))
+const canManageFuelCards = computed(() => canReadFuelCards.value && hasPermission('fuel_cards.manage'))
+const canReadFuelHistory = computed(() => Boolean(authStore.activeCompanyId && vehicle.value && vehicle.value.type !== 'TRAILER' &&
+  hasPermission('vehicles.read') && hasPermission('fuel_imports.read')))
+const visibleVehicleTabs = computed(() => vehicleTabs.filter(tab => {
+  if (tab.value === 'fuel-cards') return canReadFuelCards.value
+  if (tab.value === 'fuel-history') return canReadFuelHistory.value
+  return tab.value !== 'documents' || showPlannedVehicleSections || canReadVehiclePhotos.value
+}))
 watch(visibleVehicleTabs, tabs => {
   if (!tabs.some(tab => tab.value === activeTab.value)) activeTab.value = 'information'
 }, { immediate: true })

@@ -43,6 +43,11 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/DashboardView.vue'),
       },
       {
+        path: 'fuel',
+        name: 'fuel',
+        component: () => import('@/views/FuelImportsView.vue'),
+      },
+      {
         path: 'fuel-stations',
         name: 'fuel-stations',
         component: () => import('@/views/FuelStationsView.vue'),

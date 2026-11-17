@@ -163,6 +163,7 @@ const baseNavigation: Array<{ to: string; label: string; icon: Component; group:
   { to: '/devices', label: 'Urządzenia', icon: Cpu, group: 'fleet' },
   { to: '/drivers', label: 'Kierowcy', icon: UserRound, group: 'fleet' },
   { to: '/repairs', label: 'Naprawy', icon: Wrench, group: 'fleet' },
+  { to: '/fuel', label: 'Paliwo', icon: Fuel, group: 'fleet' },
   { to: '/fuel-stations', label: 'Stacje paliw', icon: Fuel, group: 'fleet' },
   { to: '/trips', label: 'Zjazdy i wyjazdy', icon: Route, group: 'main' },
   { to: '/settings', label: 'Ustawienia', icon: Settings, group: 'settings' },
