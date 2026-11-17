@@ -49,8 +49,7 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'fuel-stations',
-        name: 'fuel-stations',
-        component: () => import('@/views/FuelStationsView.vue'),
+        redirect: to => ({ name: 'fuel', query: { ...to.query, tab: 'stations' } }),
       },
       {
         path: 'refueling',

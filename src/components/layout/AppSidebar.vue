@@ -148,13 +148,11 @@ import { canOpenWorkspace, workspaceDescriptor } from '@/workspace/registry'
 import { useAuthStore } from '@/stores/authStore'
 import { useUiStore } from '@/stores/uiStore'
 import { useVehicleReturnPermissions } from '@/composables/useVehicleReturnPermissions'
-import { useFuelStationPermissions } from '@/composables/useFuelStationPermissions'
 
 const uiStore = useUiStore()
 const authStore = useAuthStore()
 const router = useRouter()
 const { canRead: canReadVehicleReturns } = useVehicleReturnPermissions()
-const { canRead: canReadFuelStations } = useFuelStationPermissions()
 
 const baseNavigation: Array<{ to: string; label: string; icon: Component; group: 'main' | 'fleet' | 'settings' }> = [
   { to: '/dashboard', label: 'Strona główna', icon: House, group: 'main' },
@@ -164,7 +162,6 @@ const baseNavigation: Array<{ to: string; label: string; icon: Component; group:
   { to: '/drivers', label: 'Kierowcy', icon: UserRound, group: 'fleet' },
   { to: '/repairs', label: 'Naprawy', icon: Wrench, group: 'fleet' },
   { to: '/fuel', label: 'Paliwo', icon: Fuel, group: 'fleet' },
-  { to: '/fuel-stations', label: 'Stacje paliw', icon: Fuel, group: 'fleet' },
   { to: '/trips', label: 'Zjazdy i wyjazdy', icon: Route, group: 'main' },
   { to: '/settings', label: 'Ustawienia', icon: Settings, group: 'settings' },
 ]
@@ -179,7 +176,6 @@ function hasPermissionPrefix(prefix: string) {
 function canSeeNavigationItem(path: string) {
   const workspaceView = workspaceDescriptor(baseNavigation.find(item => item.to === path)?.to.slice(1))
   if (workspaceView && !canOpenWorkspace(workspaceView.name, authStore)) return false
-  if (path === '/fuel-stations') return features.fuelStations && canReadFuelStations.value
   if (path === '/trips') return canReadVehicleReturns.value
   if (path === '/dashboard') return authStore.canManageCompany || authStore.hasActiveCompanyPermission('dashboard.read') || authStore.hasActiveCompanyPermission('positions.read')
   if (path === '/vehicles') return hasPermissionPrefix('vehicles.')

@@ -1,8 +1,9 @@
 <template>
-  <AppModal :open="open" title="Import cen stacji" size="lg" :busy="store.isImporting" @close="$emit('close')">
+  <AppModal :open="open" title="Import cen stacji IDS" size="lg" :busy="store.isImporting" @close="$emit('close')">
     <div class="space-y-4">
       <AppSelect v-model="provider" label="Dostawca" :options="store.providers.map(p => ({ value: p.code, label: p.code }))" :disabled="store.isImporting" class="max-w-xs" />
-      <p v-if="!supported" class="ui-caption">Import dla tego dostawcy nie jest jeszcze dostępny.</p>
+      <p v-if="!supported" class="ui-caption">{{ store.providers.length ? 'Import dla tego dostawcy nie jest jeszcze dostępny.' : 'Nie udało się wczytać listy dostawców lub nadal trwa jej pobieranie.' }}</p>
+      <p v-else class="ui-caption">Aby uzupełnić lokalizacje, plik musi zawierać szerokość i długość geograficzną stacji (Latitude i Longitude).</p>
       <label class="flex min-h-28 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-ui-border-strong bg-ui-muted p-5 text-center" :class="supported && !store.isImporting ? 'cursor-pointer hover:bg-ui-input-hover' : 'opacity-60'" @dragover.prevent @drop.prevent="onDrop">
         <FileSpreadsheet class="h-7 w-7 text-ui-icon" />
         <span class="ui-body-sm font-medium">{{ file?.name || 'Wybierz lub przeciągnij plik XLSX' }}</span>

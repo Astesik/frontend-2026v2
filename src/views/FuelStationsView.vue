@@ -8,7 +8,7 @@
         <AppSelect v-model="store.filters.active" :options="activeOptions" size="sm" class="!w-36" aria-label="Aktywność stacji" :disabled="!canRead" />
       </div>
       <div class="flex flex-wrap gap-2">
-        <AppButton v-if="canImport && canRead" variant="secondary" :disabled="store.isChangingActive" @click="importOpen = true"><Upload class="h-4 w-4" />Importuj ceny</AppButton>
+        <AppButton v-if="canImport && canRead" variant="secondary" :disabled="store.isChangingActive" @click="importOpen = true"><Upload class="h-4 w-4" />Importuj ceny IDS</AppButton>
         <AppButton v-if="canManage && canRead" :disabled="store.isChangingActive" @click="editing = null; formOpen = true"><Plus class="h-4 w-4" />Dodaj stację</AppButton>
       </div>
     </header>
@@ -32,7 +32,7 @@
               <td class="ui-table-cell"><p class="font-semibold">{{ station.stationName }}</p><span class="ui-caption">{{ station.stationCode }}</span></td><td class="ui-table-cell">{{ station.provider }}</td><td class="ui-table-cell">{{ station.country }}</td>
               <td class="ui-table-cell tabular-nums">{{ formatFuelPrice(station.latestPrice?.priceBase, station.latestPrice?.currency) }}</td><td class="ui-table-cell font-semibold tabular-nums">{{ formatFuelPrice(station.latestPrice?.priceFinal, station.latestPrice?.currency) }}</td><td class="ui-table-cell">{{ station.latestPrice ? dateLabel(station.latestPrice.priceDate) : '—' }}</td>
               <td class="ui-table-cell"><AppSwitch v-if="canManage" :model-value="station.active" :label="station.active ? 'Aktywna' : 'Nieaktywna'" class="min-w-36 !py-1" :disabled="activityDisabled" @update:model-value="store.setStationActive(station.id, $event)" /><AppBadge v-else :variant="station.active ? 'success' : 'neutral'">{{ station.active ? 'Aktywna' : 'Nieaktywna' }}</AppBadge></td>
-              <td class="ui-table-cell"><span :title="hasStationLocation(station) ? `${station.lat}, ${station.lng}` : 'Brak współrzędnych'">{{ hasStationLocation(station) ? 'Tak' : '—' }}</span></td>
+              <td class="ui-table-cell tabular-nums" :class="{ 'text-ui-mutedText': !hasStationLocation(station) }">{{ formatStationLocation(station) }}</td>
               <td class="ui-table-cell sticky right-0 bg-ui-surface"><div class="flex justify-end gap-1"><AppIconButton label="Historia cen" variant="ghost" @click="store.loadHistory(station)"><History class="h-4 w-4" /></AppIconButton><AppIconButton v-if="canManage" label="Edytuj stację" variant="ghost" @click="editing = station; formOpen = true"><SquarePen class="h-4 w-4" /></AppIconButton></div></td>
             </tr><tr v-if="!store.stations.length"><td :colspan="columnCount" class="ui-table-cell py-12 text-center text-ui-mutedText">Brak stacji pasujących do filtrów.</td></tr></template>
           </tbody>
@@ -72,7 +72,7 @@ import FuelStationFormModal from '@/components/fuel-stations/FuelStationFormModa
 import { useFuelStationStore } from '@/stores/fuelStationStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useFuelStationPermissions } from '@/composables/useFuelStationPermissions'
-import { formatFuelPrice, hasStationLocation } from '@/utils/fuelStation'
+import { formatFuelPrice, formatStationLocation, hasStationLocation } from '@/utils/fuelStation'
 import type { FuelStation } from '@/types/fuelStation'
 const store = useFuelStationStore(), auth = useAuthStore()
 const { canRead, canManage, canImport } = useFuelStationPermissions()

@@ -1,11 +1,13 @@
 <template>
-  <main class="min-w-0 space-y-3">
-    <header class="space-y-3">
+  <main class="flex min-h-0 min-w-0 flex-col gap-3 md:h-full">
+    <header class="shrink-0 space-y-3">
       <h1 class="ui-page-title">Paliwo</h1>
-      <AppTabs v-if="canImport" v-model="tab" :items="tabs" variant="underline" aria-label="Paliwo" />
+      <AppTabs v-if="tabs.length" v-model="tab" :items="tabs" variant="underline" aria-label="Paliwo" />
     </header>
 
-    <template v-if="canImport && tab === 'import'">
+    <FuelStationsView v-if="tab === 'stations'" class="md:!h-auto md:flex-1" />
+
+    <template v-else-if="tab === 'import'">
       <AppCard title="Import transakcji IDS" :icon="FileUpload" compact>
         <div class="flex flex-wrap items-center gap-3">
           <label class="min-w-0 space-y-1">
@@ -43,13 +45,15 @@
       </AppCard>
     </template>
 
-    <FuelTransactionHistory v-else :key="auth.activeCompanyId || 'history'" />
+    <FuelTransactionHistory v-else-if="tab === 'history'" :key="auth.activeCompanyId || 'history'" />
+    <p v-else class="ui-surface p-6 text-ui-mutedText">Brak dostępu do danych paliwowych w aktywnej firmie.</p>
   </main>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from 'vue'
-import { IconFileUpload as FileUpload } from '@tabler/icons-vue'
+import { computed, defineAsyncComponent, ref, shallowRef, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { IconFileUpload as FileUpload, IconGasStation, IconHistory } from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppTabs from '@/components/ui/AppTabs.vue'
@@ -58,11 +62,31 @@ import FuelTransactionRows from '@/components/fuel/FuelTransactionRows.vue'
 import { getApiErrorMessage } from '@/services/api'
 import { fuelImportService, type FuelImportPreview, type FuelImportResult } from '@/services/fuelImportService'
 import { useAuthStore } from '@/stores/authStore'
+import { useFuelStationPermissions } from '@/composables/useFuelStationPermissions'
 
 const auth = useAuthStore()
-const canImport = computed(() => auth.canManageCompany || auth.hasActiveCompanyPermission('fuel_imports.manage'))
-const tab = ref('import')
-const tabs = [{ value: 'import', label: 'Importy' }, { value: 'history', label: 'Historia' }]
+const route = useRoute(), router = useRouter()
+const FuelStationsView = defineAsyncComponent(() => import('@/views/FuelStationsView.vue'))
+const { canRead: canReadStations } = useFuelStationPermissions()
+const has = (permission: string) => Boolean(auth.activeCompanyId && (
+  auth.user?.sysAdmin || auth.user?.globalRoles?.includes('GLOBAL_ADMIN')
+  || auth.hasActiveCompanyRole('COMPANY_ADMIN') || auth.hasActiveCompanyPermission(permission)
+))
+const canReadTransactions = computed(() => has('fuel_imports.read'))
+const canImport = computed(() => canReadTransactions.value && has('fuel_imports.manage'))
+const tabs = computed(() => [
+  ...(canImport.value ? [{ value: 'import', label: 'Importy transakcji', icon: FileUpload }] : []),
+  ...(canReadTransactions.value ? [{ value: 'history', label: 'Historia transakcji', icon: IconHistory }] : []),
+  ...(canReadStations.value ? [{ value: 'stations', label: 'Stacje paliw', icon: IconGasStation }] : []),
+])
+const tab = computed({
+  get: () => tabs.value.find(item => item.value === route.query.tab)?.value ?? tabs.value[0]?.value ?? '',
+  set: value => {
+    if (value !== tab.value && tabs.value.some(item => item.value === value)) {
+      void router.push({ name: 'fuel', query: { ...route.query, tab: value } })
+    }
+  },
+})
 const file = shallowRef<File | null>(null)
 const preview = ref<FuelImportPreview | null>(null)
 const result = ref<FuelImportResult | null>(null)

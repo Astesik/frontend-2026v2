@@ -10,7 +10,7 @@
     <p v-if="store.isMapLoading" class="ui-caption" role="status">Pobieranie stacji…</p>
     <p v-else-if="store.mapError" class="ui-error" role="alert">{{ store.mapError }}</p>
     <p v-else-if="store.mapEnabled" class="ui-caption">Na mapie: {{ store.visibleMapStations.length }} stacji</p>
-    <div class="flex items-center gap-2"><AppButton size="sm" variant="secondary" :disabled="store.isMapLoading" @click="store.loadMapStations(true)"><RefreshCw class="h-3.5 w-3.5" />Odśwież</AppButton><RouterLink to="/fuel-stations" class="ui-body-sm font-medium underline underline-offset-4">Zarządzaj stacjami</RouterLink></div>
+    <div class="flex items-center gap-2"><AppButton size="sm" variant="secondary" :disabled="store.isMapLoading" @click="store.loadMapStations(true)"><RefreshCw class="h-3.5 w-3.5" />Odśwież</AppButton><RouterLink :to="{ name: 'fuel', query: { tab: 'stations' } }" class="ui-body-sm font-medium underline underline-offset-4">Zarządzaj stacjami</RouterLink></div>
   </section>
 </template>
 <script setup lang="ts">

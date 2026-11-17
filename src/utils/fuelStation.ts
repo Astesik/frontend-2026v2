@@ -11,6 +11,9 @@ export function formatFuelPrice(value: number | null | undefined, currency?: str
 export function hasStationLocation(station: FuelStation) {
   return typeof station.lat === 'number' && typeof station.lng === 'number' && Number.isFinite(station.lat) && Number.isFinite(station.lng) && Math.abs(station.lat) <= 90 && Math.abs(station.lng) <= 180
 }
+export function formatStationLocation(station: FuelStation) {
+  return hasStationLocation(station) ? `${station.lat}, ${station.lng}` : 'Brak współrzędnych'
+}
 export interface FuelStationMapFilters { countries: string[] | null; currency: string; minPrice: string; maxPrice: string }
 
 // null selects all countries, including new ones; an empty array selects none.

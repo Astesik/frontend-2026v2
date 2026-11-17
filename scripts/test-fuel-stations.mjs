@@ -16,6 +16,11 @@ function load(file, mocks = {}) {
 const utils = load('src/utils/fuelStation.ts')
 const station = (id, currency = 'EUR', price = 1.5) => ({ id, active: true, provider: 'IDS', stationCode: 'ST' + id, stationName: 'Station ' + id, country: 'Poland', lat: 51, lng: 19, latestPrice: { id, priceDate: '2026-10-06', priceBase: 1.7, priceFinal: price, vat: 23, currency } })
 const data = [station(1), station(2, 'PLN', 1.4), station(3, 'EUR', null), { ...station(4), lat: null }, { ...station(5), lat: 0, lng: 0 }]
+assert.equal(utils.formatStationLocation(station(1)), '51, 19')
+assert.equal(utils.formatStationLocation(data[3]), 'Brak współrzędnych')
+assert.equal(utils.formatStationLocation(data[4]), '0, 0')
+const { canOpenWorkspace } = load('src/workspace/registry.ts')
+assert.equal(canOpenWorkspace('fuel', { canManageCompany: false, hasActiveCompanyRole: () => false, hasActiveCompanyPermission: code => code === 'fuel_stations.read' }), true)
 const filters = { countries: null, currency: 'EUR', minPrice: '', maxPrice: '' }
 assert.equal(utils.filterMapFuelStations(data, filters).length, 4)
 assert.equal(utils.filterMapFuelStations([{ ...station(1), active: false }], filters).length, 0)
