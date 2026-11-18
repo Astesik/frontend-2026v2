@@ -31,8 +31,13 @@
                 <td class="ui-table-cell">
                   <p class="font-medium">{{ distance(check.result.point.distanceMeters) }}</p>
                   <p class="ui-caption">{{ dateLabel(check.result.point.recordedAt) }} · {{ timeDifference(check.result.point.secondsFromReport) }}</p>
+                  <p v-if="outsideTimeTolerance" class="ui-caption">Punkt poza dopuszczalnym oknem czasu.</p>
                   <p v-if="check.result.point.speedKph != null" class="ui-caption">Prędkość {{ number.format(check.result.point.speedKph) }} km/h</p>
                 </td>
+              </tr>
+              <tr v-if="check.result.stationStop">
+                <th scope="row" class="ui-table-cell text-left font-medium">Postój przy stacji wg GPS</th>
+                <td class="ui-table-cell">{{ dateLabel(check.result.stationStop.from) }} – {{ dateLabel(check.result.stationStop.to) }}</td>
               </tr>
               <tr>
                 <th scope="row" class="ui-table-cell text-left font-medium">Przebieg w pobliżu tankowania</th>
@@ -40,6 +45,7 @@
                   <template v-if="check.result.mileage">
                     <p class="font-medium">{{ number.format(check.result.mileage.kilometers) }} km · {{ mileageSource[check.result.mileage.source] }}</p>
                     <p class="ui-caption">{{ dateLabel(check.result.mileage.measuredAt) }} · {{ timeDifference(check.result.mileage.secondsFromReport) }}</p>
+                    <p v-if="check.result.mileage.fromStationStop" class="ui-caption">Odczyt z tego samego postoju</p>
                   </template>
                   <p v-else class="ui-caption">Brak odczytu w oknie weryfikacji.</p>
                 </td>
@@ -85,6 +91,14 @@ const error = ref('')
 const gpsStatus = computed(() => {
   const previous = props.transaction?.gpsStatus
   return check.value?.result.status ?? (previous === 'AT_STATION' ? 'NOT_CHECKED' : previous ?? null)
+})
+const outsideTimeTolerance = computed(() => {
+  const result = check.value?.result
+  const point = result?.point
+  const rules = result?.rules
+  if (result?.status !== 'INCONCLUSIVE' || !point || !rules || point.distanceMeters > rules.stationRadiusMeters) return false
+  const seconds = Math.max(-point.secondsFromReport, point.secondsFromReport - rules.reportPrecisionSeconds, 0)
+  return seconds > rules.positionToleranceSeconds
 })
 const date = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'short', timeStyle: 'short', timeZone: HISTORY_TIMEZONE })
 const number = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 1 })

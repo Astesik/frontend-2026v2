@@ -55,11 +55,18 @@ export interface FuelVerification {
     point: GpsPoint | null
     before: GpsPoint | null
     after: GpsPoint | null
+    rules?: {
+      reportPrecisionSeconds: number
+      positionToleranceSeconds: number
+      stationRadiusMeters: number
+    }
+    stationStop?: { from: string; to: string } | null
     mileage: {
       measuredAt: string
       kilometers: number
       source: 'VEHICLE_COUNTER' | 'GPS_ESTIMATE' | 'DEVICE_ESTIMATE'
       secondsFromReport: number
+      fromStationStop?: boolean
     } | null
   }
 }
