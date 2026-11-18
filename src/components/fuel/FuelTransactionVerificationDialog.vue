@@ -1,39 +1,62 @@
 <template>
-  <AppModal :open="!!transaction" title="Weryfikacja GPS" :busy="busy" @close="emit('close')">
-    <div class="space-y-3">
-      <p v-if="transaction" class="ui-caption">IDS {{ transaction.transactionNumber }} · {{ transaction.stationName || transaction.stationCode }}</p>
+  <AppModal :open="!!transaction" title="Weryfikacja GPS" size="lg" :busy="busy" @close="emit('close')">
+    <div v-if="transaction" class="space-y-4">
+      <div class="space-y-2 rounded-lg border border-ui-divider bg-ui-muted p-3">
+        <p class="font-medium text-ui-text">{{ transaction.stationName || transaction.stationCode || 'Nieznana stacja' }}</p>
+        <FuelVerificationSteps
+          :vehicle-assigned="transaction.vehicleId != null" :station-known="transaction.stationKnown"
+          :gps-status="gpsStatus"
+          expanded
+        />
+      </div>
       <p v-if="error" class="ui-error" role="alert">{{ error }}</p>
       <p v-else-if="busy" class="ui-caption" role="status">Pobieranie wyniku…</p>
       <p v-else-if="!check" class="ui-body-sm text-ui-mutedText">Brak weryfikacji dla aktualnego przypisania i stacji.</p>
       <template v-if="check">
-        <AppBadge :variant="statusVariant(check.result.status)">{{ labels[check.result.status] }}</AppBadge>
-        <p class="ui-caption">Pozycje GPS {{ check.result.usablePositions }} z {{ check.result.samples }} odczytów</p>
-        <dl class="grid gap-3 text-sm sm:grid-cols-2">
-          <div v-if="check.result.point">
-            <dt class="font-medium text-ui-text">Najbliższy punkt do stacji</dt>
-            <dd class="ui-caption">{{ distance(check.result.point.distanceMeters) }} · {{ dateLabel(check.result.point.recordedAt) }}</dd>
-            <dd class="ui-caption">{{ timeDifference(check.result.point.secondsFromReport) }}</dd>
-            <dd v-if="check.result.point.speedKph !== null" class="ui-caption">Prędkość {{ number.format(check.result.point.speedKph) }} km/h</dd>
-          </div>
-          <div>
-            <dt class="font-medium text-ui-text">Przebieg w pobliżu tankowania</dt>
-            <template v-if="check.result.mileage">
-              <dd class="ui-caption">{{ number.format(check.result.mileage.kilometers) }} km · {{ mileageSource[check.result.mileage.source] }}</dd>
-              <dd class="ui-caption">{{ dateLabel(check.result.mileage.measuredAt) }} · {{ timeDifference(check.result.mileage.secondsFromReport) }}</dd>
-            </template>
-            <dd v-else class="ui-caption">Brak odczytu w oknie weryfikacji.</dd>
-          </div>
-          <template v-if="check.result.status === 'LOCATION_MISMATCH' && check.result.before && check.result.after">
-            <div>
-              <dt class="font-medium text-ui-text">Przed tankowaniem</dt>
-              <dd class="ui-caption">{{ distance(check.result.before.distanceMeters) }} · {{ dateLabel(check.result.before.recordedAt) }}</dd>
-            </div>
-            <div>
-              <dt class="font-medium text-ui-text">Po tankowaniu</dt>
-              <dd class="ui-caption">{{ distance(check.result.after.distanceMeters) }} · {{ dateLabel(check.result.after.recordedAt) }}</dd>
-            </div>
-          </template>
-        </dl>
+        <div class="overflow-hidden rounded-lg border border-ui-divider">
+          <table class="ui-table" aria-label="Odczyty użyte do weryfikacji">
+            <thead class="ui-table-head">
+              <tr>
+                <th scope="col" class="ui-table-cell">Odczyt</th>
+                <th scope="col" class="ui-table-cell">Wynik</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-ui-divider">
+              <tr>
+                <th scope="row" class="ui-table-cell text-left font-medium">Pozycje GPS</th>
+                <td class="ui-table-cell tabular-nums">{{ check.result.usablePositions }} z {{ check.result.samples }} odczytów</td>
+              </tr>
+              <tr v-if="check.result.point">
+                <th scope="row" class="ui-table-cell text-left font-medium">Najbliższy punkt do stacji</th>
+                <td class="ui-table-cell">
+                  <p class="font-medium">{{ distance(check.result.point.distanceMeters) }}</p>
+                  <p class="ui-caption">{{ dateLabel(check.result.point.recordedAt) }} · {{ timeDifference(check.result.point.secondsFromReport) }}</p>
+                  <p v-if="check.result.point.speedKph != null" class="ui-caption">Prędkość {{ number.format(check.result.point.speedKph) }} km/h</p>
+                </td>
+              </tr>
+              <tr>
+                <th scope="row" class="ui-table-cell text-left font-medium">Przebieg w pobliżu tankowania</th>
+                <td class="ui-table-cell">
+                  <template v-if="check.result.mileage">
+                    <p class="font-medium">{{ number.format(check.result.mileage.kilometers) }} km · {{ mileageSource[check.result.mileage.source] }}</p>
+                    <p class="ui-caption">{{ dateLabel(check.result.mileage.measuredAt) }} · {{ timeDifference(check.result.mileage.secondsFromReport) }}</p>
+                  </template>
+                  <p v-else class="ui-caption">Brak odczytu w oknie weryfikacji.</p>
+                </td>
+              </tr>
+              <template v-if="check.result.status === 'LOCATION_MISMATCH' && check.result.before && check.result.after">
+                <tr>
+                  <th scope="row" class="ui-table-cell text-left font-medium">Przed tankowaniem</th>
+                  <td class="ui-table-cell">{{ distance(check.result.before.distanceMeters) }} · {{ dateLabel(check.result.before.recordedAt) }}</td>
+                </tr>
+                <tr>
+                  <th scope="row" class="ui-table-cell text-left font-medium">Po tankowaniu</th>
+                  <td class="ui-table-cell">{{ distance(check.result.after.distanceMeters) }} · {{ dateLabel(check.result.after.recordedAt) }}</td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
         <p class="ui-caption">Sprawdzono {{ dateLabel(check.checkedAt) }} · wersja reguł {{ check.algorithmVersion }}</p>
       </template>
     </div>
@@ -45,13 +68,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import AppBadge from '@/components/ui/AppBadge.vue'
+import { computed, ref, watch } from 'vue'
+import FuelVerificationSteps from '@/components/fuel/FuelVerificationSteps.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import { getApiErrorMessage } from '@/services/api'
 import type { FuelTransactionRow } from '@/services/fuelImportService'
-import { fuelVerificationService, type FuelVerification, type FuelVerificationStatus } from '@/services/fuelVerificationService'
+import { fuelVerificationService, type FuelVerification } from '@/services/fuelVerificationService'
 import { HISTORY_TIMEZONE } from '@/utils/historyTime'
 
 const props = defineProps<{ transaction: FuelTransactionRow | null; canVerify: boolean }>()
@@ -59,22 +82,16 @@ const emit = defineEmits<{ close: [] }>()
 const check = ref<FuelVerification | null>(null)
 const busy = ref(false)
 const error = ref('')
+const gpsStatus = computed(() => {
+  const previous = props.transaction?.gpsStatus
+  return check.value?.result.status ?? (previous === 'AT_STATION' ? 'NOT_CHECKED' : previous ?? null)
+})
 const date = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'short', timeStyle: 'short', timeZone: HISTORY_TIMEZONE })
 const number = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 1 })
-const labels: Record<FuelVerificationStatus, string> = {
-  AT_STATION: 'Pojazd przy stacji',
-  LOCATION_MISMATCH: 'Niezgodna lokalizacja',
-  INCONCLUSIVE: 'Nierozstrzygnięte',
-  NO_GPS: 'Brak danych GPS',
-  NO_STATION_COORDINATES: 'Brak współrzędnych stacji',
-  UNASSIGNED: 'Brak przypisania karty',
-  UNRESOLVED_TIME: 'Godzina do wyjaśnienia',
-}
 const mileageSource = { VEHICLE_COUNTER: 'licznik pojazdu', GPS_ESTIMATE: 'GPS', DEVICE_ESTIMATE: 'urządzenie' }
 
 const dateLabel = (value: string) => date.format(new Date(value))
 const distance = (meters: number) => meters >= 1000 ? number.format(meters / 1000) + ' km od stacji' : number.format(meters) + ' m od stacji'
-const statusVariant = (status: FuelVerificationStatus) => status === 'AT_STATION' ? 'success' : status === 'LOCATION_MISMATCH' ? 'error' : 'warning'
 function timeDifference(seconds: number) {
   if (!seconds) return 'O godzinie podanej w IDS'
   const magnitude = Math.abs(seconds)

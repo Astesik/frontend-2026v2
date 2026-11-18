@@ -1,5 +1,5 @@
 <template>
-  <AppModal :open="open" title="Import cen stacji IDS" size="lg" :busy="store.isImporting" @close="$emit('close')">
+  <AppModal :open="open" title="Import cen stacji IDS" size="lg" center-in-viewport :busy="store.isImporting" @close="$emit('close')">
     <div class="space-y-4">
       <AppSelect v-model="provider" label="Dostawca" :options="store.providers.map(p => ({ value: p.code, label: p.code }))" :disabled="store.isImporting" class="max-w-xs" />
       <p v-if="!supported" class="ui-caption">{{ store.providers.length ? 'Import dla tego dostawcy nie jest jeszcze dostępny.' : 'Nie udało się wczytać listy dostawców lub nadal trwa jej pobieranie.' }}</p>

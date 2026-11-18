@@ -1,7 +1,7 @@
 <template>
-  <Teleport :to="workspacePortal">
+  <Teleport :to="centerInViewport ? 'body' : workspacePortal">
     <Transition name="modal-fade">
-      <div v-if="open" class="fixed inset-0 z-[320] flex items-center justify-center p-3 sm:p-5" @mousedown.self="requestBackdropClose">
+      <div v-if="visible" class="fixed inset-0 z-[320] flex items-center justify-center p-3 sm:p-5" @mousedown.self="requestBackdropClose">
         <div class="ui-modal-overlay" aria-hidden="true" @mousedown="requestBackdropClose"></div>
         <section
           ref="panelElement"
@@ -42,7 +42,7 @@
 <script setup lang="ts">
 import { useWorkspaceActive, useWorkspacePortal } from '@/composables/useWorkspace'
 const workspaceActive = useWorkspaceActive()
-import { nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { IconX as X } from '@tabler/icons-vue'
 import AppIconButton from './AppIconButton.vue'
 
@@ -55,6 +55,7 @@ const props = withDefaults(defineProps<{
   closeOnBackdrop?: boolean
   closeOnEscape?: boolean
   busy?: boolean
+  centerInViewport?: boolean
   panelClass?: string
   bodyClass?: string
   footerClass?: string
@@ -66,12 +67,14 @@ const props = withDefaults(defineProps<{
   closeOnBackdrop: true,
   closeOnEscape: true,
   busy: false,
+  centerInViewport: false,
   panelClass: undefined,
   bodyClass: undefined,
   footerClass: undefined,
 })
 
 const emit = defineEmits<{ close: [] }>()
+const visible = computed(() => props.open && (!props.centerInViewport || workspaceActive.value))
 const panelElement = ref<HTMLElement | null>(null)
 const titleId = `modal-title-${Math.random().toString(16).slice(2)}`
 const descriptionId = `modal-description-${Math.random().toString(16).slice(2)}`
@@ -125,11 +128,12 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
-watch(() => props.open, async (open) => {
+watch(visible, async (open) => {
   if (!workspaceActive.value) return
   if (open) {
     previouslyFocused = document.activeElement as HTMLElement | null
     await nextTick()
+    if (!visible.value || !workspaceActive.value) return
     const firstFocusable = focusableElements()[0]
     if (firstFocusable) firstFocusable.focus()
     else panelElement.value?.focus()

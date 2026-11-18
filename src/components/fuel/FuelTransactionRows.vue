@@ -29,6 +29,7 @@
         <AppBadge v-if="item.status === 'DUPLICATE'" variant="neutral">Powtórzona wersja</AppBadge>
         <AppBadge v-else-if="item.status === 'REVISION'" variant="info">Inna wersja</AppBadge>
         <AppBadge v-else-if="item.status === 'NEW'" variant="success">Nowa</AppBadge>
+        <AppBadge v-if="item.gpsStatus" :variant="fuelGpsVariant(item.gpsStatus)">{{ fuelGpsLabels[item.gpsStatus] }}</AppBadge>
         <slot name="actions" :item="item" />
       </div>
     </li>
@@ -38,6 +39,7 @@
 <script setup lang="ts">
 import AppBadge from '@/components/ui/AppBadge.vue'
 import type { FuelTransactionRow } from '@/services/fuelImportService'
+import { fuelGpsLabels, fuelGpsVariant } from '@/services/fuelVerificationService'
 
 defineProps<{ rows: FuelTransactionRow[] }>()
 
