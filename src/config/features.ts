@@ -2,5 +2,6 @@
 export const features = {
   themeSwitching: false,
   fuelStations: false,
+  fuelNavigation: false,
   vehicleReturnTripSummary: false,
 }

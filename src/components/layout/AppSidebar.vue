@@ -174,6 +174,7 @@ function hasPermissionPrefix(prefix: string) {
 }
 
 function canSeeNavigationItem(path: string) {
+  if (path === '/fuel' && !features.fuelNavigation) return false
   const workspaceView = workspaceDescriptor(baseNavigation.find(item => item.to === path)?.to.slice(1))
   if (workspaceView && !canOpenWorkspace(workspaceView.name, authStore)) return false
   if (path === '/trips') return canReadVehicleReturns.value
