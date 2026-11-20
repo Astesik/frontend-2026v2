@@ -1,4 +1,5 @@
 import { api } from './api'
+import type { FuelTankObservation } from './fuelTankService'
 
 export type FuelVerificationStatus = 'AT_STATION' | 'LOCATION_MISMATCH' | 'INCONCLUSIVE' | 'NO_GPS'
   | 'NO_STATION_COORDINATES' | 'UNASSIGNED' | 'UNRESOLVED_TIME'
@@ -61,6 +62,7 @@ export interface FuelVerification {
       stationRadiusMeters: number
     }
     stationStop?: { from: string; to: string } | null
+    fuel?: { before: FuelTankObservation | null; after: FuelTankObservation | null } | null
     mileage: {
       measuredAt: string
       kilometers: number

@@ -13,6 +13,8 @@ export interface FuelTransactionRow {
   reportedRegistration: string | null
   vehicleId: number | null
   vehiclePlate: string | null
+  driverId: number | null
+  driverName: string | null
   stationCode: string
   stationName: string | null
   stationKnown: boolean
@@ -22,6 +24,9 @@ export interface FuelTransactionRow {
   quantity: number
   amountEur: number | null
   grossUnitEur: number | null
+  netAmountEur: number | null
+  netUnitEur: number | null
+  excise?: { country: string; netAmountEur: number | null; netUnitEur: number | null } | null
   status: 'NEW' | 'DUPLICATE' | 'REVISION' | null
   gpsStatus: FuelGpsStatus | null
 }

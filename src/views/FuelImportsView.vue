@@ -13,7 +13,7 @@
 
     <template v-else-if="tab === 'history'">
       <RouterLink v-if="historyImportId" :to="{ name: 'fuel', query: { tab: 'history' } }" class="ui-body-sm text-ui-text underline">
-        Pokaż tankowania ze wszystkich importów
+        Pokaż transakcje ze wszystkich importów
       </RouterLink>
       <FuelTransactionHistory :key="auth.activeCompanyId || 'history'" :import-id="historyImportId" />
     </template>
@@ -50,7 +50,7 @@ const historyImportId = computed(() => {
 const tabs = computed(() => [
   ...(canReadTransactions.value ? [
     { value: 'dashboard', label: 'Przegląd', icon: IconLayoutDashboard },
-    { value: 'history', label: 'Historia transakcji', icon: IconHistory },
+    { value: 'history', label: 'Transakcje', icon: IconHistory },
   ] : []),
   ...(canReadStations.value ? [{ value: 'stations', label: 'Stacje paliw', icon: IconGasStation }] : []),
   ...(canImport.value ? [{ value: 'import', label: 'Importy transakcji', icon: FileUpload }] : []),

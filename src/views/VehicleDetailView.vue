@@ -83,8 +83,8 @@
           </form>
         </AppCard>
 
-        <div class="vehicle-information-sidebar grid min-h-0 min-w-0 gap-3" :class="vehicle.type === 'TRAILER' ? 'vehicle-information-sidebar--trailer' : ''">
-          <AppCard class="flex min-h-0 min-w-0 flex-col" :title="vehicle.type === 'TRAILER' ? 'Przegląd techniczny' : 'Przeglądy i winiety'" :icon="CalendarCheck" compact content-class="!p-3 min-h-0 flex-1 overflow-y-auto">
+        <div class="vehicle-information-overview flex min-h-0 min-w-0 flex-col gap-3">
+          <AppCard class="flex shrink-0 min-w-0 flex-col" :title="vehicle.type === 'TRAILER' ? 'Przegląd techniczny' : 'Przeglądy i winiety'" :icon="CalendarCheck" compact content-class="!p-0 min-h-0">
             <template #actions>
               <div class="flex h-8 w-[4.5rem] items-center justify-end gap-2">
                 <template v-if="isEditingInspections">
@@ -99,25 +99,54 @@
                 <AppDropdownItem role="menuitem" :disabled="!canUpdateVehicles" @click="openInspectionEdit"><SquarePen class="h-4 w-4" />Edytuj</AppDropdownItem>
               </AppDropdown>
             </template>
-            <form id="vehicle-inspection-edit-form" class="space-y-1.5" @submit.prevent="submitInspectionEdit">
-              <InspectionRow v-for="field in visibleInspectionFields" :key="field.key" v-model="inspectionEditForm[field.key]" :label="field.label" :date="vehicle[field.key]" :editing="isEditingInspections" :disabled="isUpdatingInspections" />
-              <div v-if="vehicleLuxembourgVignette" class="min-w-0 space-y-1 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted px-2.5 py-1.5">
-                <p class="text-xs font-semibold text-ui-text">Winieta Luksemburg</p>
-                <div v-if="isEditingInspections" class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9.5rem),1fr))] gap-2">
-                  <AppDatePicker v-model="inspectionEditForm.vignetteLuxembourgFrom" label="Ważna od" size="sm" editable :disabled="isUpdatingInspections" />
-                  <AppDatePicker v-model="inspectionEditForm.vignetteLuxembourgTo" label="Ważna do" size="sm" editable :disabled="isUpdatingInspections" />
-                  <p class="col-span-full ui-caption">Na jeden dzień wystarczy wypełnić „Ważna od”.</p>
-                  <p v-if="inspectionError" class="col-span-full ui-error" role="alert">{{ inspectionError }}</p>
-                </div>
-                <div v-else class="flex min-h-8 flex-wrap items-center justify-between gap-2">
-                  <AppBadge :variant="vehicleLuxembourgVignette.variant">{{ vehicleLuxembourgVignette.statusLabel }}</AppBadge>
-                  <p v-if="vehicleLuxembourgVignette.dateLabel" class="ui-caption tabular-nums">{{ vehicleLuxembourgVignette.dateLabel }}</p>
-                </div>
-              </div>
+            <form id="vehicle-inspection-edit-form" @submit.prevent="submitInspectionEdit">
+              <table class="vehicle-inspection-table w-full table-fixed border-collapse" aria-label="Przeglądy i winiety pojazdu">
+                <thead class="ui-table-head">
+                  <tr class="divide-x divide-ui-border">
+                    <th scope="col" class="w-[40%] px-3 py-2 text-left">Dotyczy</th>
+                    <th scope="col" class="w-[34%] px-2 py-2 text-left">Data</th>
+                    <th scope="col" class="px-2 py-2 text-center">Dni</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <InspectionRow
+                    v-for="field in visibleInspectionFields" :key="field.key"
+                    v-model="inspectionEditForm[field.key]" :label="field.label" :date="vehicle[field.key]"
+                    :editing="isEditingInspections" :disabled="isUpdatingInspections"
+                  />
+                  <tr v-if="vehicleLuxembourgVignette" class="border-b border-ui-border last:border-b-0">
+                    <td class="border-r border-ui-border px-3 py-1 align-top ui-caption"><div class="truncate py-1 leading-5" title="Winieta Luksemburg">Winieta LU</div></td>
+                    <td class="border-r border-ui-border px-2 py-1 align-top text-[13px] font-semibold leading-5 text-ui-text">
+                      <div class="min-h-7 whitespace-nowrap border border-transparent px-2 py-[3px]" :title="vehicleLuxembourgVignette.dateLabel || undefined">{{ formatDate(vehicle.vignetteLuxembourgTo) }}</div>
+                    </td>
+                    <td class="px-2 py-1 text-center">
+                      <AppBadge :variant="vehicleLuxembourgVignette.variant" :title="vehicleLuxembourgVignette.statusLabel" :aria-label="vehicleLuxembourgVignette.statusLabel + ', ' + daysLabel(daysUntil(vehicle.vignetteLuxembourgTo))">
+                        {{ daysUntil(vehicle.vignetteLuxembourgTo) == null ? 'Brak' : daysUntil(vehicle.vignetteLuxembourgTo) + ' d' }}
+                      </AppBadge>
+                    </td>
+                  </tr>
+                  <tr v-if="isEditingInspections && vehicleLuxembourgVignette">
+                    <td colspan="3" class="border-t border-ui-border p-3">
+                      <div class="grid gap-2 sm:grid-cols-2">
+                        <AppDatePicker v-model="inspectionEditForm.vignetteLuxembourgFrom" label="Winieta LU od" size="sm" editable :disabled="isUpdatingInspections" />
+                        <AppDatePicker v-model="inspectionEditForm.vignetteLuxembourgTo" label="Winieta LU do" size="sm" editable :disabled="isUpdatingInspections" />
+                      </div>
+                      <p class="mt-2 ui-caption">Na jeden dzień wystarczy wypełnić „Winieta LU od”.</p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <p v-if="inspectionError" class="p-3 ui-error" role="alert">{{ inspectionError }}</p>
             </form>
           </AppCard>
 
-          <div class="vehicle-device-telemetry grid min-h-0 min-w-0 grid-cols-2 self-start gap-3">
+          <AppCard class="vehicle-location-card flex min-h-0 min-w-0 flex-1 flex-col" title="Lokalizacja pojazdu" :icon="MapPin" compact content-class="!p-0 min-h-0 flex-1 relative">
+            <VehicleLocationPreview :vehicle="vehicle" />
+          </AppCard>
+        </div>
+
+        <div class="vehicle-information-equipment flex min-h-0 min-w-0 flex-col gap-3">
+          <div class="vehicle-device-telemetry grid shrink-0 min-w-0 grid-cols-2 gap-3">
             <AppCard class="flex min-h-0 min-w-0 flex-col" title="Urządzenie" :icon="Cpu" compact content-class="!p-2 flex min-h-16 flex-1 items-center justify-center text-center">
               <template v-if="vehicle.assignedDeviceId" #actions>
                 <span ref="deviceMenuAnchor" class="inline-flex">
@@ -145,10 +174,23 @@
               <VehicleBatteryLevel :level="vehicleBatteryLevel" class="!text-lg" icon-class="!h-5 !w-5" />
             </AppCard>
           </div>
+          <VehicleFuelTanks
+            v-if="canReadFuelTanks"
+            :key="`${authStore.activeCompanyId}:${vehicle.id}:fuel-tanks`"
+            :vehicle-id="vehicle.id"
+            :make="vehicle.make"
+            :first-registration="vehicle.firstRegistration"
+            :can-manage="canManageFuelTanks"
+            class="shrink-0"
+          />
+          <VehicleFuelCards
+            v-if="canReadFuelCards"
+            :key="`${authStore.activeCompanyId}:${vehicle.id}:fuel-cards`"
+            :vehicle-id="vehicle.id"
+            :can-manage="canManageFuelCards"
+            class="min-h-0 flex-1"
+          />
         </div>
-        <AppCard class="vehicle-location-card flex min-h-0 min-w-0 flex-col" title="Lokalizacja pojazdu" :icon="MapPin" compact content-class="!p-0 min-h-0 flex-1 relative">
-          <VehicleLocationPreview :vehicle="vehicle" />
-        </AppCard>
     </div>
 
     <div v-else-if="activeTab === 'service'" class="vehicle-service-layout min-w-0 md:min-h-0 md:flex-1" :class="showPlannedVehicleSections && vehicle.type === 'TRAILER' && wheelTelemetry ? 'vehicle-service-layout--trailer' : ''">
@@ -198,19 +240,10 @@
       </div>
     </div>
 
-    <VehicleFuelCards
-      v-else-if="activeTab === 'fuel-cards' && canReadFuelCards"
-      :key="`${authStore.activeCompanyId}:${vehicle.id}`"
-      :vehicle-id="vehicle.id"
-      :can-manage="canManageFuelCards"
-      class="min-w-0 md:min-h-0 md:flex-1 md:overflow-y-auto"
-    />
-
     <FuelTransactionHistory
       v-else-if="activeTab === 'fuel-history' && canReadFuelHistory"
       :key="`${authStore.activeCompanyId}:${vehicle.id}:fuel-history`"
       :vehicle-id="vehicle.id"
-      class="min-w-0 md:min-h-0 md:flex-1 md:overflow-y-auto"
     />
 
     <div v-else class="vehicle-documents-layout grid min-w-0 gap-3 md:min-h-0 md:flex-1 lg:items-stretch" :class="showPlannedVehicleSections ? 'lg:grid-cols-2' : ''">
@@ -463,7 +496,6 @@ import {
   IconCircleCheck as CircleCheck,
   IconCopy as Copy,
   IconCpu as Cpu,
-  IconCreditCard as CreditCard,
   IconGasStation as GasStation,
   IconDots as Ellipsis,
   IconExternalLink as ExternalLink,
@@ -499,6 +531,7 @@ import { describeLuxembourgVignette, luxembourgCalendarDate } from '@/utils/vign
 import DeviceSelect from '@/components/selects/DeviceSelect.vue'
 import FuelTransactionHistory from '@/components/fuel/FuelTransactionHistory.vue'
 import VehicleFuelCards from '@/components/vehicles/VehicleFuelCards.vue'
+import VehicleFuelTanks from '@/components/vehicles/VehicleFuelTanks.vue'
 import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
 import VehicleLocationPreview from '@/components/vehicles/VehicleLocationPreview.vue'
 import VehicleBatteryLevel from '@/components/vehicles/VehicleBatteryLevel.vue'
@@ -565,8 +598,7 @@ const showPlannedVehicleSections = false
 const vehicleTabs: AppTabItem[] = [
   { value: 'information', label: 'Informacje', icon: Info },
   { value: 'service', label: 'Serwis', icon: Wrench },
-  { value: 'fuel-cards', label: 'Karty paliwowe', icon: CreditCard },
-  { value: 'fuel-history', label: 'Tankowania', icon: GasStation },
+  { value: 'fuel-history', label: 'Transakcje', icon: GasStation },
   { value: 'documents', label: showPlannedVehicleSections ? 'Dokumenty i zdjęcia' : 'Zdjęcia', icon: showPlannedVehicleSections ? Files : Images },
 ]
 useWorkspaceViewState({ activeVehicleTab: activeTab })
@@ -767,10 +799,12 @@ const canReadVehiclePhotos = computed(() => authStore.hasActiveCompanyPermission
 const canReadFuelCards = computed(() => Boolean(authStore.activeCompanyId && vehicle.value && vehicle.value.type !== 'TRAILER' &&
   hasPermission('vehicles.read') && hasPermission('fuel_cards.read')))
 const canManageFuelCards = computed(() => canReadFuelCards.value && hasPermission('fuel_cards.manage'))
+const canReadFuelTanks = computed(() => Boolean(authStore.activeCompanyId && vehicle.value && vehicle.value.type !== 'TRAILER' &&
+  hasPermission('vehicles.read') && hasPermission('fuel_tanks.read')))
+const canManageFuelTanks = computed(() => canReadFuelTanks.value && hasPermission('fuel_tanks.manage'))
 const canReadFuelHistory = computed(() => Boolean(authStore.activeCompanyId && vehicle.value && vehicle.value.type !== 'TRAILER' &&
   hasPermission('vehicles.read') && hasPermission('fuel_imports.read')))
 const visibleVehicleTabs = computed(() => vehicleTabs.filter(tab => {
-  if (tab.value === 'fuel-cards') return canReadFuelCards.value
   if (tab.value === 'fuel-history') return canReadFuelHistory.value
   return tab.value !== 'documents' || showPlannedVehicleSections || canReadVehiclePhotos.value
 }))
@@ -809,14 +843,14 @@ const InfoRow = defineComponent({
   setup(props, { slots }) {
     return () => h('tr', { class: 'border-b border-ui-border last:border-b-0' }, [
       h('td', { class: 'w-[44%] border-r border-ui-border px-3 py-1 align-top ui-caption' }, [
-        h('div', { class: 'py-2 leading-5' }, props.label),
+        h('div', { class: 'py-1 leading-5' }, props.label),
       ]),
       h('td', { class: 'px-2 py-1 align-top text-left text-[13px] font-semibold leading-5 text-ui-text' }, [
         h('div', { class: 'relative min-w-0' }, [
           // Keep the display text in the flow so editors cannot change row geometry.
-          h('div', { class: ['min-h-9 whitespace-pre-wrap break-words border border-transparent px-2 py-[7px]', props.copyable ? 'pr-9' : '', props.multiline ? 'min-h-[5.5rem]' : '', props.editing ? 'invisible' : ''], 'aria-hidden': props.editing || undefined }, slots.display?.() ?? formatValue(props.value)),
+          h('div', { class: ['flex min-h-7 whitespace-pre-wrap break-words border border-transparent px-2 py-[3px]', props.copyable ? 'pr-9' : '', props.multiline ? 'min-h-14 items-start' : 'items-center', props.editing ? 'invisible' : ''], 'aria-hidden': props.editing || undefined }, slots.display?.() ?? formatValue(props.value)),
           props.copyable && !props.editing && props.value != null && props.value !== '' && props.value !== '-'
-            ? h(AppIconButton, { label: `Kopiuj: ${props.label}`, size: 'sm', variant: 'ghost', class: 'absolute right-0 top-0.5', onClick: () => copyVehicleInformation(String(props.value), props.label) }, () => h(Copy, { class: 'h-3.5 w-3.5' }))
+            ? h(AppIconButton, { label: `Kopiuj: ${props.label}`, size: 'sm', variant: 'ghost', class: 'absolute right-0 top-0.5 !h-6 !w-6', onClick: () => copyVehicleInformation(String(props.value), props.label) }, () => h(Copy, { class: 'h-3.5 w-3.5' }))
             : null,
           props.editing ? h('div', { class: 'absolute inset-0' }, slots.default?.()) : null,
         ]),
@@ -839,14 +873,18 @@ const InspectionRow = defineComponent({
       const days = daysUntil(props.date)
       const variant: 'neutral' | 'success' | 'warning' | 'error' =
         days === null ? 'neutral' : days < 15 ? 'error' : days < 30 ? 'warning' : 'success'
-      return h('div', { class: 'min-w-0 space-y-1 rounded-[var(--rw-radius-control)] border border-ui-border bg-ui-muted px-2.5 py-1.5' }, [
-        h('p', { class: 'text-xs font-semibold text-ui-text' }, props.label),
-        h('div', { class: 'flex min-w-0 items-center justify-between gap-2' }, [
-          h(AppBadge, { variant }, () => daysLabel(days)),
-          h('div', { class: 'relative h-8 w-[9.5rem] min-w-0 shrink' }, [
-            h('p', { class: ['flex h-full items-center justify-end px-2 ui-caption tabular-nums', props.editing ? 'invisible' : ''], 'aria-hidden': props.editing || undefined }, formatDate(props.date)),
+      return h('tr', { class: 'border-b border-ui-border last:border-b-0' }, [
+        h('td', { class: 'border-r border-ui-border px-3 py-1 align-top ui-caption' }, [
+          h('div', { class: 'truncate py-1 leading-5', title: props.label }, props.label),
+        ]),
+        h('td', { class: 'border-r border-ui-border px-2 py-1 align-top text-[13px] font-semibold leading-5 text-ui-text' }, [
+          h('div', { class: 'relative min-w-0' }, [
+            h('div', { class: ['min-h-7 whitespace-nowrap border border-transparent px-2 py-[3px] tabular-nums', props.editing ? 'invisible' : ''], 'aria-hidden': props.editing || undefined }, formatDate(props.date)),
             props.editing ? h(AppDatePicker, { inline: true, editable: true, ariaLabel: props.label, modelValue: props.modelValue, disabled: props.disabled, 'onUpdate:modelValue': (value: string) => emit('update:modelValue', value) }) : null,
           ]),
+        ]),
+        h('td', { class: 'px-2 py-1 text-center' }, [
+          h(AppBadge, { variant, title: daysLabel(days), 'aria-label': daysLabel(days) }, () => days === null ? 'Brak' : `${days} d`),
         ]),
       ])
     }
@@ -1663,7 +1701,7 @@ useWorkspaceDirty(computed(() => isEditModalOpen.value || isEditingInspections.v
   border: 1px solid rgb(var(--rw-border));
   border-radius: var(--rw-radius-control);
   background: rgb(var(--rw-surface));
-  padding: 7px 8px;
+  padding: 3px 8px;
   color: inherit;
   font: inherit;
   line-height: 20px;
@@ -1672,26 +1710,17 @@ useWorkspaceDirty(computed(() => isEditModalOpen.value || isEditingInspections.v
 }
 :deep(.vehicle-inline-control:focus) { border-color: rgb(var(--rw-focus-ring)); box-shadow: inset 0 0 0 1px rgb(var(--rw-focus-ring)); }
 :deep(.vehicle-inline-control:disabled) { opacity: .6; }
+.vehicle-information-layout :deep(.ui-inline-field-control) { padding: 3px 8px; }
 
 .vehicle-information-layout, .vehicle-service-layout { display: grid; gap: .75rem; }
-.vehicle-information-sidebar { grid-template-columns: minmax(0, 1fr); }
 .vehicle-device-telemetry :deep(.ui-card-header) { min-height: 3rem; align-items: center; gap: .375rem; padding: .5rem; }
 .vehicle-device-telemetry :deep(.ui-icon-button) { width: 1.5rem !important; height: 1.5rem !important; }
 .vehicle-device-telemetry :deep(.ui-card-header > div:first-child) { min-width: 0; }
-.vehicle-device-telemetry :deep(.ui-section-title) { gap: .375rem; font-size: .875rem; }
-@media (min-width: 640px) {
-  .vehicle-information-sidebar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .vehicle-information-sidebar--trailer > :first-child { grid-column: 1; grid-row: 1; }
-  .vehicle-information-sidebar--trailer > .vehicle-device-telemetry { grid-column: 1; grid-row: 2; }
-  .vehicle-location-card { width: calc((100% - .75rem) / 2); justify-self: start; }
-}
-.vehicle-location-card { min-height: 14rem; }
+.vehicle-device-telemetry :deep(.ui-section-title) { gap: .25rem; font-size: .75rem; }
+.vehicle-location-card { min-height: 12rem; }
 @media (min-width: 1024px) {
-  .vehicle-information-layout { grid-template-columns: minmax(19rem, .85fr) minmax(0, 1.65fr); grid-template-rows: minmax(13rem, auto) minmax(14rem, 1fr); overflow-y: auto; }
-  .vehicle-information-card { grid-column: 1; grid-row: 1 / 3; }
-  .vehicle-information-sidebar { grid-column: 2; grid-row: 1; grid-template-rows: minmax(0, 1fr); }
-  .vehicle-information-sidebar--trailer { grid-template-rows: auto auto; align-content: start; }
-  .vehicle-location-card { grid-column: 2; grid-row: 2; min-height: 14rem; }
+  .vehicle-information-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(17rem, .9fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; }
+  .vehicle-information-equipment { overflow-y: auto; }
   .vehicle-location-card :deep(.vehicle-location-preview) { min-height: 0; }
   .vehicle-service-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); overflow: hidden; }
   .vehicle-service-layout--trailer { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }

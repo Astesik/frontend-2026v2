@@ -22,17 +22,32 @@ import AppInput from '@/components/ui/AppInput.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import { useFuelStationStore } from '@/stores/fuelStationStore'
-import type { FuelStation } from '@/types/fuelStation'
-const props = defineProps<{ open: boolean; station: FuelStation | null }>()
-const emit = defineEmits<{ close: [] }>()
+import type { FuelStation, FuelStationWrite } from '@/types/fuelStation'
+const props = defineProps<{ open: boolean; station: FuelStation | null; initialValues?: FuelStationWrite | null }>()
+const emit = defineEmits<{ close: []; saved: [] }>()
 const store = useFuelStationStore(), error = ref('')
 const form = reactive({ provider: 'IDS', stationCode: '', stationName: '', country: '', lat: '', lng: '' })
-watch(() => props.open, open => { if (!open) return; error.value = ''; const s = props.station; Object.assign(form, { provider: s?.provider || 'IDS', stationCode: s?.stationCode || '', stationName: s?.stationName || '', country: s?.country || '', lat: s?.lat == null ? '' : String(s.lat), lng: s?.lng == null ? '' : String(s.lng) }) })
+watch(() => props.open, open => {
+  if (!open) return
+  error.value = ''
+  const station = props.station ?? props.initialValues
+  Object.assign(form, {
+    provider: station?.provider || 'IDS',
+    stationCode: station?.stationCode || '',
+    stationName: station?.stationName || '',
+    country: station?.country || '',
+    lat: station?.lat == null ? '' : String(station.lat),
+    lng: station?.lng == null ? '' : String(station.lng),
+  })
+}, { immediate: true })
 async function save() {
   if (!form.stationCode.trim() || !form.stationName.trim() || !form.country.trim()) { error.value = 'Uzupełnij kod, nazwę stacji i kraj.'; return }
   const lat = form.lat.trim() === '' ? null : Number(form.lat), lng = form.lng.trim() === '' ? null : Number(form.lng)
   if ((lat === null) !== (lng === null) || (lat !== null && (!Number.isFinite(lat) || Math.abs(lat) > 90)) || (lng !== null && (!Number.isFinite(lng) || Math.abs(lng) > 180))) { error.value = 'Podaj poprawną parę współrzędnych albo pozostaw oba pola puste.'; return }
-  if (await store.saveStation({ provider: form.provider, stationCode: form.stationCode.trim(), stationName: form.stationName.trim(), country: form.country.trim(), lat, lng }, props.station?.id)) emit('close')
+  if (await store.saveStation({ provider: form.provider, stationCode: form.stationCode.trim(), stationName: form.stationName.trim(), country: form.country.trim(), lat, lng }, props.station?.id)) {
+    emit('saved')
+    emit('close')
+  }
 }
 useWorkspaceDirty(computed(() => props.open))
 </script>

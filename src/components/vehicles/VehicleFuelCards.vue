@@ -1,66 +1,111 @@
 <template>
-  <section class="space-y-3 pb-4" aria-label="Karty paliwowe pojazdu">
-    <p v-if="loading" class="ui-body-sm text-ui-mutedText" role="status">Pobieranie kart paliwowych…</p>
-    <div v-else-if="loadError" class="space-y-2">
-      <p class="ui-error" role="alert">{{ loadError }}</p>
-      <AppButton size="sm" variant="secondary" @click="load">Spróbuj ponownie</AppButton>
-    </div>
-    <div v-else class="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-4">
-      <AppCard v-for="group in groups" :key="group.id" :title="group.label" :icon="CreditCard" compact>
-        <div class="space-y-3">
-          <template v-if="group.active">
-            <p class="text-base font-semibold tabular-nums text-ui-text">{{ group.active.maskedNumber }}</p>
-            <p class="ui-caption">Od {{ dateLabel(group.active.validFrom) }}<br>Do {{ group.active.validTo ? dateLabel(group.active.validTo) : 'odwołania' }}</p>
-            <p v-if="group.holder" class="break-words ui-body-sm text-ui-text">U posiadacza: {{ group.holder.holderName }}</p>
-          </template>
-          <p v-else class="ui-body-sm text-ui-mutedText">Brak aktywnego przypisania.</p>
-
-          <div v-if="canManage" class="flex flex-wrap gap-2">
-            <AppButton size="sm" variant="secondary" @click="open({ kind: 'assign', provider: group.id })">
-              <Plus class="h-4 w-4" />Przypisz
-            </AppButton>
-            <template v-if="group.active">
-              <AppButton v-if="!group.holder" size="sm" variant="secondary" @click="open({ kind: 'issue', assignment: group.active })">Wydaj</AppButton>
-              <AppButton v-else size="sm" variant="secondary" @click="open({ kind: 'return', assignment: group.active, issue: group.holder })">Zwrot</AppButton>
-              <AppButton size="sm" variant="ghost" @click="open({ kind: 'end', assignment: group.active })">Zakończ</AppButton>
-            </template>
+  <section class="flex min-h-0 min-w-0 flex-col" aria-label="Karty paliwowe pojazdu">
+    <AppCard
+      title="Karty paliwowe" :icon="CreditCard" compact
+      class="flex min-h-0 flex-1 flex-col [&>.ui-card-header]:items-center [&>.ui-card-header]:px-3 [&>.ui-card-header]:py-2"
+      content-class="flex min-h-0 flex-1 flex-col !p-2"
+    >
+      <template #actions>
+        <AppIconButton label="Historia kart paliwowych" size="sm" variant="ghost" @click="openDetails(null)"><History class="h-4 w-4" /></AppIconButton>
+      </template>
+      <p v-if="loading" class="ui-caption" role="status">Pobieranie kart paliwowych…</p>
+      <div v-else-if="loadError" class="space-y-2">
+        <p class="ui-error" role="alert">{{ loadError }}</p>
+        <AppButton size="sm" variant="secondary" @click="load">Spróbuj ponownie</AppButton>
+      </div>
+      <div v-else class="grid flex-1 grid-rows-[repeat(4,minmax(2.75rem,1fr))] gap-1.5">
+        <template v-for="group in groups" :key="group.id">
+          <div v-if="group.active" class="relative min-w-0 rounded-lg border border-ui-border">
+            <button
+              type="button" class="flex h-full w-full min-w-0 items-center gap-2 rounded-lg px-3 py-1.5 pr-10 text-left hover:bg-ui-hover focus-visible:ring-2 focus-visible:ring-ui-focus"
+              :aria-label="`Szczegóły karty ${group.label}`" @click="openDetails(group.id)"
+            >
+              <CreditCard class="h-6 w-6 shrink-0 text-ui-icon" aria-hidden="true" />
+              <span class="min-w-0">
+                <span class="block text-[10px] text-ui-mutedText">{{ group.label }}</span>
+                <span class="block truncate text-sm font-semibold tabular-nums text-ui-text">{{ group.active.maskedNumber }}</span>
+              </span>
+            </button>
+            <AppIconButton
+              v-if="canManage" :label="`Opcje karty ${group.label}`" size="sm" variant="ghost" class="absolute right-1 top-1"
+              aria-haspopup="menu" :aria-expanded="menuProvider === group.id" @click="toggleMenu(group.id, $event)"
+            ><Ellipsis class="h-4 w-4" /></AppIconButton>
           </div>
+          <button
+            v-else type="button" class="relative flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-dotted border-ui-border-strong px-3 py-2 text-xs font-medium text-ui-text-secondary transition hover:bg-ui-hover focus-visible:ring-2 focus-visible:ring-ui-focus disabled:cursor-not-allowed disabled:opacity-60"
+            :disabled="!canManage" :aria-label="`Przypisz kartę ${group.label}`" @click="open({ kind: 'assign', provider: group.id })"
+          >
+            <span class="absolute left-2 top-1 text-[10px] text-ui-mutedText">{{ group.label }}</span>
+            <Plus class="h-4 w-4" aria-hidden="true" />Przypisz kartę
+          </button>
+        </template>
+      </div>
+    </AppCard>
+    <AppDropdown :open="menuProvider != null" :anchor="menuAnchor" role="menu" :match-width="false" content-class="min-w-32 p-1" @close="menuProvider = null">
+      <AppDropdownItem role="menuitem" @click="openDetails(menuProvider)"><Edit class="h-4 w-4" />Edytuj</AppDropdownItem>
+    </AppDropdown>
 
-          <details v-if="group.assignments.length" class="border-t border-ui-divider pt-2">
-            <summary class="cursor-pointer ui-body-sm font-medium text-ui-text">Historia przypisań</summary>
-            <ul class="mt-2 divide-y divide-ui-divider">
-              <li v-for="assignment in group.assignments" :key="assignment.id" class="space-y-1 py-2">
-                <div class="flex flex-wrap items-center gap-2">
-                  <span class="font-medium tabular-nums">{{ assignment.maskedNumber }}</span>
-                  <AppBadge v-if="assignment.voidedAt" variant="neutral">Unieważnione</AppBadge>
-                  <AppBadge v-else-if="Date.parse(assignment.validFrom) > now" variant="info">Zaplanowane</AppBadge>
-                </div>
-                <p class="ui-caption">{{ dateLabel(assignment.validFrom) }} – {{ assignment.validTo ? dateLabel(assignment.validTo) : 'bez terminu' }}</p>
-                <AppButton
-                  v-if="canManage && !assignment.voidedAt && assignment.id !== group.active?.id && Date.parse(assignment.validFrom) <= now"
-                  size="sm" variant="ghost" @click="open({ kind: 'issue', assignment })"
-                >Zapisz wydanie</AppButton>
-                <AppButton v-if="canManage && !assignment.voidedAt" size="sm" variant="ghost"
-                  @click="open({ kind: 'void', assignment })">Unieważnij</AppButton>
-              </li>
-            </ul>
-          </details>
-          <details v-if="group.issues.length" class="border-t border-ui-divider pt-2">
-            <summary class="cursor-pointer ui-body-sm font-medium text-ui-text">Wydania i zwroty</summary>
-            <ul class="mt-2 divide-y divide-ui-divider">
-              <li v-for="{ issue, assignment } in group.issues" :key="issue.id" class="space-y-1 py-2">
-                <p class="break-words ui-body-sm text-ui-text">{{ issue.holderName }} · {{ assignment.maskedNumber }}</p>
-                <p class="ui-caption">Wydano {{ dateLabel(issue.issuedAt) }}</p>
-                <p class="ui-caption">{{ issue.returnedAt ? 'Zwrócono ' + dateLabel(issue.returnedAt) : 'Oczekuje na zwrot' }}</p>
-                <AppButton v-if="canManage && !issue.returnedAt" size="sm" variant="ghost" @click="open({ kind: 'return', assignment, issue })">Zarejestruj zwrot</AppButton>
-              </li>
-            </ul>
-          </details>
-        </div>
-      </AppCard>
-    </div>
+    <AppModal
+      :open="detailsOpen" :title="selectedProvider ? 'Karta ' + selectedProvider : 'Karty paliwowe'"
+      :size="selectedProvider ? 'sm' : 'lg'" center-in-viewport @close="detailsOpen = false"
+    >
+      <div class="grid items-start gap-3" :class="selectedProvider ? '' : 'sm:grid-cols-2'">
+        <AppCard v-for="group in detailGroups" :key="group.id" :title="group.label" :icon="CreditCard" compact>
+          <div class="space-y-3">
+            <template v-if="group.active">
+              <p class="text-base font-semibold tabular-nums text-ui-text">{{ group.active.maskedNumber }}</p>
+              <p class="ui-caption">Od {{ dateLabel(group.active.validFrom) }}<br>Do {{ group.active.validTo ? dateLabel(group.active.validTo) : 'odwołania' }}</p>
+              <p v-if="group.holder" class="break-words ui-body-sm text-ui-text">U posiadacza: {{ group.holder.holderName }}</p>
+            </template>
+            <p v-else class="ui-body-sm text-ui-mutedText">Brak aktywnego przypisania.</p>
 
-    <AppModal :open="!!action" :title="modalTitle" size="sm" :busy="saving" @close="action = null">
+            <div v-if="canManage" class="flex flex-wrap gap-2">
+              <AppButton size="sm" variant="secondary" @click="open({ kind: 'assign', provider: group.id })">
+                <Plus class="h-4 w-4" />Przypisz
+              </AppButton>
+              <template v-if="group.active">
+                <AppButton v-if="!group.holder" size="sm" variant="secondary" @click="open({ kind: 'issue', assignment: group.active })">Wydaj</AppButton>
+                <AppButton v-else size="sm" variant="secondary" @click="open({ kind: 'return', assignment: group.active, issue: group.holder })">Zwrot</AppButton>
+                <AppButton size="sm" variant="ghost" @click="open({ kind: 'end', assignment: group.active })">Zakończ</AppButton>
+              </template>
+            </div>
+
+            <details v-if="group.assignments.length" class="border-t border-ui-divider pt-2">
+              <summary class="cursor-pointer ui-body-sm font-medium text-ui-text">Historia przypisań</summary>
+              <ul class="mt-2 divide-y divide-ui-divider">
+                <li v-for="assignment in group.assignments" :key="assignment.id" class="space-y-1 py-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="font-medium tabular-nums">{{ assignment.maskedNumber }}</span>
+                    <AppBadge v-if="assignment.voidedAt" variant="neutral">Unieważnione</AppBadge>
+                    <AppBadge v-else-if="Date.parse(assignment.validFrom) > now" variant="info">Zaplanowane</AppBadge>
+                  </div>
+                  <p class="ui-caption">{{ dateLabel(assignment.validFrom) }} – {{ assignment.validTo ? dateLabel(assignment.validTo) : 'bez terminu' }}</p>
+                  <AppButton
+                    v-if="canManage && !assignment.voidedAt && assignment.id !== group.active?.id && Date.parse(assignment.validFrom) <= now"
+                    size="sm" variant="ghost" @click="open({ kind: 'issue', assignment })"
+                  >Zapisz wydanie</AppButton>
+                  <AppButton v-if="canManage && !assignment.voidedAt" size="sm" variant="ghost"
+                    @click="open({ kind: 'void', assignment })">Unieważnij</AppButton>
+                </li>
+              </ul>
+            </details>
+            <details v-if="group.issues.length" class="border-t border-ui-divider pt-2">
+              <summary class="cursor-pointer ui-body-sm font-medium text-ui-text">Wydania i zwroty</summary>
+              <ul class="mt-2 divide-y divide-ui-divider">
+                <li v-for="{ issue, assignment } in group.issues" :key="issue.id" class="space-y-1 py-2">
+                  <p class="break-words ui-body-sm text-ui-text">{{ issue.holderName }} · {{ assignment.maskedNumber }}</p>
+                  <p class="ui-caption">Wydano {{ dateLabel(issue.issuedAt) }}</p>
+                  <p class="ui-caption">{{ issue.returnedAt ? 'Zwrócono ' + dateLabel(issue.returnedAt) : 'Oczekuje na zwrot' }}</p>
+                  <AppButton v-if="canManage && !issue.returnedAt" size="sm" variant="ghost" @click="open({ kind: 'return', assignment, issue })">Zarejestruj zwrot</AppButton>
+                </li>
+              </ul>
+            </details>
+          </div>
+        </AppCard>
+      </div>
+    </AppModal>
+
+    <AppModal :open="!!action" :title="modalTitle" size="sm" center-in-viewport :busy="saving" @close="action = null">
       <form id="fuel-card-action" class="space-y-3" @submit.prevent="submit">
         <AppInput v-if="action?.kind === 'assign'" v-model="cardNumber" label="Numer karty" :maxlength="100" :disabled="saving" required />
         <AppInput v-if="action?.kind === 'issue'" v-model="holderName" label="Komu wydano kartę" :maxlength="160" :disabled="saving" required />
@@ -84,10 +129,13 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { IconCreditCard as CreditCard, IconPlus as Plus } from '@tabler/icons-vue'
+import { IconCreditCard as CreditCard, IconPlus as Plus, IconDots as Ellipsis, IconEdit as Edit, IconHistory as History } from '@tabler/icons-vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
+import AppDropdown from '@/components/ui/AppDropdown.vue'
+import AppDropdownItem from '@/components/ui/AppDropdownItem.vue'
+import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppModal from '@/components/ui/AppModal.vue'
@@ -104,6 +152,10 @@ type Action =
   | { kind: 'return'; assignment: FuelCardAssignment; issue: FuelCardIssue }
 
 const action = ref<Action | null>(null)
+const detailsOpen = ref(false)
+const selectedProvider = ref<FuelCardProvider | null>(null)
+const menuProvider = ref<FuelCardProvider | null>(null)
+const menuAnchor = ref<HTMLElement | null>(null)
 const history = ref<FuelCardHistory>({ assignments: [], issues: [] })
 const loading = ref(true)
 const saving = ref(false)
@@ -130,6 +182,18 @@ const groups = computed(() => fuelCardProviders.map(provider => {
   })
   return { ...provider, assignments, active, holder, issues }
 }))
+const detailGroups = computed(() => selectedProvider.value ? groups.value.filter(group => group.id === selectedProvider.value) : groups.value)
+
+function toggleMenu(provider: FuelCardProvider, event: MouseEvent) {
+  menuAnchor.value = event.currentTarget as HTMLElement
+  menuProvider.value = menuProvider.value === provider ? null : provider
+}
+
+function openDetails(provider: FuelCardProvider | null) {
+  selectedProvider.value = provider
+  menuProvider.value = null
+  detailsOpen.value = true
+}
 
 const modalTitle = computed(() => {
   const request = action.value

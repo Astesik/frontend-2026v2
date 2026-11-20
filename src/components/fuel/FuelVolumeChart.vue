@@ -1,28 +1,5 @@
 <template>
   <div ref="element" class="h-64 w-full sm:h-80" />
-  <details class="mt-3 rounded-lg border border-ui-divider">
-    <summary class="cursor-pointer px-3 py-2 ui-body-sm text-ui-text">Dzienne zestawienie</summary>
-    <div class="max-h-64 overflow-auto">
-      <table class="ui-table" aria-label="Dzienne ilości zatankowane w litrach">
-        <thead class="ui-table-head">
-          <tr>
-            <th scope="col" class="ui-table-cell">Data</th>
-            <th scope="col" class="ui-table-cell text-right">Olej napędowy</th>
-            <th scope="col" class="ui-table-cell text-right">AdBlue</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-ui-divider">
-          <tr v-for="day in daily" :key="day.date">
-            <th scope="row" class="ui-table-cell font-medium">
-              <time :datetime="day.date">{{ shortDate(day.date) }}</time>
-            </th>
-            <td class="ui-table-cell text-right tabular-nums">{{ liters(day.dieselLiters) }}</td>
-            <td class="ui-table-cell text-right tabular-nums">{{ liters(day.adBlueLiters) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </details>
 </template>
 
 <script setup lang="ts">

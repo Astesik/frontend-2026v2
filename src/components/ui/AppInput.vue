@@ -15,6 +15,9 @@
         :aria-describedby="describedBy"
         :aria-label="ariaLabel"
         :maxlength="maxlength"
+        :min="min"
+        :max="max"
+        :step="step"
         :class="inputClasses"
         @input="onInput"
         @blur="emit('blur', $event)"
@@ -55,6 +58,9 @@ const props = withDefaults(defineProps<{
   clearable?: boolean
   size?: 'sm' | 'md'
   maxlength?: number
+  min?: number | string
+  max?: number | string
+  step?: number | string
   ariaLabel?: string
 }>(), {
   id: undefined,

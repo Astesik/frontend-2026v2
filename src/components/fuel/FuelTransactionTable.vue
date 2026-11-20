@@ -1,17 +1,25 @@
 <template>
-  <table class="ui-table block lg:table" role="table" aria-label="Historia tankowań">
-    <thead class="ui-table-head sr-only lg:not-sr-only lg:table-header-group" role="rowgroup">
-      <tr role="row">
-        <th v-for="column in columns" :key="column" scope="col" class="ui-table-cell" role="columnheader">{{ column }}</th>
+  <table class="ui-table table-fixed" :class="canViewVerification ? 'min-w-[82rem]' : 'min-w-[70rem]'" aria-label="Transakcje">
+    <colgroup>
+      <col v-for="column in columns" :key="column.label" :class="column.width" />
+    </colgroup>
+    <thead class="ui-table-head">
+      <tr class="divide-x divide-ui-divider">
+        <th v-for="column in columns" :key="column.label" scope="col" class="sticky top-0 z-10 h-11 bg-ui-muted px-3 py-1 leading-tight">
+          {{ column.label }}
+          <span v-if="column.excise" class="block whitespace-nowrap text-[10px] font-normal normal-case">Akcyza · {{ column.excise }}</span>
+        </th>
       </tr>
     </thead>
-    <tbody class="block lg:table-row-group" role="rowgroup">
+    <tbody>
       <tr
-        v-for="item in rows" :key="item.row"
-        class="ui-table-row grid grid-cols-2 gap-x-3 gap-y-3 px-3 py-3 lg:table-row lg:p-0"
-        role="row"
+        v-for="(item, index) in rows" :key="item.row"
+        class="ui-table-row divide-x divide-ui-divider [&>td]:px-3 [&>td]:py-1 [&>td]:align-middle"
       >
-        <td class="min-w-0 lg:table-cell lg:px-3 lg:py-3 lg:align-top" role="cell">
+        <td class="text-xs tabular-nums text-ui-mutedText">
+          {{ index + 1 }}.
+        </td>
+        <td>
           <p class="flex items-start gap-1.5 font-medium text-ui-text">
             <component
               :is="item.vehicleId != null ? IconCircleCheck : IconAlertTriangle"
@@ -22,16 +30,22 @@
             />
             <span class="break-words">{{ item.vehiclePlate || 'Brak przypisania' }}</span>
           </p>
-          <p class="ui-caption mt-0.5 tabular-nums">{{ item.provider ?? 'IDS' }}: {{ item.cardNumberSuffix ?? item.maskedCard }}</p>
-          <p
-            v-if="item.reportedRegistration && item.reportedRegistration !== item.vehiclePlate"
-            class="ui-caption mt-1 flex items-start gap-1.5"
-          >
-            <IconHelpCircle class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span class="break-words">Sugestia: {{ item.reportedRegistration }}</span>
+          <p class="ui-caption mt-0.5 flex items-center gap-2 whitespace-nowrap">
+            <span class="shrink-0 tabular-nums">{{ item.provider ?? 'IDS' }}: {{ item.cardNumberSuffix ?? item.maskedCard }}</span>
+            <span v-if="item.reportedRegistration && item.reportedRegistration !== item.vehiclePlate" class="group inline-flex min-w-0 items-center gap-1" :title="`Sugestia: ${item.reportedRegistration}`">
+              <IconHelpCircle class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+              Sugestia:
+              <RouterLink
+                v-if="suggestedVehicleIds?.has(item.row)"
+                :to="{ name: 'vehicle-detail', params: { id: suggestedVehicleIds.get(item.row) } }"
+                class="-my-px truncate py-px underline-offset-2 group-hover:underline focus-visible:underline"
+              >{{ item.reportedRegistration }}</RouterLink>
+              <span v-else class="truncate">{{ item.reportedRegistration }}</span>
+            </span>
           </p>
         </td>
-        <td class="min-w-0 lg:table-cell lg:px-3 lg:py-3 lg:align-top" role="cell">
+        <td class="break-words">{{ item.driverName || (item.driverId != null ? `Kierowca #${item.driverId}` : '—') }}</td>
+        <td>
           <div class="flex items-start gap-1.5">
             <img
               v-if="item.country && /^[A-Z]{2}$/i.test(item.country)"
@@ -40,42 +54,42 @@
             />
             <div class="min-w-0">
               <p v-if="item.stationName || item.stationKnown" class="break-words font-medium text-ui-text">{{ item.stationName || item.stationCode }}</p>
-              <p v-if="!item.stationKnown" class="ui-caption flex items-center gap-1.5 text-warning-600 dark:text-warning-400">
-                <IconAlertTriangle class="h-4 w-4 shrink-0" aria-hidden="true" />
-                Nieznana stacja
-              </p>
               <p v-if="item.stationName || !item.stationKnown" class="ui-caption break-words">{{ item.stationCode }}</p>
+              <p v-if="!item.stationKnown" class="ui-caption mt-1 flex items-start gap-1.5 text-warning-600 dark:text-warning-400">
+                <IconAlertTriangle class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <button
+                  v-if="canCreateStation" type="button" title="Utwórz stację"
+                  class="text-left underline-offset-4 hover:underline focus-visible:underline"
+                  @click="emit('createStation', item)"
+                >Nieznana stacja</button>
+                <span v-else>Nieznana stacja</span>
+              </p>
             </div>
           </div>
         </td>
-        <td class="min-w-0 lg:table-cell lg:px-3 lg:py-3 lg:align-top" role="cell">
-          <p class="font-medium tabular-nums text-ui-text">{{ quantity.format(item.quantity) }} {{ item.unit }}</p>
-          <p class="ui-caption break-words">{{ item.product || 'Produkt nieokreślony' }}</p>
-        </td>
-        <td class="lg:table-cell lg:px-3 lg:py-3 lg:align-top" role="cell">
+        <td class="whitespace-nowrap">
           <time :datetime="item.reportedAt" class="block font-medium tabular-nums text-ui-text">
             {{ item.reportedAt.slice(0, 10).split('-').reverse().join('.') }}
             <span class="ui-caption block tabular-nums">{{ item.reportedAt.slice(11, 16) }}</span>
           </time>
         </td>
-        <td class="lg:table-cell lg:px-3 lg:py-3 lg:align-top" role="cell">
-          <p class="ui-caption mb-0.5 lg:hidden">Cena</p>
-          <p v-if="item.amountEur != null" class="whitespace-nowrap font-medium tabular-nums text-ui-text">{{ euro.format(item.amountEur) }}</p>
-          <p
-            v-if="item.grossUnitEur != null" class="whitespace-nowrap tabular-nums"
-            :class="item.amountEur == null ? 'font-medium text-ui-text' : 'ui-caption'"
-          >
-            {{ euro.format(item.grossUnitEur) }}/{{ item.unit }}
-          </p>
-          <p v-if="item.amountEur == null && item.grossUnitEur == null" class="ui-caption" aria-label="Brak ceny">—</p>
+        <td>
+          <p class="whitespace-nowrap font-medium tabular-nums text-ui-text">{{ quantity.format(item.quantity) }} {{ item.unit }}</p>
+          <p class="ui-caption break-words">{{ item.product || 'Produkt nieokreślony' }}</p>
         </td>
-        <td class="min-w-0 lg:table-cell lg:px-3 lg:py-3 lg:align-top" role="cell">
-          <div class="flex items-start justify-between gap-1.5">
-            <FuelVerificationSteps
+        <td class="whitespace-nowrap font-medium tabular-nums text-ui-text">
+          {{ formatPrice(gross ? item.amountEur : netPrices(item).netAmountEur) }}
+        </td>
+        <td class="whitespace-nowrap font-medium tabular-nums text-ui-text">
+          {{ formatPrice(gross ? item.grossUnitEur : netPrices(item).netUnitEur, item.unit) }}
+        </td>
+        <td v-if="canViewVerification">
+          <div class="flex items-center justify-between gap-2">
+            <FuelVerificationStatus
               :vehicle-assigned="item.vehicleId != null" :station-known="item.stationKnown"
-              :gps-status="canViewVerification ? item.gpsStatus : null"
+              :gps-status="item.gpsStatus"
             />
-            <AppIconButton v-if="canViewVerification" label="Weryfikacja GPS" size="sm" class="shrink-0" @click="emit('verify', item)">
+            <AppIconButton label="Weryfikacja GPS" size="sm" @click="emit('verify', item)">
               <IconMapSearch class="h-4 w-4" />
             </AppIconButton>
           </div>
@@ -87,14 +101,40 @@
 
 <script setup lang="ts">
 import { IconAlertTriangle, IconCircleCheck, IconHelpCircle, IconMapSearch } from '@tabler/icons-vue'
-import FuelVerificationSteps from '@/components/fuel/FuelVerificationSteps.vue'
+import { computed } from 'vue'
+import FuelVerificationStatus from '@/components/fuel/FuelVerificationStatus.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
 import type { FuelTransactionRow } from '@/services/fuelImportService'
 
-defineProps<{ rows: FuelTransactionRow[]; canViewVerification: boolean }>()
-const emit = defineEmits<{ verify: [item: FuelTransactionRow] }>()
-const columns = ['Pojazd i karta', 'Lokalizacja', 'Ilość i produkt', 'Data', 'Cena', 'Weryfikacja']
+const props = defineProps<{
+  rows: FuelTransactionRow[]
+  gross: boolean
+  exciseCountries: string[]
+  canViewVerification: boolean
+  canCreateStation?: boolean
+  suggestedVehicleIds?: ReadonlyMap<number, number>
+}>()
+const emit = defineEmits<{ verify: [item: FuelTransactionRow]; createStation: [item: FuelTransactionRow] }>()
+const columns = computed(() => {
+  const mode = props.gross ? 'brutto' : 'netto'
+  const excise = props.gross ? '' : [...props.exciseCountries].sort().join(', ')
+  return [
+    { label: 'Lp.', width: 'w-12' },
+    { label: 'Pojazd i karta', width: 'w-[20rem]' },
+    { label: 'Kierowca', width: 'w-[11rem]' },
+    { label: 'Lokalizacja', width: 'w-auto' },
+    { label: 'Data', width: 'w-[6.75rem]' },
+    { label: 'Ilość i produkt', width: 'w-[7.5rem]' },
+    { label: `Suma ${mode}`, width: 'w-[7rem]', excise },
+    { label: `Cena ${mode}`, width: 'w-[7rem]', excise },
+    ...(props.canViewVerification ? [{ label: 'Weryfikacja', width: 'w-[12rem]' }] : []),
+  ]
+})
 const quantity = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 4 })
-const euro = new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 4 })
+function netPrices(row: FuelTransactionRow) {
+  return row.excise && props.exciseCountries.includes(row.excise.country) ? row.excise : row
+}
+const euro = new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const formatPrice = (value: number | null, unit?: string) => value == null ? '—' : euro.format(value) + (unit ? `/${unit}` : '')
 const flagUrl = (country: string) => `https://flagsapi.com/${country.toUpperCase() === 'UK' ? 'GB' : country.toUpperCase()}/flat/64.png`
 </script>
