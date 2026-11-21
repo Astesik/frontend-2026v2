@@ -75,7 +75,7 @@
                 </td>
 
                 <td v-if="columns.fuel" class="px-1.5 py-1.5 align-middle font-medium text-slate-700 dark:text-slate-200">
-                  <slot name="fuel" :vehicle="vehicle">{{ vehicle.fuelPct == null ? '—' : `${Math.round(vehicle.fuelPct)}%` }}</slot>
+                  <slot name="fuel" :vehicle="vehicle"><VehicleFuelLevel :reading="vehicle" /></slot>
                 </td>
               </tr>
             </tbody>
@@ -84,6 +84,7 @@
 </template>
 <script setup lang="ts">
 import { IconArrowDown as ArrowDown, IconArrowUp as ArrowUp, IconArrowsSort as ArrowUpDown } from '@tabler/icons-vue'
+import VehicleFuelLevel from '@/components/vehicles/VehicleFuelLevel.vue'
 import VehicleTypeIcon from '@/components/vehicles/VehicleTypeIcon.vue'
 import type { Vehicle } from '@/types/fleet'
 const props = withDefaults(defineProps<{

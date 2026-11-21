@@ -19,7 +19,7 @@ export interface ApiVehicle {
   vignetteDenmark: string | null
   assignedDeviceId: number | null
   assignedDeviceName: string | null
-  fuelTank: number | null
+  fuelCapacityLiters: number | null
   intermodalSideCode?: string | null
   lastSeenDriver?: LastSeenDriver | null
   status: string | null
@@ -91,6 +91,8 @@ export interface ApiLastPosition {
   speedKph: number | null
   heading: number | null
   fuelPct: number | null
+  fuelCapacityLiters: number | null
+  estimatedFuelLiters: number | null
   countryCode: string | null
   ignitionState: string | null
   batteryLevel?: number | null
@@ -140,7 +142,7 @@ export interface Vehicle {
   speed: number
   fuelLevel: number
   fuelPct: number | null
-  fuelTank: number
+  estimatedFuelLiters: number | null
   lastUpdate: string
   location: string
   technicalInspection: string | null

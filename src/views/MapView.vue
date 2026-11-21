@@ -113,7 +113,7 @@
                       <TriangleAlert v-else class="h-5 w-5" :class="vehicleAlertIconClasses(vehicle)" />
                     </button>
           </template>
-          <template #fuel="{ vehicle }">{{ formatFuel(vehicle) }}</template>
+
           <template #driver="{ vehicle }">
             <span class="truncate">[{{ lastSeenDrivers.get(vehicle.id)?.label || vehicleDriverLabel(vehicle) }}]</span>
             <span
@@ -309,14 +309,6 @@
           <MapSwitch v-model="mapSettings.map.refuelings" label="Tankowania" />
           <MapSwitch v-model="mapSettings.map.fuel" label="Paliwo" />
 
-          <AppSelect
-            class="pt-2"
-            :model-value="mapSettings.map.fuelUnit"
-            placeholder="Auto"
-            :options="fuelUnitOptions"
-            size="sm"
-            @update:model-value="setFuelUnit"
-          />
         </section>
 
         <section class="mt-4 space-y-1.5">
@@ -641,7 +633,7 @@
                   </dd>
                 </div>
                 <div v-if="selectedVehicle.vehicleType !== 'trailer'" class="flex items-center justify-between gap-3 px-3 py-2">
-                  <dt class="text-ui-mutedText">Paliwo</dt><dd class="font-semibold text-ui-text">{{ formatFuel(selectedVehicle) }}</dd>
+                  <dt class="text-ui-mutedText">Paliwo</dt><dd class="font-semibold text-ui-text"><VehicleFuelLevel :reading="selectedVehicle" combined /></dd>
                 </div>
                 <div v-if="hasSelectedVehicleBattery" class="flex items-center justify-between gap-3 px-3 py-2">
                   <dt class="text-ui-mutedText">Bateria</dt>
@@ -921,6 +913,7 @@ import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppPopover from '@/components/ui/AppPopover.vue'
 import AppDateTimePicker from '@/components/ui/AppDateTimePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import VehicleFuelLevel from '@/components/vehicles/VehicleFuelLevel.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import VehicleSearchSelect from '@/components/selects/VehicleSearchSelect.vue'
 import RepairCreateModal from '@/components/repairs/RepairCreateModal.vue'
@@ -947,7 +940,6 @@ import type { Repair } from '@/types/repair'
 
 type MapMode = 'list' | 'history' | 'places' | 'settings'
 type MapState = 'missing-key' | 'loading' | 'ready' | 'error'
-type FuelUnit = 'auto' | 'liters' | 'percent'
 type MapTheme = 'light' | 'dark'
 type GoogleMapType = 'roadmap' | 'satellite' | 'terrain'
 type BadgeVariant = 'neutral' | 'success' | 'warning' | 'error' | 'info'
@@ -1019,7 +1011,6 @@ const defaultMapSettings = {
     mapType: 'roadmap' as GoogleMapType,
     trafficLayer: false,
     showPlaces: true,
-    fuelUnit: 'percent' as FuelUnit,
   },
 }
 
@@ -1490,12 +1481,6 @@ const historyLoadProgress = computed(() => fleetStore.isRouteHistoryLoading
   ? Math.min(99, fleetStore.currentPositionHistorySummary?.sampleCount ? fleetStore.currentPositionHistoryLoaded * 100 / fleetStore.currentPositionHistorySummary.sampleCount : 8)
   : historyRenderProgress.value)
 
-const fuelUnitOptions = [
-  { value: 'auto', label: 'Auto' },
-  { value: 'liters', label: 'Litry' },
-  { value: 'percent', label: '%' },
-]
-
 const selectedVehicleLifecycleItems = computed(() => {
   if (!selectedVehicle.value) {
     return []
@@ -1713,20 +1698,6 @@ function openRoutePointInGoogleMaps(point: ApiPositionHistoryPoint) {
   }
 
   window.open(`https://www.google.com/maps?q=${point.lat},${point.lon}`, '_blank', 'noopener,noreferrer')
-}
-
-function formatFuel(vehicle: Vehicle) {
-  if (vehicle.fuelPct === null) {
-    return '-'
-  }
-
-  if (mapSettings.map.fuelUnit === 'liters' || (mapSettings.map.fuelUnit === 'auto' && vehicle.fuelTank > 0)) {
-    return vehicle.fuelTank > 0
-      ? `${Math.round((vehicle.fuelPct / 100) * vehicle.fuelTank)} l`
-      : `${Math.round(vehicle.fuelPct)}%`
-  }
-
-  return `${Math.round(vehicle.fuelPct)}%`
 }
 
 function daysUntilDate(value: string | null, reference = Date.now()) {
@@ -2292,10 +2263,6 @@ function resolveDaysVariant(daysLeft: number | null): BadgeVariant {
   return 'neutral'
 }
 
-
-function setFuelUnit(value: string) {
-  mapSettings.map.fuelUnit = value as FuelUnit
-}
 
 function mapOptionClasses(isActive: boolean) {
   return isActive

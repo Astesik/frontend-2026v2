@@ -51,9 +51,9 @@
 
       <div class="min-w-0 md:min-h-0 md:flex-1 md:overflow-y-auto lg:overflow-x-auto">
         <ul v-if="paginatedVehicles.length" class="divide-y divide-ui-divider lg:hidden" aria-label="Pojazdy">
-          <li v-for="vehicle in paginatedVehicles" :key="vehicle.id">
+          <li v-for="vehicle in paginatedVehicles" :key="vehicle.id" class="flex items-center gap-2">
             <RouterLink
-              class="flex min-w-0 items-center gap-2 rounded-md py-3 transition hover:bg-ui-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ui-focus"
+              class="flex min-w-0 flex-1 items-center gap-2 rounded-md py-3 transition hover:bg-ui-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ui-focus"
               :to="{ name: 'vehicle-detail', params: { id: vehicle.id } }"
             >
               <div class="grid min-w-0 flex-1 grid-flow-col grid-cols-[minmax(0,1fr)_minmax(0,1.75fr)] grid-rows-[auto_auto_auto] items-center gap-x-2 gap-y-1">
@@ -67,6 +67,7 @@
               </div>
               <ChevronRight class="h-4 w-4 shrink-0 text-ui-icon" aria-hidden="true" />
             </RouterLink>
+            <VehicleFuelLevel :reading="fleetStore.positionByVehicleId.get(String(vehicle.id))" />
           </li>
         </ul>
         <p v-else-if="!fleetStore.isVehiclesLoading" class="py-8 text-center ui-body-sm text-ui-mutedText lg:hidden">Brak pojazdów pasujących do filtrów.</p>
@@ -78,6 +79,7 @@
               <th v-for="column in sortableColumns" :key="column.key" class="py-2 pr-3 font-medium">
                 <SortButton :label="column.label" :column="column.key" :sort-key="sortKey" :direction="sortDirection" @sort="setSort" />
               </th>
+              <th class="py-2 pr-3 font-medium">Paliwo</th>
               <th class="sticky right-0 z-10 w-16 bg-ui-muted py-2 pr-1 text-right font-medium shadow-[-1px_0_0_0_rgb(var(--rw-border))]">Akcje</th>
             </tr>
           </thead>
@@ -105,6 +107,7 @@
               <td class="py-1.5 pr-3"><DateCell :date="vehicle.technicalInspection" /></td>
               <td class="py-1.5 pr-3"><DateCell :date="vehicle.tachographInspection" /></td>
               <td class="py-1.5 pr-3"><DateCell :date="vehicle.vignetteUk" /></td>
+              <td class="py-1.5 pr-3"><VehicleFuelLevel :reading="fleetStore.positionByVehicleId.get(String(vehicle.id))" /></td>
               <td class="sticky right-0 z-10 bg-ui-surface py-1.5 pr-1 text-right shadow-[-1px_0_0_0_rgb(var(--rw-border))] transition group-hover:bg-ui-hover">
                 <RouterLink
                   class="ui-icon-button !h-8 !w-8"
@@ -117,7 +120,7 @@
             </tr>
 
             <tr v-if="!filteredVehicles.length">
-              <td colspan="9" class="py-10 text-center ui-body-sm text-ui-mutedText">
+              <td colspan="10" class="py-10 text-center ui-body-sm text-ui-mutedText">
                 Brak pojazdów pasujących do filtrów.
               </td>
             </tr>
@@ -146,7 +149,6 @@
             <AppDatePicker v-model="createForm.vignetteLuxembourgTo" editable label="Winieta Luksemburg – ważna do"
               hint="Zostaw puste dla winiety jednodniowej." :error="luxembourgVignetteError" />
             <AppDatePicker v-model="createForm.vignetteDenmark" editable label="Winieta Dania" />
-            <AppInput v-model="createForm.fuelTank" label="Zbiornik paliwa" type="number" />
             <AppSelect v-model="createForm.status" label="Status" :options="vehicleStatusFormOptions" />
             <AppTextarea
               v-model="createForm.description"
@@ -189,6 +191,7 @@ import AppPagination from '@/components/ui/AppPagination.vue'
 import ResponsiveListToolbar from '@/components/ui/ResponsiveListToolbar.vue'
 import AppSelect, { type AppSelectOption } from '@/components/ui/AppSelect.vue'
 import AppTextarea from '@/components/ui/AppTextarea.vue'
+import VehicleFuelLevel from '@/components/vehicles/VehicleFuelLevel.vue'
 import VehicleTypeIcon from '@/components/vehicles/VehicleTypeIcon.vue'
 import AppTooltip from '@/components/ui/AppTooltip.vue'
 import { vehicleService, type VehiclePayload } from '@/services/vehicleService'
@@ -524,7 +527,6 @@ function createEmptyVehicleForm() {
     vignetteLuxembourgFrom: '',
     vignetteLuxembourgTo: '',
     vignetteDenmark: '',
-    fuelTank: '',
     status: 'ACTIVE',
     description: '',
   }
@@ -564,7 +566,6 @@ function createPayloadFromForm(): VehiclePayload {
     vignetteLuxembourgFrom: nullableText(createForm.vignetteLuxembourgFrom),
     vignetteLuxembourgTo: nullableText(createForm.vignetteLuxembourgTo || createForm.vignetteLuxembourgFrom),
     vignetteDenmark: nullableText(createForm.vignetteDenmark),
-    fuelTank: nullableNumber(createForm.fuelTank),
     status: createForm.status || null,
     description: nullableText(createForm.description),
   }

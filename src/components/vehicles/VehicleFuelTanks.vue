@@ -167,6 +167,7 @@ import { parseTypedDate } from '@/utils/date'
 import { useWorkspacePolling } from '@/composables/useWorkspace'
 
 const props = defineProps<{ vehicleId: number; canManage: boolean; make: string | null; firstRegistration: string | null }>()
+const emit = defineEmits<{ saved: [] }>()
 const view = ref<FuelTankView>({ profiles: [], quality: null })
 const loading = ref(true), saving = ref(false), editing = ref(false)
 const detailsOpen = ref(false)
@@ -263,6 +264,7 @@ async function save() {
       })),
     })
     editing.value = false
+    emit('saved')
     await load()
   } catch (cause) {
     formError.value = getApiErrorMessage(cause)

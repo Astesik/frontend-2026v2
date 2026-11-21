@@ -67,9 +67,7 @@
                 <InfoRow label="Rok produkcji" :value="formatValue(vehicle.productionYear)" :editing="isEditModalOpen">
                   <input v-model="editForm.productionYear" class="vehicle-inline-control" type="number" aria-label="Rok produkcji" :disabled="isUpdatingVehicle" />
                 </InfoRow>
-                <InfoRow v-if="vehicle.type !== 'TRAILER'" label="Zbiornik paliwa" :value="fuelTankLabel(vehicle.fuelTank)" :editing="isEditModalOpen">
-                  <input v-model="editForm.fuelTank" class="vehicle-inline-control" type="number" aria-label="Zbiornik paliwa" :disabled="isUpdatingVehicle || editForm.type === 'TRAILER'" />
-                </InfoRow>
+                <InfoRow v-if="vehicle.type !== 'TRAILER'" label="Pojemność zbiorników ON" :value="fuelTankLabel(vehicle.fuelCapacityLiters)" />
                 <InfoRow label="Ostatnia pozycja" :value="formatDateTime(vehicle.lastPositionAt)" />
                 <InfoRow label="Przebieg" :value="historyMetric(vehicleMileage, 'km')" />
                 <InfoRow label="Status" :value="statusLabel(vehicle.status)" :editing="isEditModalOpen">
@@ -181,6 +179,7 @@
             :make="vehicle.make"
             :first-registration="vehicle.firstRegistration"
             :can-manage="canManageFuelTanks"
+            @saved="refreshFuelCapacity"
             class="shrink-0"
           />
           <VehicleFuelCards
@@ -912,7 +911,6 @@ function createEmptyVehicleForm() {
     tachographInspection: '',
     vignetteUk: '',
     vignetteDenmark: '',
-    fuelTank: '',
     status: 'ACTIVE',
     description: '',
   }
@@ -930,7 +928,6 @@ function resetFormFromVehicle(form: VehicleForm, source: ApiVehicle) {
     tachographInspection: dateInputValue(source.tachographInspection),
     vignetteUk: dateInputValue(source.vignetteUk),
     vignetteDenmark: dateInputValue(source.vignetteDenmark),
-    fuelTank: source.fuelTank ? String(source.fuelTank) : '',
     status: source.status || 'ACTIVE',
     description: source.description || '',
   })
@@ -964,7 +961,6 @@ function payloadFromForm(form: VehicleForm, preserveEmptyDescription = false): V
     tachographInspection: nullableText(form.tachographInspection),
     vignetteUk: nullableText(form.vignetteUk),
     vignetteDenmark: nullableText(form.vignetteDenmark),
-    fuelTank: nullableNumber(form.fuelTank),
     status: form.status || null,
     description: preserveEmptyDescription ? form.description.trim() : nullableText(form.description),
   }
@@ -1079,6 +1075,13 @@ function statusLabel(value: string | null) {
   }
 
   return value ? labels[value] || value : '-'
+}
+
+async function refreshFuelCapacity() {
+  await Promise.allSettled([
+    fleetStore.fetchVehicles({ silent: true }),
+    hasPermission('positions.read') && fleetStore.fetchLastPositions({ silent: true }),
+  ])
 }
 
 function fuelTankLabel(value: number | null) {

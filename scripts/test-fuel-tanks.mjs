@@ -58,7 +58,7 @@ const component = evaluate(compiled, {
   '@/composables/useWorkspace': { useWorkspacePolling() {} },
 })
 const props = vue.reactive({ vehicleId: 42, canManage: true, make: 'MAN', firstRegistration: '2020-02-29' })
-const panel = scope.run(() => component.default.setup(props, { expose() {} }))
+const panel = scope.run(() => component.default.setup(props, { expose() {}, emit() {} }))
 panel.openEditor()
 assert.equal(panel.form.connection, 'CONNECTED')
 assert.equal(panel.form.levelTank, 'LEFT')
