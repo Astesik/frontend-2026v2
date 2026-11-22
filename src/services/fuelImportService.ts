@@ -124,6 +124,6 @@ export const fuelImportService = {
     const { data } = await api.get<{ rows: FuelTransactionRow[]; hasMore: boolean }>('/api/fuel/transactions', {
       ...options, params: { page, ...filters },
     })
-    return data
+    return { ...data, rows: data.rows.filter(row => !(row.unit?.trim().toUpperCase() === 'L' && row.quantity === 0)) }
   },
 }

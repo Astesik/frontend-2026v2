@@ -7,6 +7,8 @@
 
     <FuelDashboard v-if="tab === 'dashboard'" :key="auth.activeCompanyId || 'dashboard'" />
 
+    <FuelVisitPanel v-else-if="tab === 'visits'" :key="auth.activeCompanyId || 'visits'" :can-manage="canImport" />
+
     <FuelConsumptionPanel v-else-if="tab === 'consumption'" :key="auth.activeCompanyId || 'consumption'" :can-manage="canImport" />
 
     <FuelStationsView v-else-if="tab === 'stations'" class="md:!h-auto md:flex-1" />
@@ -37,6 +39,7 @@ import { useFuelStationPermissions } from '@/composables/useFuelStationPermissio
 const auth = useAuthStore()
 const route = useRoute(), router = useRouter()
 const FuelStationsView = defineAsyncComponent(() => import('@/views/FuelStationsView.vue'))
+const FuelVisitPanel = defineAsyncComponent(() => import('@/components/fuel/FuelVisitPanel.vue'))
 const FuelConsumptionPanel = defineAsyncComponent(() => import('@/components/fuel/FuelConsumptionPanel.vue'))
 const { canRead: canReadStations } = useFuelStationPermissions()
 const has = (permission: string) => Boolean(auth.activeCompanyId && (
@@ -55,7 +58,7 @@ const tabs = computed(() => [
     { value: 'dashboard', label: 'Przegląd', icon: IconLayoutDashboard },
     { value: 'history', label: 'Transakcje', icon: IconHistory },
   ] : []),
-  ...(canReadGps.value && has('vehicles.read') ? [{ value: 'consumption', label: 'Spalanie', icon: IconDashboard }] : []),
+  ...(canReadGps.value && has('vehicles.read') ? [{ value: 'visits', label: 'Wizyty', icon: IconGasStation }, { value: 'consumption', label: 'Spalanie', icon: IconDashboard }] : []),
   ...(canReadStations.value ? [{ value: 'stations', label: 'Stacje paliw', icon: IconGasStation }] : []),
   ...(canImport.value ? [{ value: 'import', label: 'Importy transakcji', icon: FileUpload }] : []),
 ])

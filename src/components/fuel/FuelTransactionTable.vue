@@ -74,7 +74,7 @@
           </time>
         </td>
         <td>
-          <p class="whitespace-nowrap font-medium tabular-nums text-ui-text">{{ quantity.format(item.quantity) }} {{ item.unit }}</p>
+          <p class="whitespace-nowrap font-medium tabular-nums text-ui-text">{{ item.quantity == null ? '—' : quantity.format(item.quantity) }} {{ item.unit }}</p>
           <p class="ui-caption break-words">{{ item.product || 'Produkt nieokreślony' }}</p>
         </td>
         <td class="whitespace-nowrap font-medium tabular-nums text-ui-text">

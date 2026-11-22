@@ -22,7 +22,7 @@
       </div>
       <div>
         <p class="font-medium text-ui-text">{{ item.product || 'Produkt' }}</p>
-        <p class="ui-caption tabular-nums">{{ quantity.format(item.quantity) }} {{ item.unit }}</p>
+        <p class="ui-caption tabular-nums">{{ item.quantity == null ? '—' : quantity.format(item.quantity) }} {{ item.unit }}</p>
       </div>
       <div class="min-w-24 xl:text-right">
         <p class="font-medium tabular-nums text-ui-text">{{ item.amountEur === null ? '—' : euro.format(item.amountEur) }}</p>
