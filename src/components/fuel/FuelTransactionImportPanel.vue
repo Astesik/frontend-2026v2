@@ -97,16 +97,16 @@ let request = 0
 const saveable = computed(() => preview.value?.rows.filter(row => row.status !== 'DUPLICATE').length ?? 0)
 const e100Eligible = computed(() => e100Preview.value?.rows.filter(row => !row.cardConflict && row.status !== 'REVIEW') ?? [])
 const e100Skipped = computed(() => e100Preview.value ? e100Preview.value.errors.length + e100Preview.value.rows.length - e100Eligible.value.length : 0)
-const canConfirm = computed(() => provider.value === 'E100' ? e100Eligible.value.length > 0 : Boolean(preview.value?.rows.length))
+const canConfirm = computed(() => provider.value === 'E100' ? e100Eligible.value.length > 0 : Boolean(preview.value?.rows.length || preview.value?.skippedZero))
 const summary = computed(() => {
   if (result.value) {
     const { saved, duplicates, rejected, queued } = result.value
     return [{ label: 'Zapisano', value: saved }, { label: 'Duplikaty', value: duplicates },
-      { label: 'Odrzucono', value: rejected }, { label: 'W kolejce GPS', value: queued }]
+      { label: 'Odrzucono', value: rejected }, { label: 'W kolejce GPS', value: queued }, ...(result.value.skippedZero ? [{ label: 'Pominięte 0 l', value: result.value.skippedZero }] : [])]
   }
   if (!preview.value) return []
   return [{ label: 'Do zapisania', value: saveable.value }, { label: 'Duplikaty', value: preview.value.rows.length - saveable.value },
-    { label: 'Odrzucone', value: preview.value.errors.length }, { label: 'Wiersze łącznie', value: preview.value.rows.length + preview.value.errors.length }]
+    { label: 'Odrzucone', value: preview.value.errors.length }, ...(preview.value.skippedZero ? [{ label: 'Pominięte 0 l', value: preview.value.skippedZero }] : []), { label: 'Wiersze łącznie', value: preview.value.rows.length + preview.value.errors.length + (preview.value.skippedZero ?? 0) }]
 })
 
 function reset() {

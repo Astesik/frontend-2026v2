@@ -28,7 +28,7 @@ export interface DieselPurchase {
   at: string
   provider: string
   station: string | null
-  quantity: number
+  quantity: number | null
   unit: string
 }
 export interface CycleReference { startId: number; endId: number }
@@ -52,6 +52,9 @@ export const fuelConsumptionService = {
   },
   async cycle(vehicle: string, start: string, end: string, signal: AbortSignal) {
     return (await api.get<FuelCycle>(cycleUrl(vehicle, start, end), { signal, skipErrorToast: true })).data
+  },
+  async remove(vehicle: string, start: number, end: number) {
+    await api.delete(cycleUrl(vehicle, String(start), String(end)), { skipErrorToast: true })
   },
   async confirm(vehicle: string, start: string, end: string, signature: string, confirmed: boolean) {
     await api.put(cycleUrl(vehicle, start, end) + '/confirmation', { signature, confirmed }, { skipErrorToast: true })

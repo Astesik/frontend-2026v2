@@ -48,7 +48,8 @@ const decimals = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 10 })
 const format = (value: number) => decimals.format(value)
 const price = (value: number, currency: string) => value == null ? '—' : format(value) + ' ' + currency
 const counts = computed(() => [
-  { label: 'Wiersze pliku', value: props.preview.rows.length + props.preview.errors.length },
+  { label: 'Wiersze pliku', value: props.preview.rows.length + props.preview.errors.length + (props.preview.skippedZero ?? 0) },
+  { label: 'Pominięte 0 l', value: props.preview.skippedZero ?? 0 },
   { label: 'Karty', value: props.preview.cards },
   { label: 'Olej napędowy', value: props.preview.rows.filter(row => row.productType === 'DIESEL').length },
   { label: 'AdBlue', value: props.preview.rows.filter(row => row.productType === 'ADBLUE').length },

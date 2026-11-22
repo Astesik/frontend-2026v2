@@ -57,7 +57,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import { getApiErrorMessage } from '@/services/api'
 import type { FuelTransactionRow } from '@/services/fuelImportService'
-import { fuelGpsLabels, fuelVerificationService, type FuelVerification } from '@/services/fuelVerificationService'
+import { fuelGpsLabels, fuelTrendLabels, fuelVerificationService, type FuelVerification } from '@/services/fuelVerificationService'
 import { HISTORY_TIMEZONE } from '@/utils/historyTime'
 
 const props = defineProps<{ transaction: FuelTransactionRow | null; canVerify: boolean }>()
@@ -124,9 +124,18 @@ const checks = computed<VerificationRow[]>(() => {
     rows.push({ name: 'Czas postoju przy tankowaniu', ok: false, result: 'Nieustalony',
       detail: 'Odczyty GPS nie wyznaczyły początku i końca postoju przy stacji.' })
   }
-  rows.push({ name: 'Przebieg przy tankowaniu', ok: !!mileage, result: mileage ? `${number.format(mileage.kilometers)} km` : 'Brak odczytu',
+  rows.push({ name: 'Ostatni przebieg przed tankowaniem', ok: !!mileage, result: mileage ? `${number.format(mileage.kilometers)} km · ${dateLabel(mileage.measuredAt)}` : 'Brak odczytu',
     detail: mileage ? [mileageSource[mileage.source], dateLabel(mileage.measuredAt), timeDifference(mileage.secondsFromReport),
-      mileage.fromStationStop && 'Odczyt z tego samego postoju'].filter(Boolean).join(' · ') : 'Brak odczytu przebiegu w oknie weryfikacji.' })
+      mileage.fromStationStop && 'Odczyt z tego samego postoju'].filter(Boolean).join(' · ') : 'Brak wcześniejszego odczytu przebiegu.' })
+  const fuel = result.fuel
+  if (fuel?.trend) {
+    const reading = (value: typeof fuel.before) => value?.percent == null ? 'brak odczytu' :
+      number.format(value.percent) + '% (' + dateLabel(value.source.recordedAt) + ')'
+    rows.push({ name: 'Poziom diesla z CAN', ok: fuel.trend === 'RISE_OBSERVED',
+      result: fuelTrendLabels[fuel.trend] + ' · ' + reading(fuel.before) + ' → ' + reading(fuel.after),
+      detail: 'Odczyty sondy do godziny po transakcji: ' + fuel.sampleCountAfter +
+        '. Kilka zakupów na jednym postoju może obejmować ten sam wzrost poziomu.' })
+  }
   if (result.status === 'LOCATION_MISMATCH') {
     for (const [name, reading] of [['Przed tankowaniem', result.before], ['Po tankowaniu', result.after]] as const) {
       if (reading) rows.push({ name, ok: false, result: distance(reading.distanceMeters),

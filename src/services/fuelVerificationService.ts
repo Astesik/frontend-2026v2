@@ -19,6 +19,13 @@ export const fuelGpsLabels: Record<FuelGpsStatus, string> = {
   FAILED: 'Błąd weryfikacji',
 }
 
+export const fuelTrendLabels = {
+  RISE_OBSERVED: 'Wzrost w dwóch kolejnych odczytach',
+  SINGLE_RISE: 'Wzrost w pojedynczym odczycie',
+  NO_RISE_OBSERVED: 'Bez widocznego wzrostu',
+  INSUFFICIENT_DATA: 'Za mało danych do porównania',
+}
+
 export function fuelGpsVariant(status: FuelGpsStatus) {
   if (status === 'AT_STATION') return 'success'
   if (status === 'LOCATION_MISMATCH' || status === 'FAILED') return 'error'
@@ -62,7 +69,7 @@ export interface FuelVerification {
       stationRadiusMeters: number
     }
     stationStop?: { from: string; to: string } | null
-    fuel?: { before: FuelTankObservation | null; after: FuelTankObservation | null } | null
+    fuel?: { before: FuelTankObservation | null; after: FuelTankObservation | null; trend?: keyof typeof fuelTrendLabels; sampleCountAfter?: number } | null
     mileage: {
       measuredAt: string
       kilometers: number
@@ -87,8 +94,8 @@ export const fuelVerificationService = {
     const { data } = await api.post<{ queued: number }>(`/api/fuel/imports/${importId}/verification`, undefined, options)
     return data
   },
-  async latest(id: number): Promise<FuelVerification | null> {
-    const response = await api.get<FuelVerification>(url(id), options)
+  async latest(id: number, signal?: AbortSignal): Promise<FuelVerification | null> {
+    const response = await api.get<FuelVerification>(url(id), { ...options, signal })
     return response.status === 204 ? null : response.data
   },
   async verify(id: number): Promise<FuelVerification> {

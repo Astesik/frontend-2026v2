@@ -146,7 +146,7 @@ function formatPrice(row: FuelTransactionRow, perUnit: boolean) {
     value = props.gross ? row.amountEur : netPrices(row).netAmountEur
   }
   if (value == null) return '—'
-  const label = value.toLocaleString('pl-PL', { style: 'currency', currency, maximumFractionDigits: doc && perUnit ? 4 : 2 })
+  const label = value.toLocaleString('pl-PL', { style: 'currency', currency, maximumFractionDigits: doc && perUnit && (props.gross || currency !== 'PLN') ? 4 : 2 })
   return perUnit && row.unit ? label + '/' + row.unit : label
 }
 const flagUrl = (country: string) => `https://flagsapi.com/${country.toUpperCase() === 'UK' ? 'GB' : country.toUpperCase()}/flat/64.png`

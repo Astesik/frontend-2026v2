@@ -33,6 +33,7 @@ export interface FuelTransactionRow {
 }
 
 export interface FuelImportPreview {
+  skippedZero?: number
   rows: FuelTransactionRow[]
   errors: Array<{ line: number; column: string | null; reason: string }>
 }
@@ -64,12 +65,14 @@ export interface E100PreviewRow {
   previous: E100Amounts | null
 }
 export interface E100Preview {
+  skippedZero?: number
   cards: number
   rows: E100PreviewRow[]
   errors: Array<{ line: number; reason: string }>
 }
 
 export interface FuelImportResult {
+  skippedZero?: number
   importId: number
   saved: number
   duplicates: number
