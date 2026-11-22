@@ -26,8 +26,10 @@ export const fuelVisitService = {
     return (await api.get<{ rows: Visit[]; hasMore: boolean }>('/api/fuel/visits',
       { params: { q, page }, signal, skipErrorToast: true })).data
   },
-  async levels(id: number, signal: AbortSignal) {
-    return (await api.get<Reading[]>('/api/fuel/visits/' + id + '/levels', { signal, skipErrorToast: true })).data
+  async levels(id: number, purchaseId: number, signal: AbortSignal) {
+    return (await api.get<Reading[]>('/api/fuel/visits/' + id + '/levels', {
+      params: { purchaseId }, signal, skipErrorToast: true,
+    })).data
   },
   async decide(visit: Visit, decision: Decision) {
     await api.put('/api/fuel/visits/' + visit.id + '/decision',
