@@ -78,10 +78,10 @@
           <p class="ui-caption break-words">{{ item.product || 'Produkt nieokreślony' }}</p>
         </td>
         <td class="whitespace-nowrap font-medium tabular-nums text-ui-text">
-          {{ formatPrice(gross ? item.amountEur : netPrices(item).netAmountEur) }}
+          {{ formatPrice(item, false) }}
         </td>
         <td class="whitespace-nowrap font-medium tabular-nums text-ui-text">
-          {{ formatPrice(gross ? item.grossUnitEur : netPrices(item).netUnitEur, item.unit) }}
+          {{ formatPrice(item, true) }}
         </td>
         <td v-if="canViewVerification">
           <div class="flex items-center justify-between gap-2">
@@ -134,7 +134,20 @@ const quantity = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 4 })
 function netPrices(row: FuelTransactionRow) {
   return row.excise && props.exciseCountries.includes(row.excise.country) ? row.excise : row
 }
-const euro = new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const formatPrice = (value: number | null, unit?: string) => value == null ? '—' : euro.format(value) + (unit ? `/${unit}` : '')
+function formatPrice(row: FuelTransactionRow, perUnit: boolean) {
+  const doc = row.documentPrices
+  const currency = doc?.currency ?? 'EUR'
+  let value
+  if (doc && (currency !== 'EUR' || props.gross || netPrices(row) === row)) {
+    value = perUnit ? (props.gross ? doc.unitGross : doc.unitNet) : (props.gross ? doc.gross : doc.net)
+  } else if (perUnit) {
+    value = props.gross ? row.grossUnitEur : netPrices(row).netUnitEur
+  } else {
+    value = props.gross ? row.amountEur : netPrices(row).netAmountEur
+  }
+  if (value == null) return '—'
+  const label = value.toLocaleString('pl-PL', { style: 'currency', currency, maximumFractionDigits: doc && perUnit ? 4 : 2 })
+  return perUnit && row.unit ? label + '/' + row.unit : label
+}
 const flagUrl = (country: string) => `https://flagsapi.com/${country.toUpperCase() === 'UK' ? 'GB' : country.toUpperCase()}/flat/64.png`
 </script>

@@ -1,45 +1,126 @@
 <template>
-  <section class="flex min-h-0 min-w-0 flex-col gap-4 text-ui-text md:h-full">
-    <header class="flex shrink-0 flex-wrap items-end justify-between gap-3">
-      <div class="flex min-w-0 flex-wrap items-end gap-2">
-        <AppInput v-model="store.filters.q" placeholder="Szukaj stacji" aria-label="Szukaj stacji" size="sm" class="w-60 max-w-full" :disabled="!canRead" />
-        <AppSelect v-model="store.filters.provider" :options="providerOptions" size="sm" class="!w-36" aria-label="Dostawca" :disabled="!canRead" />
-        <AppSelect v-model="store.filters.country" :options="countryOptions" size="sm" class="!w-44" aria-label="Kraj" :disabled="!canRead" />
-        <AppSelect v-model="store.filters.active" :options="activeOptions" size="sm" class="!w-36" aria-label="Aktywność stacji" :disabled="!canRead" />
+  <section class="flex min-h-0 min-w-0 flex-col text-ui-text md:h-full">
+    <p v-if="!canRead" class="ui-surface p-6 text-ui-mutedText">Nie masz uprawnień do wyświetlania stacji paliw.</p>
+    <AppCard
+      v-else title="Stacje paliw" :icon="Fuel" compact
+      class="flex min-h-0 flex-1 flex-col [&>.ui-card-header]:flex-wrap [&>.ui-card-header]:items-center"
+      content-class="flex min-h-0 flex-1 flex-col !p-0"
+    >
+      <template #actions>
+        <div class="flex flex-wrap gap-2">
+          <AppButton v-if="canImport" size="sm" variant="secondary" :disabled="store.isChangingActive" @click="importOpen = true">
+            <Upload class="h-4 w-4" />Importuj ceny IDS
+          </AppButton>
+          <AppButton v-if="canManage" size="sm" :disabled="store.isChangingActive" @click="editing = null; formOpen = true">
+            <Plus class="h-4 w-4" />Dodaj stację
+          </AppButton>
+        </div>
+      </template>
+
+      <div class="grid shrink-0 grid-cols-2 items-start gap-3 border-b border-ui-divider p-3 lg:grid-cols-[minmax(14rem,2fr)_repeat(3,minmax(0,1fr))]">
+        <AppInput v-model="store.filters.q" label="Szukaj" placeholder="Nazwa lub kod stacji" size="sm" clearable class="col-span-2 min-w-0 lg:col-span-1" />
+        <AppSelect v-model="store.filters.provider" label="Dostawca" :options="providerOptions" size="sm" class="min-w-0" />
+        <AppSelect v-model="store.filters.country" label="Kraj" :options="countryOptions" size="sm" class="min-w-0" />
+        <AppSelect v-model="store.filters.active" label="Status" :options="activeOptions" size="sm" class="min-w-0" />
       </div>
-      <div class="flex flex-wrap gap-2">
-        <AppButton v-if="canImport && canRead" variant="secondary" :disabled="store.isChangingActive" @click="importOpen = true"><Upload class="h-4 w-4" />Importuj ceny IDS</AppButton>
-        <AppButton v-if="canManage && canRead" :disabled="store.isChangingActive" @click="editing = null; formOpen = true"><Plus class="h-4 w-4" />Dodaj stację</AppButton>
+
+      <p v-if="store.error" role="alert" class="ui-error px-4 py-3">{{ store.error }}</p>
+      <div v-if="canManage && store.selectedIds.length" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-ui-divider bg-ui-muted px-3 py-2" role="region" aria-label="Wybrane stacje">
+        <span class="mr-auto ui-caption">Zaznaczono na tej stronie {{ store.selectedIds.length }}</span>
+        <AppButton size="sm" variant="secondary" :disabled="activityDisabled" @click="store.setSelectedActive(true)">
+          <Power class="h-4 w-4" />Aktywuj wybrane
+        </AppButton>
+        <AppButton size="sm" variant="secondary" :disabled="activityDisabled" @click="store.setSelectedActive(false)">
+          <PowerOff class="h-4 w-4" />Dezaktywuj wybrane
+        </AppButton>
       </div>
-    </header>
-    <div v-if="!canRead" class="ui-surface p-6 text-ui-mutedText">Nie masz uprawnień do wyświetlania stacji paliw.</div>
-    <div v-else class="ui-surface flex min-h-0 flex-col overflow-hidden md:flex-1" :aria-busy="store.isChangingActive">
-      <div class="flex shrink-0 items-center justify-between border-b border-ui-divider px-4 py-3"><h1 class="ui-section-title flex items-center gap-2"><Fuel class="h-4 w-4" />Stacje paliw</h1><span class="ui-caption">{{ store.total }} stacji</span></div>
-      <p v-if="store.error" role="alert" class="ui-error px-4 pt-3">{{ store.error }}</p>
-      <p v-if="store.isChangingActive" role="status" class="ui-caption px-4 pt-2">Zapisywanie aktywności stacji…</p>
-      <div v-if="canManage && store.selectedIds.length" class="flex shrink-0 flex-wrap items-center gap-2 border-b border-ui-divider bg-info-50 px-4 py-2 dark:bg-info-400/10" role="region" aria-label="Wybrane stacje">
-        <span class="mr-auto ui-body-sm">Zaznaczono na tej stronie: {{ store.selectedIds.length }}</span>
-        <AppButton size="sm" variant="secondary" :disabled="activityDisabled" @click="store.setSelectedActive(true)"><Power class="h-4 w-4" />Aktywuj wybrane</AppButton>
-        <AppButton size="sm" variant="secondary" :disabled="activityDisabled" @click="store.setSelectedActive(false)"><PowerOff class="h-4 w-4" />Dezaktywuj wybrane</AppButton>
+
+      <div class="relative flex min-h-48 flex-1 flex-col" :aria-busy="store.isLoading || store.isChangingActive">
+        <div class="max-h-[70dvh] min-h-0 flex-1 overflow-auto md:max-h-none">
+          <table class="ui-table min-w-[80rem] table-fixed" aria-label="Stacje paliw">
+            <colgroup>
+              <col v-if="canManage" class="w-10" />
+              <col class="w-12" />
+              <col />
+              <col class="w-24" />
+              <col class="w-32" />
+              <col class="w-28" />
+              <col class="w-28" />
+              <col class="w-28" />
+              <col class="w-40" />
+              <col class="w-36" />
+              <col class="w-24" />
+            </colgroup>
+            <thead class="ui-table-head">
+              <tr class="divide-x divide-ui-divider [&>th]:sticky [&>th]:top-0 [&>th]:z-10 [&>th]:h-11 [&>th]:bg-ui-muted [&>th]:px-3 [&>th]:py-1 [&>th]:leading-tight">
+                <th v-if="canManage" scope="col" class="!px-1">
+                  <AppCheckbox :model-value="store.pageSelected" aria-label="Zaznacz widoczną stronę" :disabled="activityDisabled || !store.stations.length" @update:model-value="store.selectPage" />
+                </th>
+                <th scope="col">Lp.</th>
+                <th scope="col">Stacja</th>
+                <th scope="col">Dostawca</th>
+                <th scope="col">Kraj</th>
+                <th scope="col">Cena bazowa</th>
+                <th scope="col">Cena końcowa</th>
+                <th scope="col">Data ceny</th>
+                <th scope="col">Status</th>
+                <th scope="col">GPS</th>
+                <th scope="col" class="right-0 !z-20 text-right">Akcje</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(station, index) in store.stations" :key="station.id"
+                class="ui-table-row group divide-x divide-ui-divider [&>td]:px-3 [&>td]:py-1 [&>td]:align-middle"
+              >
+                <td v-if="canManage" class="!px-1">
+                  <AppCheckbox :model-value="store.selectedIds.includes(station.id)" :aria-label="'Zaznacz stację ' + station.stationName" :disabled="activityDisabled" @update:model-value="store.toggleSelection(station.id, $event)" />
+                </td>
+                <td class="text-xs tabular-nums text-ui-mutedText">{{ (store.filters.page - 1) * store.filters.size + index + 1 }}.</td>
+                <td>
+                  <p class="break-words font-medium text-ui-text">{{ station.stationName }}</p>
+                  <p class="ui-caption">{{ station.stationCode }}</p>
+                </td>
+                <td>{{ station.provider }}</td>
+                <td class="break-words">{{ station.country }}</td>
+                <td class="whitespace-nowrap font-medium tabular-nums text-ui-text">{{ formatFuelPrice(station.latestPrice?.priceBase, station.latestPrice?.currency) }}</td>
+                <td class="whitespace-nowrap font-medium tabular-nums text-ui-text">{{ formatFuelPrice(station.latestPrice?.priceFinal, station.latestPrice?.currency) }}</td>
+                <td class="tabular-nums">
+                  <time v-if="station.latestPrice" :datetime="station.latestPrice.priceDate">{{ dateLabel(station.latestPrice.priceDate) }}</time>
+                  <span v-else>—</span>
+                </td>
+                <td>
+                  <AppSwitch
+                    v-if="canManage" :model-value="station.active" :label="station.active ? 'Aktywna' : 'Nieaktywna'"
+                    class="!min-h-0 !gap-2 !border-0 !bg-transparent !px-0 !py-0 !shadow-none"
+                    :disabled="activityDisabled" @update:model-value="store.setStationActive(station.id, $event)"
+                  />
+                  <AppBadge v-else :variant="station.active ? 'success' : 'neutral'">{{ station.active ? 'Aktywna' : 'Nieaktywna' }}</AppBadge>
+                </td>
+                <td class="break-words text-xs tabular-nums" :class="{ 'text-ui-mutedText': !hasStationLocation(station) }">{{ formatStationLocation(station) }}</td>
+                <td class="sticky right-0 bg-ui-surface transition group-hover:bg-ui-hover">
+                  <div class="flex items-center justify-end gap-1">
+                    <AppIconButton label="Historia cen" size="sm" variant="ghost" @click="store.loadHistory(station)">
+                      <History class="h-4 w-4" />
+                    </AppIconButton>
+                    <AppIconButton v-if="canManage" label="Edytuj stację" size="sm" variant="ghost" @click="editing = station; formOpen = true">
+                      <SquarePen class="h-4 w-4" />
+                    </AppIconButton>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p v-if="!store.isLoading && !store.error && !store.stations.length" class="pointer-events-none absolute inset-x-0 top-16 px-4 text-center ui-caption">Brak stacji pasujących do filtrów.</p>
+        <AppLoadingIndicator
+          v-if="store.isLoading || store.isChangingActive" class="absolute inset-0 z-20 bg-ui-surface/85"
+          :label="store.isChangingActive ? 'Zapisywanie aktywności stacji…' : 'Ładowanie danych…'"
+        />
       </div>
-      <div class="max-h-[calc(100dvh-18rem)] min-h-48 overflow-auto md:min-h-0 md:max-h-none md:flex-1">
-        <table class="ui-table w-full whitespace-nowrap text-left text-sm">
-          <thead class="ui-table-head sticky top-0 z-10"><tr><th v-if="canManage" class="ui-table-cell !px-2"><AppCheckbox :model-value="store.pageSelected" aria-label="Zaznacz widoczną stronę" :disabled="activityDisabled || store.isLoading || !store.stations.length" @update:model-value="store.selectPage" /></th><th class="ui-table-cell">Stacja</th><th class="ui-table-cell">Dostawca</th><th class="ui-table-cell">Kraj</th><th class="ui-table-cell">Cena bazowa</th><th class="ui-table-cell">Cena końcowa</th><th class="ui-table-cell">Data ceny</th><th class="ui-table-cell">Status</th><th class="ui-table-cell">GPS</th><th class="ui-table-cell sticky right-0 bg-ui-muted text-right">Akcje</th></tr></thead>
-          <tbody>
-            <tr v-if="store.isLoading"><td :colspan="columnCount" class="ui-table-cell py-12 text-center text-ui-mutedText">Pobieranie stacji…</td></tr>
-            <template v-else><tr v-for="station in store.stations" :key="station.id" class="ui-table-row">
-              <td v-if="canManage" class="ui-table-cell !px-2"><AppCheckbox :model-value="store.selectedIds.includes(station.id)" :aria-label="`Zaznacz stację ${station.stationName}`" :disabled="activityDisabled" @update:model-value="store.toggleSelection(station.id, $event)" /></td>
-              <td class="ui-table-cell"><p class="font-semibold">{{ station.stationName }}</p><span class="ui-caption">{{ station.stationCode }}</span></td><td class="ui-table-cell">{{ station.provider }}</td><td class="ui-table-cell">{{ station.country }}</td>
-              <td class="ui-table-cell tabular-nums">{{ formatFuelPrice(station.latestPrice?.priceBase, station.latestPrice?.currency) }}</td><td class="ui-table-cell font-semibold tabular-nums">{{ formatFuelPrice(station.latestPrice?.priceFinal, station.latestPrice?.currency) }}</td><td class="ui-table-cell">{{ station.latestPrice ? dateLabel(station.latestPrice.priceDate) : '—' }}</td>
-              <td class="ui-table-cell"><AppSwitch v-if="canManage" :model-value="station.active" :label="station.active ? 'Aktywna' : 'Nieaktywna'" class="min-w-36 !py-1" :disabled="activityDisabled" @update:model-value="store.setStationActive(station.id, $event)" /><AppBadge v-else :variant="station.active ? 'success' : 'neutral'">{{ station.active ? 'Aktywna' : 'Nieaktywna' }}</AppBadge></td>
-              <td class="ui-table-cell tabular-nums" :class="{ 'text-ui-mutedText': !hasStationLocation(station) }">{{ formatStationLocation(station) }}</td>
-              <td class="ui-table-cell sticky right-0 bg-ui-surface"><div class="flex justify-end gap-1"><AppIconButton label="Historia cen" variant="ghost" @click="store.loadHistory(station)"><History class="h-4 w-4" /></AppIconButton><AppIconButton v-if="canManage" label="Edytuj stację" variant="ghost" @click="editing = station; formOpen = true"><SquarePen class="h-4 w-4" /></AppIconButton></div></td>
-            </tr><tr v-if="!store.stations.length"><td :colspan="columnCount" class="ui-table-cell py-12 text-center text-ui-mutedText">Brak stacji pasujących do filtrów.</td></tr></template>
-          </tbody>
-        </table>
-      </div>
-      <AppPagination v-model:page="store.filters.page" v-model:page-size="store.filters.size" :total="store.total" :page-sizes="[10,25,50,100,200]" class="px-4 pb-4" />
-    </div>
+
+      <AppPagination v-model:page="store.filters.page" v-model:page-size="store.filters.size" :total="store.total" :page-sizes="[10,25,50,100,200]" class="px-3 !py-3" />
+    </AppCard>
     <FuelStationImportModal :open="importOpen && canImport" @close="importOpen = false" />
     <FuelStationFormModal :open="formOpen && canManage" :station="editing" @close="formOpen = false" />
     <FuelStationHistoryModal />
@@ -58,6 +139,8 @@ import {
   IconEdit as SquarePen,
   IconUpload as Upload,
 } from '@tabler/icons-vue'
+import AppCard from '@/components/ui/AppCard.vue'
+import AppLoadingIndicator from '@/components/ui/AppLoadingIndicator.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppSwitch from '@/components/ui/AppSwitch.vue'
 import AppBadge from '@/components/ui/AppBadge.vue'
@@ -77,8 +160,7 @@ import type { FuelStation } from '@/types/fuelStation'
 const store = useFuelStationStore(), auth = useAuthStore()
 const { canRead, canManage, canImport } = useFuelStationPermissions()
 const activeOptions = [{ value: 'all', label: 'Wszystkie' }, { value: 'active', label: 'Aktywne' }, { value: 'inactive', label: 'Nieaktywne' }]
-const activityDisabled = computed(() => store.isChangingActive || store.isSaving || store.isImporting)
-const columnCount = computed(() => canManage.value ? 10 : 9)
+const activityDisabled = computed(() => store.isLoading || store.isChangingActive || store.isSaving || store.isImporting)
 watch(canManage, () => { store.selectedIds = [] })
 const importOpen = ref(false), formOpen = ref(false), editing = ref<FuelStation | null>(null)
 const providerOptions = computed(() => [{ value: '', label: 'Wszyscy dostawcy' }, ...store.providers.map(p => ({ value: p.code, label: p.code }))])

@@ -1,6 +1,7 @@
 <template>
   <div class="grid min-w-0 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
     <AppCard title="Importuj" :icon="IconUpload" compact>
+      <AppSelect v-model="provider" label="Operator karty" :options="providerOptions" class="mb-3" />
       <input ref="fileInput" hidden type="file" accept=".csv,text/csv" @change="onFile" />
       <button
         type="button"
@@ -22,8 +23,8 @@
 
     <AppModal
       :open="Boolean(file)"
-      :title="result ? 'Import zapisany' : 'Potwierdź import'"
-      size="md"
+      :title="result ? 'Import zapisany' : 'Potwierdź import ' + provider"
+      :size="provider === 'E100' ? 'xl' : 'md'"
       center-in-viewport
       :busy="busy === 'save'"
       @close="close"
@@ -34,6 +35,8 @@
           <IconLoader2 class="h-4 w-4 animate-spin" />Sprawdzanie pliku…
         </p>
         <p v-if="error" class="ui-error" role="alert">{{ error }}</p>
+        <E100ImportPreview v-if="e100Preview && !result" :preview="e100Preview" />
+        <p v-if="e100Skipped && !result" class="ui-body-sm">Import pominie {{ e100Skipped }} poz. z błędami, konfliktem kart lub możliwą korektą.</p>
         <div v-if="summary.length" class="grid grid-cols-2 gap-2 sm:grid-cols-4" aria-label="Podsumowanie importu">
           <div v-for="item in summary" :key="item.label" class="rounded-md border border-ui-border bg-ui-muted p-3">
             <p class="ui-caption">{{ item.label }}</p>
@@ -56,8 +59,8 @@
         </p>
       </div>
       <template #footer>
-        <AppButton variant="secondary" :disabled="busy === 'save'" @click="close">{{ result ? 'Zamknij' : 'Anuluj' }}</AppButton>
-        <AppButton v-if="!result" :disabled="!preview?.rows.length || !!busy" :loading="busy === 'save'" @click="confirm">
+        <AppButton variant="secondary" :disabled="busy === 'save'" @click="close">{{ result || provider === 'E100' ? 'Zamknij' : 'Anuluj' }}</AppButton>
+        <AppButton v-if="!result" :disabled="!canConfirm || !!busy" :loading="busy === 'save'" @click="confirm">
           Potwierdź import
         </AppButton>
       </template>
@@ -71,12 +74,17 @@ import { IconFileUpload, IconLoader2, IconUpload } from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppModal from '@/components/ui/AppModal.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
+import E100ImportPreview from './E100ImportPreview.vue'
 import FuelVerificationBatches from './FuelVerificationBatches.vue'
 import { getApiErrorMessage } from '@/services/api'
-import { fuelImportService, type FuelImportPreview, type FuelImportResult } from '@/services/fuelImportService'
+import { fuelImportService, type FuelImportPreview, type FuelImportResult, type E100Preview } from '@/services/fuelImportService'
 
 defineProps<{ canReadGps: boolean }>()
 const fileInput = ref<HTMLInputElement>()
+const provider = ref('IDS')
+const providerOptions = [{ label: 'IDS', value: 'IDS' }, { label: 'E100', value: 'E100' }]
+const e100Preview = shallowRef<E100Preview | null>(null)
 const file = shallowRef<File | null>(null)
 const preview = shallowRef<FuelImportPreview | null>(null)
 const result = ref<FuelImportResult | null>(null)
@@ -87,6 +95,9 @@ const selectionError = ref('')
 const error = ref('')
 let request = 0
 const saveable = computed(() => preview.value?.rows.filter(row => row.status !== 'DUPLICATE').length ?? 0)
+const e100Eligible = computed(() => e100Preview.value?.rows.filter(row => !row.cardConflict && row.status !== 'REVIEW') ?? [])
+const e100Skipped = computed(() => e100Preview.value ? e100Preview.value.errors.length + e100Preview.value.rows.length - e100Eligible.value.length : 0)
+const canConfirm = computed(() => provider.value === 'E100' ? e100Eligible.value.length > 0 : Boolean(preview.value?.rows.length))
 const summary = computed(() => {
   if (result.value) {
     const { saved, duplicates, rejected, queued } = result.value
@@ -102,6 +113,7 @@ function reset() {
   request++
   file.value = null
   preview.value = null
+  e100Preview.value = null
   result.value = null
   error.value = ''
   busy.value = null
@@ -123,6 +135,11 @@ async function selectFile(selected?: File) {
   file.value = selected
   busy.value = 'preview'
   try {
+    if (provider.value === 'E100') {
+      const response = await fuelImportService.previewE100(selected)
+      if (request === current) e100Preview.value = response
+      return
+    }
     const response = await fuelImportService.preview(selected)
     if (request === current) preview.value = response
   } catch (cause) {
@@ -150,12 +167,12 @@ function onDrop(event: DragEvent) {
 
 async function confirm() {
   const selected = file.value
-  if (!selected || !preview.value?.rows.length || busy.value || result.value) return
+  if (!selected || !canConfirm.value || busy.value || result.value) return
   const current = request
   busy.value = 'save'
   error.value = ''
   try {
-    const response = await fuelImportService.confirm(selected)
+    const response = provider.value === 'E100' ? await fuelImportService.confirmE100(selected) : await fuelImportService.confirm(selected)
     if (request === current) {
       result.value = response
       lastImportId.value = response.importId

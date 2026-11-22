@@ -7,6 +7,8 @@
 
     <FuelDashboard v-if="tab === 'dashboard'" :key="auth.activeCompanyId || 'dashboard'" />
 
+    <FuelConsumptionPanel v-else-if="tab === 'consumption'" :key="auth.activeCompanyId || 'consumption'" :can-manage="canImport" />
+
     <FuelStationsView v-else-if="tab === 'stations'" class="md:!h-auto md:flex-1" />
 
     <FuelTransactionImportPanel v-else-if="tab === 'import'" :can-read-gps="canReadGps" :key="auth.activeCompanyId || 'import'" />
@@ -24,7 +26,7 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { IconFileUpload as FileUpload, IconGasStation, IconHistory, IconLayoutDashboard } from '@tabler/icons-vue'
+import { IconDashboard, IconFileUpload as FileUpload, IconGasStation, IconHistory, IconLayoutDashboard } from '@tabler/icons-vue'
 import AppTabs from '@/components/ui/AppTabs.vue'
 import FuelDashboard from '@/components/fuel/FuelDashboard.vue'
 import FuelTransactionHistory from '@/components/fuel/FuelTransactionHistory.vue'
@@ -35,6 +37,7 @@ import { useFuelStationPermissions } from '@/composables/useFuelStationPermissio
 const auth = useAuthStore()
 const route = useRoute(), router = useRouter()
 const FuelStationsView = defineAsyncComponent(() => import('@/views/FuelStationsView.vue'))
+const FuelConsumptionPanel = defineAsyncComponent(() => import('@/components/fuel/FuelConsumptionPanel.vue'))
 const { canRead: canReadStations } = useFuelStationPermissions()
 const has = (permission: string) => Boolean(auth.activeCompanyId && (
   auth.user?.sysAdmin || auth.user?.globalRoles?.includes('GLOBAL_ADMIN')
@@ -52,6 +55,7 @@ const tabs = computed(() => [
     { value: 'dashboard', label: 'Przegląd', icon: IconLayoutDashboard },
     { value: 'history', label: 'Transakcje', icon: IconHistory },
   ] : []),
+  ...(canReadGps.value && has('vehicles.read') ? [{ value: 'consumption', label: 'Spalanie', icon: IconDashboard }] : []),
   ...(canReadStations.value ? [{ value: 'stations', label: 'Stacje paliw', icon: IconGasStation }] : []),
   ...(canImport.value ? [{ value: 'import', label: 'Importy transakcji', icon: FileUpload }] : []),
 ])

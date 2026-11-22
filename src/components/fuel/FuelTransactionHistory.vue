@@ -27,19 +27,24 @@
       />
       <AppDatePicker v-model="from" size="sm" label="Od" editable class="min-w-0" />
       <AppDatePicker v-model="to" size="sm" label="Do" editable class="min-w-0" :error="dateError || undefined" />
-      <AppSelect v-model="fuelType" size="sm" label="Rodzaj paliwa" :options="fuelOptions" class="min-w-0" />
+      <AppMultiSelect
+        v-model="fuelTypes" size="sm" label="Produkty" :options="fuelOptions"
+        all-selected-label="Wszystkie produkty" placeholder="Brak produktów" :show-select-all="false" class="min-w-0"
+      />
       <AppSelect v-if="canViewVerification" v-model="gpsFilter" size="sm" label="Wynik GPS" :options="gpsOptions" class="min-w-0" />
     </div>
-    <p v-if="loading && !rows.length" class="p-4 ui-caption" role="status">Pobieranie transakcji…</p>
-    <p v-else-if="!rows.length && !error && !dateError" class="p-4 ui-caption">
-      {{ filtered ? 'Brak transakcji pasujących do filtrów.' : 'Brak zapisanych transakcji.' }}
-    </p>
-    <div v-if="rows.length" class="max-h-[70dvh] min-h-0 overflow-auto md:max-h-none">
-      <FuelTransactionTable
-        :rows="rows" :gross="gross" :excise-countries="exciseCountries" :can-view-verification="canViewVerification"
-        :suggested-vehicle-ids="suggestedVehicleIds" :can-create-station="canCreateStation"
-        @verify="selected = $event" @create-station="createStation"
-      />
+    <div class="relative flex min-h-48 flex-1 flex-col" :aria-busy="loading">
+      <div class="max-h-[70dvh] min-h-0 flex-1 overflow-auto md:max-h-none">
+        <FuelTransactionTable
+          :rows="rows" :gross="gross" :excise-countries="exciseCountries" :can-view-verification="canViewVerification"
+          :suggested-vehicle-ids="suggestedVehicleIds" :can-create-station="canCreateStation"
+          @verify="selected = $event" @create-station="createStation"
+        />
+      </div>
+      <p v-if="!loading && !rows.length && !error && !dateError" class="pointer-events-none absolute inset-x-0 top-16 px-4 ui-caption">
+        {{ filtered ? 'Brak transakcji pasujących do filtrów.' : 'Brak zapisanych transakcji.' }}
+      </p>
+      <AppLoadingIndicator v-if="loading" class="absolute inset-0 z-20 bg-ui-surface/85" />
     </div>
     <FuelStationFormModal
       v-if="stationDraft && canCreateStation" :open="true" :station="null" :initial-values="stationDraft"
@@ -62,6 +67,7 @@ import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppLoadingIndicator from '@/components/ui/AppLoadingIndicator.vue'
 import AppMultiSelect from '@/components/ui/AppMultiSelect.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import FuelTransactionTable from '@/components/fuel/FuelTransactionTable.vue'
@@ -77,6 +83,7 @@ import { useFuelStationStore } from '@/stores/fuelStationStore'
 import { vehicleService } from '@/services/vehicleService'
 import type { ApiVehicle } from '@/types/fleet'
 import type { FuelStationWrite } from '@/types/fuelStation'
+import { persistStringArray, readPersistedStringArray } from '@/utils/persistedFilters'
 
 const props = defineProps<{ vehicleId?: number; importId?: number }>()
 const auth = useAuthStore()
@@ -95,7 +102,11 @@ const vehicles = ref<ApiVehicle[]>([])
 const vehicleLookupError = ref('')
 const selected = ref<FuelTransactionRow | null>(null)
 const gross = ref(false)
-const exciseCountries = ref<string[]>([])
+const EXCISE_KEY = 'routewise.transactions.exciseCountries'
+const PRODUCTS_KEY = 'routewise.transactions.products'
+const PRODUCT_TYPES = ['DIESEL', 'ADBLUE', 'OTHER'] as const
+const exciseCountries = ref(readPersistedStringArray(EXCISE_KEY, [], ['BE', 'FR']))
+watch(exciseCountries, value => persistStringArray(EXCISE_KEY, value), { deep: true })
 const exciseOptions = [
   { value: 'BE', label: 'Belgia · 0,19130 €/l' },
   { value: 'FR', label: 'Francja · 0,1556 €/l' },
@@ -124,10 +135,11 @@ const search = ref('')
 const query = ref('')
 const from = ref('')
 const to = ref('')
-const fuelType = ref('')
+const fuelTypes = ref(readPersistedStringArray(PRODUCTS_KEY, [...PRODUCT_TYPES], PRODUCT_TYPES))
+watch(fuelTypes, value => persistStringArray(PRODUCTS_KEY, value), { deep: true })
 const gpsFilter = ref('')
 const dateError = computed(() => from.value && to.value && from.value > to.value ? 'Podaj datę równą lub późniejszą od daty „Od”.' : '')
-const filtered = computed(() => Boolean(query.value || from.value || to.value || fuelType.value || gpsFilter.value))
+const filtered = computed(() => Boolean(query.value || from.value || to.value || fuelTypes.value.length !== PRODUCT_TYPES.length || gpsFilter.value))
 const filters = computed<FuelHistoryFilters>(() => ({
   vehicleId: props.vehicleId,
   importId: props.importId,
@@ -135,10 +147,9 @@ const filters = computed<FuelHistoryFilters>(() => ({
   q: query.value || undefined,
   from: from.value || undefined,
   to: to.value || undefined,
-  fuelType: fuelType.value || undefined,
+  fuelTypes: fuelTypes.value.length === PRODUCT_TYPES.length ? undefined : [...fuelTypes.value].sort().join(','),
 }))
 const fuelOptions = [
-  { value: '', label: 'Wszystkie produkty' },
   { value: 'DIESEL', label: 'Olej napędowy' },
   { value: 'ADBLUE', label: 'AdBlue' },
   { value: 'OTHER', label: 'Inne' },
@@ -189,13 +200,15 @@ async function load(mode: 'reset' | 'more' | 'poll') {
   const currentFilters = filters.value
   const silent = mode === 'poll'
   if (mode === 'reset') {
-    rows.value = []
     hasMore.value = false
     nextPage.value = 0
     loading.value = false
     error.value = ''
   }
-  if (dateError.value) return
+  if (dateError.value || !fuelTypes.value.length) {
+    rows.value = []
+    return
+  }
 
   if (!silent) {
     loading.value = true
@@ -218,6 +231,7 @@ async function load(mode: 'reset' | 'more' | 'poll') {
     hasMore.value = more
     error.value = ''
   } catch (cause) {
+    if (request === revision && mode === 'reset') rows.value = []
     if (request === revision && (!silent || nextPage.value === 0)) error.value = getApiErrorMessage(cause)
   } finally {
     if (request === revision && !silent) loading.value = false

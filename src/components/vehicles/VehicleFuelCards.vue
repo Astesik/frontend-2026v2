@@ -3,12 +3,13 @@
     <AppCard
       title="Karty paliwowe" :icon="CreditCard" compact
       class="flex min-h-0 flex-1 flex-col [&>.ui-card-header]:items-center [&>.ui-card-header]:px-3 [&>.ui-card-header]:py-2"
-      content-class="flex min-h-0 flex-1 flex-col !p-2"
+      content-class="flex min-h-[211px] flex-1 flex-col !p-2"
+      :aria-busy="loading"
     >
       <template #actions>
-        <AppIconButton label="Historia kart paliwowych" size="sm" variant="ghost" @click="openDetails(null)"><History class="h-4 w-4" /></AppIconButton>
+        <AppIconButton label="Historia kart paliwowych" size="sm" variant="ghost" :disabled="loading" @click="openDetails(null)"><History class="h-4 w-4" /></AppIconButton>
       </template>
-      <p v-if="loading" class="ui-caption" role="status">Pobieranie kart paliwowych…</p>
+      <AppLoadingIndicator v-if="loading" class="flex-1" />
       <div v-else-if="loadError" class="space-y-2">
         <p class="ui-error" role="alert">{{ loadError }}</p>
         <AppButton size="sm" variant="secondary" @click="load">Spróbuj ponownie</AppButton>
@@ -22,8 +23,8 @@
             >
               <CreditCard class="h-6 w-6 shrink-0 text-ui-icon" aria-hidden="true" />
               <span class="min-w-0">
-                <span class="block text-[10px] text-ui-mutedText">{{ group.label }}</span>
-                <span class="block truncate text-sm font-semibold tabular-nums text-ui-text">{{ group.active.maskedNumber }}</span>
+                <span class="block text-[10px] leading-3 text-ui-mutedText">{{ group.label }}</span>
+                <span class="block truncate text-sm font-semibold leading-4 tabular-nums text-ui-text">{{ group.active.maskedNumber }}</span>
               </span>
             </button>
             <AppIconButton
@@ -133,6 +134,7 @@ import { IconCreditCard as CreditCard, IconPlus as Plus, IconDots as Ellipsis, I
 import AppBadge from '@/components/ui/AppBadge.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
+import AppLoadingIndicator from '@/components/ui/AppLoadingIndicator.vue'
 import AppDropdown from '@/components/ui/AppDropdown.vue'
 import AppDropdownItem from '@/components/ui/AppDropdownItem.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'

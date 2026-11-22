@@ -1,5 +1,5 @@
 <template>
-  <AppModal :open="open" :title="station ? 'Edytuj stację' : 'Dodaj stację'" size="md" :busy="store.isSaving" @close="$emit('close')">
+  <AppModal :open="open" :title="station ? 'Edytuj stację' : 'Dodaj stację'" size="md" center-in-viewport :busy="store.isSaving" @close="$emit('close')">
     <form id="fuel-station-form" class="grid grid-cols-1 gap-3 sm:grid-cols-2" @submit.prevent="save">
       <AppSelect v-model="form.provider" label="Dostawca" :options="store.providers.map(p => ({ value: p.code, label: p.code }))" :disabled="Boolean(station) || store.isSaving" />
       <AppInput v-model="form.stationCode" label="Kod stacji" required :disabled="store.isSaving" />

@@ -26,6 +26,7 @@ export interface FuelTransactionRow {
   grossUnitEur: number | null
   netAmountEur: number | null
   netUnitEur: number | null
+  documentPrices?: Omit<E100Amounts, 'quantity'> | null
   excise?: { country: string; netAmountEur: number | null; netUnitEur: number | null } | null
   status: 'NEW' | 'DUPLICATE' | 'REVISION' | null
   gpsStatus: FuelGpsStatus | null
@@ -34,6 +35,38 @@ export interface FuelTransactionRow {
 export interface FuelImportPreview {
   rows: FuelTransactionRow[]
   errors: Array<{ line: number; column: string | null; reason: string }>
+}
+
+export interface E100Amounts {
+  quantity: number
+  currency: string
+  unitNet: number
+  unitGross: number
+  net: number
+  gross: number
+}
+export interface E100PreviewRow {
+  line: number
+  at: string
+  suffix: string
+  registration: string | null
+  vehicle: string | null
+  cardConflict: boolean
+  stationCode: string
+  station: string | null
+  stationKnown: boolean
+  country: string
+  product: string
+  productType: 'DIESEL' | 'ADBLUE' | 'OTHER'
+  unit: string | null
+  amounts: E100Amounts
+  status: 'NEW' | 'DUPLICATE' | 'REVIEW'
+  previous: E100Amounts | null
+}
+export interface E100Preview {
+  cards: number
+  rows: E100PreviewRow[]
+  errors: Array<{ line: number; reason: string }>
 }
 
 export interface FuelImportResult {
@@ -52,6 +85,7 @@ export interface FuelHistoryFilters {
   from?: string
   to?: string
   fuelType?: string
+  fuelTypes?: string
 }
 
 export interface FuelDashboardDay {
@@ -75,6 +109,8 @@ async function upload<T>(endpoint: string, file: File) {
 }
 
 export const fuelImportService = {
+  previewE100: (file: File) => upload<E100Preview>('/api/fuel/imports/e100/preview', file),
+  confirmE100: (file: File) => upload<FuelImportResult>('/api/fuel/imports/e100', file),
   preview: (file: File) => upload<FuelImportPreview>('/api/fuel/imports/ids/preview', file),
   confirm: (file: File) => upload<FuelImportResult>('/api/fuel/imports/ids', file),
   async dashboard(days: number) {

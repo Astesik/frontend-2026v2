@@ -17,9 +17,7 @@
 
     </header>
 
-    <div v-if="!vehicle && fleetStore.isVehiclesLoading" class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-400">
-      Pobieranie pojazdu...
-    </div>
+    <AppLoadingIndicator v-if="!vehicle && fleetStore.isVehiclesLoading" class="ui-surface min-h-96 flex-1" />
 
     <div v-else-if="!vehicle" class="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-app-border dark:bg-app-panel dark:text-slate-400">
       Nie znaleziono pojazdu.
@@ -532,6 +530,7 @@ import FuelTransactionHistory from '@/components/fuel/FuelTransactionHistory.vue
 import VehicleFuelCards from '@/components/vehicles/VehicleFuelCards.vue'
 import VehicleFuelTanks from '@/components/vehicles/VehicleFuelTanks.vue'
 import VehiclePhotoGallery from '@/components/vehicles/VehiclePhotoGallery.vue'
+import AppLoadingIndicator from '@/components/ui/AppLoadingIndicator.vue'
 import VehicleLocationPreview from '@/components/vehicles/VehicleLocationPreview.vue'
 import VehicleBatteryLevel from '@/components/vehicles/VehicleBatteryLevel.vue'
 import VehicleTypeIcon from '@/components/vehicles/VehicleTypeIcon.vue'

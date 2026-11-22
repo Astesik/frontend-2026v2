@@ -1,23 +1,23 @@
 <template>
   <section class="min-w-0" aria-label="Zbiorniki pojazdu">
-    <p v-if="loading" class="ui-caption" role="status">Pobieranie profilu zbiorników…</p>
-    <div v-else-if="loadError" class="ui-surface space-y-3 p-4">
-      <p class="ui-error" role="alert">{{ loadError }}</p>
-      <AppButton size="sm" variant="secondary" @click="load()">Spróbuj ponownie</AppButton>
-    </div>
     <AppCard
-      v-else
       title="Zbiorniki" :icon="IconGasStation" compact
       class="flex h-[200px] w-full flex-col [&>.ui-card-header]:flex-wrap [&>.ui-card-header]:items-center [&>.ui-card-header]:gap-2 [&>.ui-card-header]:px-3 [&>.ui-card-header]:py-2"
-      content-class="flex min-h-0 flex-1 !p-3"
+      content-class="relative flex min-h-0 flex-1 !p-3"
+      :aria-busy="loading"
     >
       <template #actions>
         <div class="flex flex-wrap gap-1">
-          <AppButton v-if="canManage" size="sm" class="!h-7 !px-2 !text-xs" @click="openEditor">{{ current ? 'Zmień profil' : 'Uzupełnij' }}</AppButton>
-          <AppButton size="sm" variant="secondary" class="!h-7 !px-2 !text-xs" @click="detailsOpen = true">Szczegóły</AppButton>
+          <AppButton v-if="canManage" size="sm" class="!h-7 !px-2 !text-xs" :disabled="loading || !!loadError" @click="openEditor">{{ current ? 'Zmień profil' : 'Uzupełnij' }}</AppButton>
+          <AppButton size="sm" variant="secondary" class="!h-7 !px-2 !text-xs" :disabled="loading || !!loadError" @click="detailsOpen = true">Szczegóły</AppButton>
         </div>
       </template>
-      <VehicleFuelTankDiagram :profile="current ?? null" :observation="latest ?? null" />
+      <AppLoadingIndicator v-if="loading" class="h-full w-full" />
+      <div v-else-if="loadError" class="min-h-0 space-y-2 overflow-y-auto">
+        <p class="ui-error" role="alert">{{ loadError }}</p>
+        <AppButton size="sm" variant="secondary" @click="load()">Spróbuj ponownie</AppButton>
+      </div>
+      <VehicleFuelTankDiagram v-else :profile="current ?? null" :observation="latest ?? null" />
     </AppCard>
 
     <AppModal :open="detailsOpen" title="Szczegóły zbiorników" size="lg" center-in-viewport @close="detailsOpen = false">
@@ -156,6 +156,7 @@ import AppCard from '@/components/ui/AppCard.vue'
 import AppCheckbox from '@/components/ui/AppCheckbox.vue'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
 import AppInput from '@/components/ui/AppInput.vue'
+import AppLoadingIndicator from '@/components/ui/AppLoadingIndicator.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import VehicleFuelTankDiagram from '@/components/vehicles/VehicleFuelTankDiagram.vue'

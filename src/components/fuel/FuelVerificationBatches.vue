@@ -2,7 +2,7 @@
   <AppCard title="Historia importów" :icon="IconHistory" compact content-class="!p-0">
     <p v-if="error" class="p-3 ui-error" role="alert">{{ error }}</p>
     <p v-else-if="!rows.length" class="p-3 ui-body-sm text-ui-mutedText">{{ loading ? 'Pobieranie importów…' : 'Brak zapisanych importów.' }}</p>
-    <ul v-else class="divide-y divide-ui-divider" aria-label="Importy IDS">
+    <ul v-else class="divide-y divide-ui-divider" aria-label="Importy kart paliwowych">
       <li v-for="item in rows" :key="item.importId" class="flex flex-wrap items-center justify-between gap-3 p-3">
         <div class="min-w-0 flex-1">
           <p class="break-words text-sm font-semibold text-ui-text">{{ item.fileName }}</p>

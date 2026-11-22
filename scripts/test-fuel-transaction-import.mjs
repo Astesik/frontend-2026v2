@@ -18,6 +18,8 @@ function createPanel() {
   const scope = vue.effectScope()
   let nextResult, nextError, dispose
   const fuelImportService = {
+    async confirmE100(file) { confirms.push({ provider: 'E100', file }); return nextResult },
+    previewE100(file) { return new Promise(resolve => pending.push({ file, provider: 'E100', resolve })) },
     preview(file) { return new Promise(resolve => pending.push({ file, resolve })) },
     async confirm(file) {
       confirms.push(file)
@@ -79,4 +81,19 @@ flow.pending[2].resolve({ rows: [fresh], errors: [] })
 await pending
 assert.equal(flow.panel.preview.value, null, 'A cancelled preview cannot reopen the dialog')
 flow.dispose()
+const pilot = createPanel()
+pilot.panel.provider.value = 'E100'
+const pilotRequest = pilot.panel.selectFile(new File(['row'], 'e100.csv'))
+assert.equal(pilot.pending[0].provider, 'E100')
+pilot.pending[0].resolve({ cards: 2, rows: [{ status: 'NEW', cardConflict: false }, { status: 'REVIEW', cardConflict: false }], errors: [] })
+await pilotRequest
+assert.equal(pilot.panel.e100Preview.value.cards, 2)
+assert.equal(pilot.panel.e100Skipped.value, 1)
+pilot.result({ importId: 19, saved: 1, duplicates: 0, rejected: 1, queued: 1 })
+await pilot.panel.confirm()
+assert.equal(pilot.confirms[0].provider, 'E100')
+assert.equal(pilot.panel.lastImportId.value, 19)
+pilot.panel.close()
+assert.equal(pilot.panel.e100Preview.value, null)
+pilot.dispose()
 console.log('Fuel transaction imports: automatic preview, summary, retry, duplicate-only history, and cancellation OK.')

@@ -137,10 +137,10 @@ const checks = computed<VerificationRow[]>(() => {
 })
 
 function timeDifference(seconds: number) {
-  if (!seconds) return 'O godzinie podanej w IDS'
+  if (!seconds) return 'O godzinie transakcji'
   const magnitude = Math.abs(seconds)
   const elapsed = magnitude >= 60 ? number.format(magnitude / 60) + ' min' : magnitude + ' s'
-  return elapsed + (seconds < 0 ? ' przed godziną z IDS' : ' po godzinie z IDS')
+  return elapsed + (seconds < 0 ? ' przed godziną transakcji' : ' po godzinie transakcji')
 }
 
 watch(() => props.transaction, transaction => {

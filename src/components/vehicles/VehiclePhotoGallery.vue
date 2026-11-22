@@ -41,13 +41,11 @@
       {{ fileError }}
     </p>
 
-    <div v-if="isLoading" class="py-8 text-center text-sm text-slate-500 dark:text-slate-400">
-      Pobieranie zdjęć...
-    </div>
+    <AppLoadingIndicator v-if="isLoading && !photos.length" class="min-h-48" />
 
     <div
       v-else-if="!photos.length"
-      class="border border-dashed px-3 py-8 text-center"
+      class="grid min-h-48 content-center border border-dashed px-3 py-8 text-center"
       :class="embedded ? 'rounded-[6px] border-ui-border' : 'rounded-2xl border-slate-200 dark:border-app-border'"
     >
       <Images v-if="!embedded" class="mx-auto h-6 w-6 text-slate-300 dark:text-app-muted" />
@@ -76,7 +74,8 @@
             class="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
           />
           <div v-else class="flex h-full items-center justify-center text-xs text-slate-400 dark:text-app-muted">
-            {{ previewErrors.has(photo.id) ? 'Brak podglądu' : 'Ładowanie...' }}
+            <span v-if="previewErrors.has(photo.id)">Brak podglądu</span>
+            <AppLoadingIndicator v-else />
           </div>
         </button>
 
@@ -173,6 +172,7 @@ import {
   IconZoomOut as ZoomOut,
 } from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppLoadingIndicator from '@/components/ui/AppLoadingIndicator.vue'
 import PhotoSourceMenu from '@/components/ui/PhotoSourceMenu.vue'
 import { vehicleService } from '@/services/vehicleService'
 import { useAuthStore } from '@/stores/authStore'

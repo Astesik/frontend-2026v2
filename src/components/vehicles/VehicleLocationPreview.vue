@@ -8,7 +8,10 @@
           <AppButton size="sm" variant="secondary" :disabled="!canRead || !coordinate" @click="copyLocation"><Copy class="h-4 w-4" />Kopiuj lokalizację</AppButton>
           <span v-show="!isFullscreen" ref="fullscreenTrigger" class="inline-flex"><AppIconButton label="Pokaż pełnoekranowo" size="sm" :disabled="!canRead || !ready || !coordinate" @click="openFullscreen"><Maximize2 class="h-4 w-4" /></AppIconButton></span>
         </div>
-        <div v-if="message" class="absolute inset-0 grid place-items-center bg-ui-muted/95 p-4 text-center ui-body-sm text-ui-mutedText" role="status">{{ message }}</div>
+        <div v-if="message" class="absolute inset-0 grid place-items-center bg-ui-muted/95 p-4 text-center ui-body-sm text-ui-mutedText">
+          <AppLoadingIndicator v-if="isLoading" />
+          <span v-else role="status">{{ message }}</span>
+        </div>
         <p v-else-if="requestError" class="absolute inset-x-2 top-14 rounded-[6px] border border-ui-border bg-ui-surface/95 px-3 py-2 ui-caption" role="status">{{ requestError }}</p>
         <div class="absolute bottom-2 right-2 z-10 flex flex-col gap-1">
           <AppIconButton label="Przybliż mapę" size="sm" :disabled="!canRead || !ready || !coordinate" @click="zoomBy(1)"><Plus class="h-4 w-4" /></AppIconButton>
@@ -43,6 +46,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { IconCopy as Copy, IconMaximize as Maximize2, IconMinus as Minus, IconPlus as Plus } from '@tabler/icons-vue'
 import AppButton from '@/components/ui/AppButton.vue'
+import AppLoadingIndicator from '@/components/ui/AppLoadingIndicator.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
 import AppModal from '@/components/ui/AppModal.vue'
 import { useUiStore } from '@/stores/uiStore'
@@ -86,6 +90,7 @@ const positionAgeLabel = computed(() => {
   return `${days} ${days === 1 ? 'dzień' : 'dni'}${remainingHours ? ` i ${remainingHours} godz.` : ''} temu`
 })
 const message = computed(() => !canRead.value ? 'Nie masz dostępu do pozycji GPS.' : mapError.value || (!coordinate.value ? fleet.isPositionsLoading ? 'Pobieranie lokalizacji…' : requestError.value || 'Brak lokalizacji GPS tego pojazdu.' : !ready.value ? 'Ładowanie mapy…' : ''))
+const isLoading = computed(() => canRead.value && !mapError.value && (!coordinate.value ? fleet.isPositionsLoading : !ready.value))
 let google: any, map: any, marker: any, resize: ResizeObserver | undefined
 let markerElement: HTMLDivElement | null = null, markerSignature = ''
 let timer: number | undefined, mounted = false, disposed = false, initializing = false

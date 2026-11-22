@@ -69,6 +69,7 @@ const document = { hidden: false, createElement: makeNode, addEventListener: (na
 const descriptor = parse(source('src/components/vehicles/VehicleLocationPreview.vue')).descriptor
 const component = evaluate(compileScript(descriptor, { id: 'location-test' }).content, {
   '@/components/ui/AppButton.vue': {}, '@/components/ui/AppIconButton.vue': {}, '@/components/ui/AppModal.vue': {},
+  '@/components/ui/AppLoadingIndicator.vue': {},
   vue: { ...vue, onMounted: fn => mounts.push(fn), onBeforeUnmount: fn => unmounts.push(fn), render() {} },
   '@/composables/useWorkspace': { useWorkspaceActive: () => active },
   '@/services/googleMapsLoader': { loadGoogleMaps: async () => google }, '@/services/googleMapStyles': { DARK_STYLES: ['dark'] },
