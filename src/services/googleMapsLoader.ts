@@ -10,35 +10,45 @@ declare global {
 let googleMapsPromise: Promise<any> | null = null
 
 export function loadGoogleMaps(apiKey: string) {
-  if (window.google?.maps) {
-    return Promise.resolve(window.google)
-  }
-
-  if (googleMapsPromise) {
-    return googleMapsPromise
-  }
+  if (typeof window.google?.maps?.Map === 'function') return Promise.resolve(window.google)
+  if (googleMapsPromise) return googleMapsPromise
 
   googleMapsPromise = new Promise((resolve, reject) => {
-    const existingScript = document.getElementById(GOOGLE_MAPS_SCRIPT_ID)
-
-    if (existingScript) {
-      existingScript.addEventListener('load', () => resolve(window.google))
-      existingScript.addEventListener('error', reject)
-      return
+    let script = document.getElementById(GOOGLE_MAPS_SCRIPT_ID) as HTMLScriptElement | null
+    const timeout = window.setTimeout(() => fail(), 20000)
+    function cleanup() {
+      window.clearTimeout(timeout)
+      script?.removeEventListener('load', loaded)
+      script?.removeEventListener('error', fail)
+      delete window.initRoutewiseGoogleMaps
     }
-
-    window.initRoutewiseGoogleMaps = () => {
+    function loaded() {
+      if (typeof window.google?.maps?.Map !== 'function') return
+      cleanup()
       resolve(window.google)
     }
-
-    const script = document.createElement('script')
-    script.id = GOOGLE_MAPS_SCRIPT_ID
-    script.async = true
-    script.defer = true
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initRoutewiseGoogleMaps`
-    script.onerror = reject
-    document.head.appendChild(script)
+    function fail() {
+      cleanup()
+      script?.remove()
+      reject(new Error('Nie udało się załadować Google Maps. Spróbuj ponownie.'))
+    }
+    window.initRoutewiseGoogleMaps = loaded
+    if (!script) {
+      script = document.createElement('script')
+      script.id = GOOGLE_MAPS_SCRIPT_ID
+      script.async = true
+      script.defer = true
+      script.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(apiKey) + '&callback=initRoutewiseGoogleMaps'
+      script.addEventListener('load', loaded)
+      script.addEventListener('error', fail)
+      document.head.appendChild(script)
+    } else {
+      script.addEventListener('load', loaded)
+      script.addEventListener('error', fail)
+    }
+  }).catch(error => {
+    googleMapsPromise = null
+    throw error
   })
-
   return googleMapsPromise
 }

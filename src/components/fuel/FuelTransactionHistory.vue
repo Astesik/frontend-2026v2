@@ -1,4 +1,6 @@
 <template>
+  <section class="flex min-w-0 flex-col gap-3 md:min-h-0 md:flex-1">
+    <FuelSummaryTiles :total="totals?.total" :pending="totals?.toVerify" :loading="loading" total-label="Liczba transakcji" pending-label="Transakcje do weryfikacji" />
   <AppCard title="Transakcje" compact class="flex min-w-0 flex-col md:min-h-0 md:flex-1" content-class="flex min-h-0 flex-1 flex-col !p-0">
     <template #actions>
       <div class="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
@@ -59,10 +61,12 @@
       <AppButton size="sm" variant="secondary" :loading="loading" @click="load('more')">Pokaż kolejne</AppButton>
     </div>
   </AppCard>
+  </section>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import FuelSummaryTiles from './FuelSummaryTiles.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppDatePicker from '@/components/ui/AppDatePicker.vue'
@@ -76,7 +80,7 @@ import FuelStationFormModal from '@/components/fuel-stations/FuelStationFormModa
 import { useFuelStationPermissions } from '@/composables/useFuelStationPermissions'
 import { useWorkspacePolling } from '@/composables/useWorkspace'
 import { getApiErrorMessage } from '@/services/api'
-import { fuelImportService, type FuelHistoryFilters, type FuelTransactionRow } from '@/services/fuelImportService'
+import { fuelImportService, type FuelHistoryFilters, type FuelTransactionRow, type FuelHistoryTotals } from '@/services/fuelImportService'
 import { fuelGpsLabels } from '@/services/fuelVerificationService'
 import { useAuthStore } from '@/stores/authStore'
 import { useFuelStationStore } from '@/stores/fuelStationStore'
@@ -112,6 +116,7 @@ const exciseOptions = [
   { value: 'FR', label: 'Francja · 0,1556 €/l' },
 ]
 const rows = ref<FuelTransactionRow[]>([])
+const totals = ref<FuelHistoryTotals | null>(null)
 const registrationKey = (value: string) => value.replace(/\s+/g, '').toUpperCase()
 const suggestedVehicleIds = computed(() => {
   const byRegistration = new Map<string, number | null>()
@@ -200,6 +205,7 @@ async function load(mode: 'reset' | 'more' | 'poll') {
   const currentFilters = filters.value
   const silent = mode === 'poll'
   if (mode === 'reset') {
+    totals.value = null
     hasMore.value = false
     nextPage.value = 0
     loading.value = false
@@ -207,6 +213,7 @@ async function load(mode: 'reset' | 'more' | 'poll') {
   }
   if (dateError.value || !fuelTypes.value.length) {
     rows.value = []
+    totals.value = { total: 0, toVerify: canViewVerification.value ? 0 : null }
     return
   }
 
@@ -222,6 +229,7 @@ async function load(mode: 'reset' | 'more' | 'poll') {
     while (page < end && more) {
       const result = await fuelImportService.history(page, currentFilters)
       if (request !== revision) return
+      if (result.totals) totals.value = result.totals
       for (const row of result.rows) items.set(row.row, row)
       more = result.hasMore
       page++

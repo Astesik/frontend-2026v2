@@ -1,32 +1,43 @@
 <template>
+  <section class="flex min-w-0 flex-col gap-3 md:min-h-0 md:flex-1">
+    <FuelSummaryTiles :total="totals?.total" :pending="totals?.toVerify" :loading="loading" total-label="Liczba spalań" pending-label="Spalania do weryfikacji" />
   <AppCard title="Wizyty na stacjach" :icon="IconGasStation" compact class="flex min-w-0 flex-col md:min-h-0 md:flex-1" content-class="flex min-h-0 flex-1 flex-col !p-0">
-    <div class="border-b border-ui-divider p-3">
-      <AppInput v-model="search" label="Szukaj pojazdu" placeholder="Numer rejestracyjny" type="search" size="sm" clearable :maxlength="120" class="sm:max-w-xs" />
+    <div class="flex flex-wrap items-end gap-3 border-b border-ui-divider p-3">
+      <AppInput v-model="search" label="Szukaj pojazdu" placeholder="Numer rejestracyjny" type="search" size="sm" clearable :maxlength="120" class="min-w-48 flex-1 sm:max-w-xs" />
+      <AppSelect v-model="reviewStatus" label="Status wizyty" size="sm" :options="statusOptions" class="w-full sm:w-48" />
     </div>
     <div class="relative flex min-h-48 flex-1 flex-col" :aria-busy="loading && !rows.length">
       <div class="max-h-[70dvh] min-h-0 flex-1 overflow-auto md:max-h-none">
-        <table class="ui-table min-w-[60rem] table-fixed !text-[14px]" aria-label="Wizyty na stacjach">
-          <colgroup>
-            <col v-for="column in columns" :key="column.label" :class="column.width" />
-          </colgroup>
+        <table class="ui-table min-w-[52rem] table-auto !text-[14px]" aria-label="Wizyty na stacjach">
           <thead class="ui-table-head">
             <tr class="divide-x divide-ui-divider">
-              <th v-for="column in columns" :key="column.label" scope="col" class="sticky top-0 z-10 h-11 bg-ui-muted px-3 py-1">
-                {{ column.label }}
+              <th v-for="column in columns" :key="column" scope="col" class="sticky top-0 z-10 h-11 whitespace-nowrap bg-ui-muted px-3 py-1" :class="column === 'Stacja' ? 'w-full' : 'w-px'">
+                {{ column }}
               </th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(visit, i) in rows" :key="visit.id" class="ui-table-row divide-x divide-ui-divider [&>td]:px-3 [&>td]:py-2 [&>td]:align-middle">
               <td class="tabular-nums text-ui-mutedText">{{ page * 30 + i + 1 }}.</td>
-              <td class="font-semibold">{{ visit.plate }}</td>
-              <td class="break-words">{{ visit.station }}</td>
-              <td><time :datetime="visit.at" class="tabular-nums">{{ day(visit.at) }}<span class="block text-ui-mutedText">{{ clock(visit.at) }}</span></time></td>
+              <td class="whitespace-nowrap font-semibold">{{ visit.plate }}</td>
+              <td class="min-w-40 break-words">{{ visitStation(visit) }}</td>
+              <td class="whitespace-nowrap"><time :datetime="visit.at" class="tabular-nums">{{ day(visit.at) }}<span class="block text-ui-mutedText">{{ clock(visit.at) }}</span></time></td>
               <td class="whitespace-nowrap text-right tabular-nums">{{ visit.diesel ? liters(visit.diesel) : '—' }}</td>
               <td class="whitespace-nowrap text-right tabular-nums">{{ visit.adblue ? liters(visit.adblue) : '—' }}</td>
-              <td><span class="flex items-center gap-2">
-                <component :is="statusIcon(visit)" class="h-4 w-4 shrink-0 text-ui-icon" aria-hidden="true" />{{ assessment(visit) }}
-              </span></td>
+              <td class="whitespace-nowrap">
+                <span v-if="visit.diesel > 0" class="inline-flex items-center gap-1.5 text-sm" :title="assessment(visit)">
+                  <component :is="visit.decision === 'FULL' ? IconGasStation : visit.decision === 'PARTIAL' ? IconDroplet : IconHelpCircle" class="h-4 w-4 text-ui-icon" aria-hidden="true" />
+                  {{ visit.decision === 'FULL' ? 'Do pełna' : visit.decision === 'PARTIAL' ? 'Częściowe' : 'Do weryfikacji' }}
+                </span>
+                <span v-else class="text-ui-mutedText">—</span>
+              </td>
+              <td>
+                <span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-1 text-xs font-medium"
+                  :class="visitStatus(visit).color" :title="assessment(visit)">
+                  <component :is="visitStatus(visit).icon" class="h-4 w-4 shrink-0" aria-hidden="true" />
+                  {{ visitStatus(visit).label }}
+                </span>
+              </td>
               <td class="text-center">
                 <AppIconButton :label="'Szczegóły wizyty ' + visit.plate + ' · ' + date(visit.at)" size="sm" @click="openVisit(visit)">
                   <IconListDetails class="h-4 w-4" />
@@ -47,35 +58,36 @@
     </div>
   </AppCard>
 
-  <AppModal v-if="selected" :open="true" center-in-viewport size="lg" :title="selected.plate + ' · ' + selected.station"
-    :description="'Wizyta na stacji · ' + date(selected.at)" body-class="space-y-5" @close="selectedId = null">
+  <AppModal v-if="selected" :open="true" center-in-viewport size="lg" :title="selected.plate + ' · ' + visitStation(selected) + ' · ' + date(selected.at)"
+     body-class="space-y-5" @close="selectedId = null">
     <section>
       <h3 class="flex items-center gap-2 text-[16px] font-semibold"><IconReceipt class="h-5 w-5 text-ui-icon" />Transakcje podczas wizyty</h3>
       <div class="mt-2 overflow-x-auto rounded-lg border border-ui-divider">
         <table class="ui-table w-full text-left !text-[14px]" aria-label="Transakcje podczas wizyty">
           <thead class="ui-table-head"><tr class="divide-x divide-ui-divider [&>th]:px-3 [&>th]:py-2">
-            <th v-if="selected.purchases.length > 1" scope="col">Wykres</th>
             <th scope="col">Data</th><th scope="col">Stacja</th><th scope="col">Produkt</th><th scope="col" class="text-right">Ilość</th>
           </tr></thead>
           <tbody>
-            <tr v-for="p in selected.purchases" :key="p.id" class="ui-table-row divide-x divide-ui-divider [&>td]:px-3 [&>td]:py-2">
-              <td v-if="selected.purchases.length > 1" class="w-16 text-center">
-                <input v-model="purchaseId" type="radio" name="visit-chart-purchase" :value="p.id" :aria-label="'Wykres dla transakcji ' + date(p.at) + ', ' + liters(p.liters)" />
-              </td>
-              <td class="tabular-nums">{{ date(p.at) }}</td><td>{{ p.provider }} {{ p.code }}</td>
+            <tr v-for="p in sortedPurchases" :key="p.id" class="ui-table-row divide-x divide-ui-divider [&>td]:px-3 [&>td]:py-2">
+              <td class="tabular-nums">{{ date(p.at) }}</td><td>{{ p.provider }} {{ p.station || selected.station }}</td>
               <td>{{ p.product === 'DIESEL' ? 'Olej napędowy' : 'AdBlue' }}</td><td class="whitespace-nowrap text-right font-medium tabular-nums">{{ liters(p.liters) }}</td>
             </tr>
           </tbody>
+          <tfoot class="border-t border-ui-divider bg-ui-muted font-semibold">
+            <tr v-if="selected.diesel > 0"><td colspan="3" class="px-3 py-2">Suma oleju napędowego</td><td class="whitespace-nowrap px-3 py-2 text-right tabular-nums">{{ liters(selected.diesel) }}</td></tr>
+            <tr v-if="selected.adblue > 0"><td colspan="3" class="px-3 py-2">Suma AdBlue</td><td class="whitespace-nowrap px-3 py-2 text-right tabular-nums">{{ liters(selected.adblue) }}</td></tr>
+          </tfoot>
         </table>
       </div>
     </section>
-    <section v-if="purchase" class="rounded-lg border border-ui-divider p-3">
-      <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+    <section v-if="anchor" class="rounded-lg border border-ui-divider p-3">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <h3 class="flex items-center gap-2 text-[16px] font-semibold"><IconChartLine class="h-5 w-5 text-ui-icon" />Poziom paliwa</h3>
-        <span class="text-sm text-ui-mutedText">2 godz. przed transakcją · 24 godz. po</span>
+        <AppButton size="sm" variant="secondary" @click="mapOpen = !mapOpen"><IconMap class="mr-2 h-4 w-4" />{{ mapOpen ? 'Zamknij mapę' : 'Pokaż trasę na mapie' }}</AppButton>
       </div>
-      <FuelVisitChart :id="selected.id" :run-id="selected.runId" :purchase-id="purchase.id" :at="purchase.at" />
+      <FuelVisitChart :id="selected.id" :run-id="selected.runId" :at="anchor" />
     </section>
+
     <section class="space-y-3">
       <h3 class="flex items-center gap-2 text-[16px] font-semibold"><IconClipboardCheck class="h-5 w-5 text-ui-icon" />Ocena wizyty</h3>
       <p class="flex items-center gap-2 text-sm"><IconMapPin class="h-4 w-4 shrink-0 text-ui-icon" />
@@ -107,11 +119,19 @@
       </div>
     </template>
   </AppModal>
+  <AppModal v-if="selected && mapOpen" :open="true" center-in-viewport size="xl" panel-class="lg:!max-w-[min(96vw,100rem)]"
+    :title="'Trasa · ' + selected.plate" :description="visitStation(selected) + ' · ' + date(selected.at)"
+    @close="mapOpen = false">
+    <FuelVisitMap :key="selected.id + '-' + mapAttempt" :id="selected.id" @retry="mapAttempt++" />
+  </AppModal>
+  </section>
 </template>
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref, watch, onBeforeUnmount } from 'vue'
-import { IconChartLine, IconCircleCheck, IconClipboardCheck, IconClock, IconDroplet, IconGasStation,
-  IconHelpCircle, IconListDetails, IconMapPin, IconReceipt } from '@tabler/icons-vue'
+import { IconChartLine, IconCircleCheck, IconClipboardCheck, IconDroplet, IconGasStation,
+  IconMap, IconHelpCircle, IconListDetails, IconMapPin, IconReceipt } from '@tabler/icons-vue'
+import FuelSummaryTiles from './FuelSummaryTiles.vue'
+import AppSelect from '@/components/ui/AppSelect.vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppButton from '@/components/ui/AppButton.vue'
@@ -120,23 +140,39 @@ import AppModal from '@/components/ui/AppModal.vue'
 import AppLoadingIndicator from '@/components/ui/AppLoadingIndicator.vue'
 import { useWorkspacePolling } from '@/composables/useWorkspace'
 import { getApiErrorMessage } from '@/services/api'
-import { fuelVisitService, type Visit, type Decision } from '@/services/fuelVisitService'
+import { fuelVisitService, type Visit, type Decision, type VisitTotals } from '@/services/fuelVisitService'
 
 defineProps<{ canManage: boolean }>()
 const FuelVisitChart = defineAsyncComponent(() => import('./FuelVisitChart.vue'))
-const columns = [
-  { label: 'Lp.', width: 'w-12' }, { label: 'Pojazd', width: 'w-32' }, { label: 'Stacja', width: 'w-auto' },
-  { label: 'Data', width: 'w-28' }, { label: 'Olej napędowy', width: 'w-28' }, { label: 'AdBlue', width: 'w-24' },
-  { label: 'Ocena wizyty', width: 'w-44' }, { label: 'Szczegóły', width: 'w-24' },
+const FuelVisitMap = defineAsyncComponent(() => import('./FuelVisitMap.vue'))
+const mapOpen = ref(false), mapAttempt = ref(0)
+function visitStation(visit: Visit) {
+  const purchase = visit.purchases.find(p => p.product === 'DIESEL') ?? visit.purchases[0]
+  return [purchase?.provider, purchase?.station || visit.station].filter(Boolean).join(' ')
+}
+const columns = ['Lp.', 'Pojazd', 'Stacja', 'Data', 'Olej napędowy', 'AdBlue', 'Status', 'Ocena wizyty', 'Szczegóły']
+const reviewStatus = ref('ALL')
+const statusOptions = [
+  { value: 'ALL', label: 'Wszystkie' },
+  { value: 'PENDING', label: 'Do weryfikacji' },
+  { value: 'CONFIRMED', label: 'Zweryfikowane' },
 ]
+const totals = ref<VisitTotals | null>(null)
 const search = ref(''), page = ref(0), rows = ref<Visit[]>([]), more = ref(false)
 const loading = ref(false), saving = ref(false), error = ref(''), saveError = ref('')
-const selectedId = ref<number | null>(null), purchaseId = ref<number | null>(null)
+const selectedId = ref<number | null>(null)
+watch(selectedId, () => { mapOpen.value = false })
 const selected = computed(() => rows.value.find(v => v.id === selectedId.value))
-const purchase = computed(() => selected.value?.purchases.find(p => p.id === purchaseId.value) ?? selected.value?.purchases[0])
+const sortedPurchases = computed(() => [...(selected.value?.purchases ?? [])].sort((a, b) =>
+  Number(a.product === 'ADBLUE') - Number(b.product === 'ADBLUE') || Date.parse(a.at) - Date.parse(b.at)))
+const anchor = computed(() => {
+  const rows = selected.value?.purchases ?? []
+  const diesel = rows.filter(p => p.product === 'DIESEL')
+  const dates = (diesel.length ? diesel : rows).map(p => Date.parse(p.at))
+  return dates.length ? new Date((Math.min(...dates) + Math.max(...dates)) / 2).toISOString() : ''
+})
 function openVisit(visit: Visit) {
   selectedId.value = visit.id
-  purchaseId.value = visit.purchases[0]?.id ?? null
   saveError.value = ''
 }
 let request: AbortController | undefined
@@ -167,11 +203,14 @@ function assessment(v: Visit) {
   if (!v.analysis) return 'Oczekuje na analizę'
   return { OBSERVING: 'W obserwacji', UNRESOLVED: 'Nierozstrzygnięte', ASSESSED: suggestions[v.analysis.suggestion], ADBLUE_ONLY: 'Tylko AdBlue' }[v.analysis.state]
 }
-function statusIcon(v: Visit) {
-  if (v.decision === 'UNKNOWN') return IconHelpCircle
-  if (v.decision || v.analysis?.state === 'ASSESSED') return IconCircleCheck
-  if (v.analysis?.state === 'ADBLUE_ONLY') return IconDroplet
-  return v.analysis?.state === 'UNRESOLVED' ? IconHelpCircle : IconClock
+const visitStatuses = {
+  confirmed: { label: 'Potwierdzono', icon: IconCircleCheck, color: 'border-success-600/25 bg-success-600/10 text-success-600 dark:text-success-400' },
+  pending: { label: 'Do weryfikacji', icon: IconHelpCircle, color: 'border-warning-600/25 bg-warning-600/10 text-warning-600 dark:text-warning-400' },
+  adblue: { label: 'Tylko AdBlue', icon: IconDroplet, color: 'border-ui-divider bg-ui-muted text-ui-mutedText' },
+}
+function visitStatus(visit: Visit) {
+  if (visit.decision === 'FULL' || visit.decision === 'PARTIAL') return visitStatuses.confirmed
+  return visit.diesel > 0 ? visitStatuses.pending : visitStatuses.adblue
 }
 function measurements(v: Visit) {
   return [{ label: 'Przed tankowaniem', reading: v.analysis?.before }, { label: 'Maksimum po tankowaniu', reading: v.analysis?.peak },
@@ -183,8 +222,9 @@ async function load() {
   request = controller
   loading.value = true
   try {
-    const data = await fuelVisitService.list(search.value.trim(), page.value, controller.signal)
+    const data = await fuelVisitService.list(search.value.trim(), page.value, controller.signal, reviewStatus.value)
     if (controller.signal.aborted) return
+    totals.value = data.totals
     rows.value = data.rows
     more.value = data.hasMore
     error.value = ''
@@ -198,8 +238,8 @@ async function decide(v: Visit, value: Decision) {
   catch (cause) { saveError.value = getApiErrorMessage(cause) }
   finally { saving.value = false; await load() }
 }
-watch(search, () => { page.value = 0 })
-watch([search,page], () => { selectedId.value = null; rows.value = []; more.value = false; void load() }, { immediate: true })
+watch([search, reviewStatus], () => { page.value = 0 })
+watch([search,page,reviewStatus], () => { selectedId.value = null; totals.value = null; rows.value = []; more.value = false; void load() }, { immediate: true })
 useWorkspacePolling(async () => { if (!loading.value && !saving.value) await load() }, 10000)
 onBeforeUnmount(() => request?.abort())
 </script>

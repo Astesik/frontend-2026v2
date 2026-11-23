@@ -10,6 +10,7 @@
         <dd class="text-lg font-semibold tabular-nums">{{ metric.value == null ? '—' : number.format(metric.value) + ' ' + metric.unit }}</dd>
       </div>
     </dl>
+    <FuelCounterDecreases v-if="showCounterDecreases" :measurement="measurement" />
     <details v-if="measurement.first && measurement.last" class="ui-body-sm">
       <summary class="cursor-pointer">Odczyty graniczne · {{ measurement.validIntervals }} prawidłowych odcinków</summary>
       <ul class="mt-2 space-y-1">
@@ -24,9 +25,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import FuelCounterDecreases from './FuelCounterDecreases.vue'
 import type { Measurement } from '@/services/fuelConsumptionService'
 
-const props = defineProps<{ measurement: Measurement }>()
+const props = withDefaults(defineProps<{ measurement: Measurement; showCounterDecreases?: boolean }>(), { showCounterDecreases: true })
 const number = new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 2 })
 const date = new Intl.DateTimeFormat('pl-PL', { dateStyle: 'short', timeStyle: 'medium', timeZone: 'Europe/Warsaw' })
 const sources = { VEHICLE_COUNTER: 'licznik pojazdu', GPS_ESTIMATE: 'GPS', DEVICE_ESTIMATE: 'licznik urządzenia' }

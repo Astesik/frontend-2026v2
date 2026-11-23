@@ -80,6 +80,8 @@ export interface FuelImportResult {
   queued: number
 }
 
+export interface FuelHistoryTotals { total: number; toVerify: number | null }
+
 export interface FuelHistoryFilters {
   vehicleId?: number
   importId?: number
@@ -121,7 +123,7 @@ export const fuelImportService = {
     return data
   },
   async history(page: number, filters: FuelHistoryFilters) {
-    const { data } = await api.get<{ rows: FuelTransactionRow[]; hasMore: boolean }>('/api/fuel/transactions', {
+    const { data } = await api.get<{ rows: FuelTransactionRow[]; hasMore: boolean; totals: FuelHistoryTotals | null }>('/api/fuel/transactions', {
       ...options, params: { page, ...filters },
     })
     return { ...data, rows: data.rows.filter(row => !(row.unit?.trim().toUpperCase() === 'L' && row.quantity === 0)) }
