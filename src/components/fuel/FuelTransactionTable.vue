@@ -1,5 +1,5 @@
 <template>
-  <table class="ui-table table-fixed" :class="canViewVerification ? 'min-w-[82rem]' : 'min-w-[70rem]'" aria-label="Transakcje">
+  <table class="ui-table table-fixed" :class="features.fuelTransactionPrices ? (canViewVerification ? 'min-w-[94rem]' : 'min-w-[82rem]') : (canViewVerification ? 'min-w-[80rem]' : 'min-w-[68rem]')" aria-label="Transakcje">
     <colgroup>
       <col v-for="column in columns" :key="column.label" :class="column.width" />
     </colgroup>
@@ -38,34 +38,19 @@
               <RouterLink
                 v-if="suggestedVehicleIds?.has(item.row)"
                 :to="{ name: 'vehicle-detail', params: { id: suggestedVehicleIds.get(item.row) } }"
-                class="-my-px truncate py-px underline-offset-2 group-hover:underline focus-visible:underline"
+                class="-my-px whitespace-nowrap py-px underline-offset-2 group-hover:underline focus-visible:underline"
               >{{ item.reportedRegistration }}</RouterLink>
-              <span v-else class="truncate">{{ item.reportedRegistration }}</span>
+              <span v-else class="whitespace-nowrap">{{ item.reportedRegistration }}</span>
             </span>
           </p>
         </td>
         <td class="break-words">{{ item.driverName || (item.driverId != null ? `Kierowca #${item.driverId}` : '—') }}</td>
         <td>
-          <div class="flex items-start gap-1.5">
-            <img
-              v-if="item.country && /^[A-Z]{2}$/i.test(item.country)"
-              :src="flagUrl(item.country)" :alt="item.country" loading="lazy" width="20" height="20"
-              class="mt-0.5 h-4 w-5 shrink-0 object-contain"
-            />
-            <div class="min-w-0">
-              <p v-if="item.stationName || item.stationKnown" class="break-words font-medium text-ui-text">{{ item.stationName || item.stationCode }}</p>
-              <p v-if="item.stationName || !item.stationKnown" class="ui-caption break-words">{{ item.stationCode }}</p>
-              <p v-if="!item.stationKnown" class="ui-caption mt-1 flex items-start gap-1.5 text-warning-600 dark:text-warning-400">
-                <IconAlertTriangle class="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-                <button
-                  v-if="canCreateStation" type="button" title="Utwórz stację"
-                  class="text-left underline-offset-4 hover:underline focus-visible:underline"
-                  @click="emit('createStation', item)"
-                >Nieznana stacja</button>
-                <span v-else>Nieznana stacja</span>
-              </p>
-            </div>
-          </div>
+          <FuelStationInfo
+            :station-name="item.stationName" :station-code="item.stationCode" :country="item.country"
+            :station-known="item.stationKnown" :can-create-station="canCreateStation"
+            @create-station="emit('createStation', item)"
+          />
         </td>
         <td class="whitespace-nowrap">
           <time :datetime="item.reportedAt" class="block font-medium tabular-nums text-ui-text">
@@ -77,10 +62,10 @@
           <p class="whitespace-nowrap font-medium tabular-nums text-ui-text">{{ item.quantity == null ? '—' : quantity.format(item.quantity) }} {{ item.unit }}</p>
           <p class="ui-caption break-words">{{ item.product || 'Produkt nieokreślony' }}</p>
         </td>
-        <td class="whitespace-nowrap font-medium tabular-nums text-ui-text">
+        <td v-if="features.fuelTransactionPrices" class="whitespace-nowrap font-medium tabular-nums text-ui-text">
           {{ formatPrice(item, false) }}
         </td>
-        <td class="whitespace-nowrap font-medium tabular-nums text-ui-text">
+        <td v-if="features.fuelTransactionPrices" class="whitespace-nowrap font-medium tabular-nums text-ui-text">
           {{ formatPrice(item, true) }}
         </td>
         <td v-if="canViewVerification">
@@ -102,6 +87,8 @@
 <script setup lang="ts">
 import { IconAlertTriangle, IconCircleCheck, IconHelpCircle, IconMapSearch } from '@tabler/icons-vue'
 import { computed } from 'vue'
+import { features } from '@/config/features'
+import FuelStationInfo from './FuelStationInfo.vue'
 import FuelVerificationStatus from '@/components/fuel/FuelVerificationStatus.vue'
 import AppIconButton from '@/components/ui/AppIconButton.vue'
 import type { FuelTransactionRow } from '@/services/fuelImportService'
@@ -120,13 +107,15 @@ const columns = computed(() => {
   const excise = props.gross ? '' : [...props.exciseCountries].sort().join(', ')
   return [
     { label: 'Lp.', width: 'w-12' },
-    { label: 'Pojazd i karta', width: 'w-[20rem]' },
+    { label: 'Pojazd i karta', width: 'w-[26rem]' },
     { label: 'Kierowca', width: 'w-[11rem]' },
     { label: 'Lokalizacja', width: 'w-auto' },
     { label: 'Data', width: 'w-[6.75rem]' },
     { label: 'Ilość i produkt', width: 'w-[7.5rem]' },
-    { label: `Suma ${mode}`, width: 'w-[7rem]', excise },
-    { label: `Cena ${mode}`, width: 'w-[7rem]', excise },
+    ...(features.fuelTransactionPrices ? [
+      { label: `Suma ${mode}`, width: 'w-[7rem]', excise },
+      { label: `Cena ${mode}`, width: 'w-[7rem]', excise },
+    ] : []),
     ...(props.canViewVerification ? [{ label: 'Weryfikacja', width: 'w-[12rem]' }] : []),
   ]
 })
@@ -149,5 +138,4 @@ function formatPrice(row: FuelTransactionRow, perUnit: boolean) {
   const label = value.toLocaleString('pl-PL', { style: 'currency', currency, maximumFractionDigits: doc && perUnit && (props.gross || currency !== 'PLN') ? 4 : 2 })
   return perUnit && row.unit ? label + '/' + row.unit : label
 }
-const flagUrl = (country: string) => `https://flagsapi.com/${country.toUpperCase() === 'UK' ? 'GB' : country.toUpperCase()}/flat/64.png`
 </script>

@@ -18,6 +18,10 @@ function createPanel() {
   const scope = vue.effectScope()
   let nextResult, nextError, dispose
   const fuelImportService = {
+    previewAs24(file) { return new Promise(resolve => pending.push({ file, provider: 'AS24', resolve })) },
+    async confirmAs24(file) { confirms.push({ provider: 'AS24', file }); return nextResult },
+    previewEurowag(file) { return new Promise(resolve => pending.push({ file, provider: 'EUROWAG', resolve })) },
+    async confirmEurowag(file) { confirms.push({ provider: 'EUROWAG', file }); return nextResult },
     async confirmE100(file) { confirms.push({ provider: 'E100', file }); return nextResult },
     previewE100(file) { return new Promise(resolve => pending.push({ file, provider: 'E100', resolve })) },
     preview(file) { return new Promise(resolve => pending.push({ file, resolve })) },
@@ -96,4 +100,57 @@ assert.equal(pilot.panel.lastImportId.value, 19)
 pilot.panel.close()
 assert.equal(pilot.panel.e100Preview.value, null)
 pilot.dispose()
-console.log('Fuel transaction imports: automatic preview, summary, retry, duplicate-only history, and cancellation OK.')
+const eurowag = createPanel()
+eurowag.panel.provider.value = 'EUROWAG'
+assert.equal(eurowag.panel.providerOptions.some(option => option.value === 'EUROWAG'), true)
+const ewRequest = eurowag.panel.selectFile(new File(['row'], 'EW_Export.csv'))
+assert.equal(eurowag.pending[0].provider, 'EUROWAG')
+eurowag.pending[0].resolve({ rows: [{ row: 2, status: 'NEW' }, { row: 3, status: 'DUPLICATE' }], errors: [], skippedZero: 0 })
+await ewRequest
+assert.deepEqual(Array.from(eurowag.panel.summary.value, tile => tile.value), [1, 1, 0, 2])
+eurowag.result({ importId: 20, saved: 1, duplicates: 1, rejected: 0, queued: 1 })
+await eurowag.panel.confirm()
+assert.equal(eurowag.confirms[0].provider, 'EUROWAG')
+assert.equal(eurowag.panel.lastImportId.value, 20)
+eurowag.panel.close()
+const ewDuplicates = eurowag.panel.selectFile(new File(['row'], 'EW_Export_again.csv'))
+eurowag.pending[1].resolve({ rows: [duplicate, duplicate], errors: [], skippedZero: 0 })
+await ewDuplicates
+assert.equal(eurowag.panel.canConfirm.value, true)
+eurowag.result({ importId: 21, saved: 0, duplicates: 2, rejected: 0, queued: 0 })
+await eurowag.panel.confirm()
+assert.equal(eurowag.panel.result.value.queued, 0)
+eurowag.dispose()
+const as24=createPanel()
+as24.panel.provider.value='AS24'
+await as24.panel.selectFile(new File(['row'],'as24.csv'))
+assert.match(as24.panel.selectionError.value,/XLSX/)
+assert.equal(as24.pending.length,0)
+const as24Request=as24.panel.selectFile(new File(['xlsx'],'as24.xlsx'))
+assert.equal(as24.pending[0].provider,'AS24')
+as24.pending[0].resolve({rows:[fresh,duplicate,{status:'REVIEW'}],errors:[{line:5,column:null,reason:'Niepoprawny nośnik'}],skippedZero:0})
+await as24Request
+assert.equal(as24.panel.saveable.value,1)
+assert.equal(as24.panel.reviewCount.value,1)
+assert.equal(as24.panel.duplicateCount.value,1)
+assert.deepEqual(Array.from(as24.panel.summary.value,tile=>tile.value),[1,1,1,1,4])
+as24.result({importId:22,saved:1,duplicates:1,rejected:2,queued:1})
+await as24.panel.confirm()
+assert.equal(as24.confirms[0].provider,'AS24')
+as24.panel.close()
+const as24Review=as24.panel.selectFile(new File(['xlsx'],'as24-correction.xlsx'))
+as24.pending[1].resolve({rows:[{status:'REVIEW'}],errors:[],skippedZero:0})
+await as24Review
+assert.equal(as24.panel.canConfirm.value,false)
+const priorConfirms=as24.confirms.length
+await as24.panel.confirm()
+assert.equal(as24.confirms.length,priorConfirms)
+as24.panel.close()
+const as24Duplicates=as24.panel.selectFile(new File(['xlsx'],'as24-again.xlsx'))
+as24.pending[2].resolve({rows:[duplicate],errors:[],skippedZero:0})
+await as24Duplicates
+assert.equal(as24.panel.canConfirm.value,true)
+as24.panel.provider.value='IDS'
+assert.equal(as24.panel.preview.value,null,'Changing provider cancels the previous provider preview')
+as24.dispose()
+console.log('Fuel transaction imports: AS24 XLSX, review safeguards, IDS, E100, Eurowag, automatic preview, summary, retry, duplicate-only history, and cancellation OK.')

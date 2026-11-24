@@ -59,12 +59,21 @@ export interface FuelCycle {
 const base = (vehicle: string) => '/api/fuel/vehicles/' + vehicle + '/consumption'
 const cycleUrl = (vehicle: string, start: string, end: string) => base(vehicle) + '/cycles/' + start + '/' + end
 
+export interface AdjustedFuelBoundary {
+  visitId: number; refueledAt: string; method: 'STABLE_POST_REFUEL' | 'POST_REFUEL_PEAK'; observing: boolean
+  level: { at: string; level: number } | null
+}
+export interface AdjustedFuelConsumption {
+  start: AdjustedFuelBoundary; end: AdjustedFuelBoundary; tankCapacityLiters: number | null
+  fuelCorrectionLiters: number | null; adjustedFuelConsumedLiters: number | null; adjustedConsumptionL100km: number | null
+  differenceLiters: number | null; differencePercent: number | null; issues: string[]; warnings: string[]
+}
 export interface AutomaticCycleResult {
   startVisitId: number; endVisitId: number; from: string; to: string; adjacent: boolean; confirmed: boolean
   purchasedLiters: number; distanceKm: number | null; canLiters: number | null
   canPer100Km: number | null; purchasesPer100Km: number | null
   differenceLiters: number | null; differencePercent: number | null
-  issues: string[]; legIds: number[]; telemetry: ConsumptionReport
+  issues: string[]; legIds: number[]; telemetry: ConsumptionReport; adjusted?: AdjustedFuelConsumption | null
 }
 export interface AutomaticCycle { id: number; vehicleId: number; licensePlate: string; result: AutomaticCycleResult; calculatedAt: string }
 export interface AutomaticCyclePage { rows: AutomaticCycle[]; hasMore: boolean; total: number; confirmed: number; processing: boolean; chart: AutomaticCycle[] }

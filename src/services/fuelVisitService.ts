@@ -1,4 +1,5 @@
 import { api } from './api'
+import type { AutomaticCycleResult } from './fuelConsumptionService'
 
 export interface VisitTotals { total: number; toVerify: number }
 export type Decision = 'FULL' | 'PARTIAL' | 'UNKNOWN'
@@ -17,12 +18,20 @@ interface Analysis {
   consumedSinceArrival: number | null
   distanceSinceArrival: number | null
 }
+export interface VisitPurchase {
+  id: number; product: string; provider: string; at: string; code: string; station?: string | null; liters: number
+  country?: string | null; stationKnown?: boolean
+}
 export interface Visit {
   id: number; revision: number; runId: number | null; plate: string; station: string; at: string
+  adjustedConsumptionL100km?: number | null
   diesel: number; adblue: number; gpsSupported: boolean; decision: Decision | null; analysis: Analysis | null
-  purchases: { id: number; product: string; provider: string; at: string; code: string; station?: string; liters: number }[]
+  purchases: VisitPurchase[]
 }
 export const fuelVisitService = {
+  async consumption(id: number, signal: AbortSignal) {
+    return (await api.get<{ processing: boolean; result: AutomaticCycleResult | null }>('/api/fuel/visits/' + id + '/consumption', { signal, skipErrorToast: true })).data
+  },
   async list(q: string, page: number, signal: AbortSignal, status = 'ALL') {
     return (await api.get<{ rows: Visit[]; hasMore: boolean; totals: VisitTotals }>('/api/fuel/visits',
       { params: { q, page, status }, signal, skipErrorToast: true })).data

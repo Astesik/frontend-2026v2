@@ -1,4 +1,4 @@
-<template><div ref="element" class="h-64 w-full" aria-label="Porównanie spalania CAN i z zakupów w cyklach sąsiednich" /></template>
+<template><div ref="element" class="h-64 w-full" aria-label="Porównanie spalania CAN, z transakcji paliwowych i skorygowanego w cyklach sąsiednich" /></template>
 <script setup lang="ts">
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { init, use, type EChartsType } from 'echarts/core'
@@ -19,18 +19,22 @@ function draw() {
   const color = (token: string) => 'rgb(' + styles.getPropertyValue('--rw-' + token).trim().split(/\s+/).join(',') + ')'
   chart.setOption({
     animation: false, aria: { enabled: true },
-    color: ['#7093ff', '#6ba38b'],
+    color: ['#7093ff', '#6ba38b', '#bc93dd'],
     legend: { top: 0, textStyle: { color: color('text-muted') } },
     grid: { top: 40, left: 52, right: 16, bottom: 42 },
     tooltip: { trigger: 'axis', renderMode: 'richText', confine: true,
       valueFormatter: (value: number) => value == null ? '—' : value.toLocaleString('pl-PL', { maximumFractionDigits: 2 }) + ' l/100 km' },
     xAxis: { type: 'category', data: props.cycles.map(c => date.format(new Date(c.result.to))),
       axisLabel: { hideOverlap: true, color: color('text-muted') }, axisLine: { lineStyle: { color: color('border') } } },
-    yAxis: { type: 'value', name: 'l/100 km', nameTextStyle: { color: color('text-muted') },
+    yAxis: { type: 'value', name: 'l/100 km', scale: true,
+      min: ({ min }: { min: number }) => Number.isFinite(min) ? Math.max(0, Math.floor(min - 5)) : 0,
+      max: ({ max }: { max: number }) => Number.isFinite(max) ? Math.ceil(max + 5) : 10,
+      nameTextStyle: { color: color('text-muted') },
       axisLabel: { color: color('text-muted') }, splitLine: { lineStyle: { color: color('divider') } } },
     series: [
       { name: 'CAN', type: 'line', data: props.cycles.map(c => c.result.canPer100Km), symbolSize: 7, connectNulls: false },
-      { name: 'Z zakupów', type: 'line', data: props.cycles.map(c => c.result.purchasesPer100Km), symbolSize: 7, connectNulls: false },
+      { name: 'Transakcje paliwowe', type: 'line', data: props.cycles.map(c => c.result.purchasesPer100Km), symbolSize: 7, connectNulls: false },
+      { name: 'Skorygowane', type: 'line', data: props.cycles.map(c => c.result.adjusted?.adjustedConsumptionL100km ?? null), symbolSize: 7, connectNulls: false },
     ],
   }, { notMerge: true })
 }

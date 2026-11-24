@@ -108,7 +108,7 @@
 
     <AppModal :open="!!action" :title="modalTitle" size="sm" center-in-viewport :busy="saving" @close="action = null">
       <form id="fuel-card-action" class="space-y-3" @submit.prevent="submit">
-        <AppInput v-if="action?.kind === 'assign'" v-model="cardNumber" label="Numer karty" :maxlength="100" :disabled="saving" required />
+        <AppInput v-if="action?.kind === 'assign'" v-model="cardNumber" :label="action.provider === 'AS24' ? 'Nr nośnika' : 'Numer karty'" :placeholder="action.provider === 'AS24' ? 'np. 0063' : undefined" :maxlength="100" :disabled="saving" required />
         <AppInput v-if="action?.kind === 'issue'" v-model="holderName" label="Komu wydano kartę" :maxlength="160" :disabled="saving" required />
         <p v-if="action?.kind === 'void'" class="ui-body-sm">Tankowania z tego okresu zostaną odpięte od pojazdu i pozostaną w historii importu.</p>
         <AppDateTimePicker v-else

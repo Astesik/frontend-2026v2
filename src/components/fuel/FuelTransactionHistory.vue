@@ -2,7 +2,7 @@
   <section class="flex min-w-0 flex-col gap-3 md:min-h-0 md:flex-1">
     <FuelSummaryTiles :total="totals?.total" :pending="totals?.toVerify" :loading="loading" total-label="Liczba transakcji" pending-label="Transakcje do weryfikacji" />
   <AppCard title="Transakcje" compact class="flex min-w-0 flex-col md:min-h-0 md:flex-1" content-class="flex min-h-0 flex-1 flex-col !p-0">
-    <template #actions>
+    <template v-if="features.fuelTransactionPrices" #actions>
       <div class="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
         <AppMultiSelect
           v-model="exciseCountries" label="Odliczenie akcyzy" placeholder="Bez odliczenia"
@@ -66,6 +66,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { features } from '@/config/features'
 import FuelSummaryTiles from './FuelSummaryTiles.vue'
 import AppButton from '@/components/ui/AppButton.vue'
 import AppCard from '@/components/ui/AppCard.vue'

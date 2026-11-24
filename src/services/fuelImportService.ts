@@ -38,6 +38,18 @@ export interface FuelImportPreview {
   errors: Array<{ line: number; column: string | null; reason: string }>
 }
 
+export interface EurowagImportPreview {
+  rows: Array<{ row: number; status: 'NEW' | 'DUPLICATE' }>
+  errors: FuelImportPreview['errors']
+  skippedZero: number
+}
+
+export interface As24ImportPreview {
+  rows: Array<{ row: number; status: 'NEW' | 'DUPLICATE' | 'REVIEW'; transactionNumber?: string }>
+  errors: FuelImportPreview['errors']
+  skippedZero: number
+}
+
 export interface E100Amounts {
   quantity: number
   currency: string
@@ -114,6 +126,10 @@ async function upload<T>(endpoint: string, file: File) {
 }
 
 export const fuelImportService = {
+  previewAs24: (file: File) => upload<As24ImportPreview>('/api/fuel/imports/as24/preview', file),
+  confirmAs24: (file: File) => upload<FuelImportResult>('/api/fuel/imports/as24', file),
+  previewEurowag: (file: File) => upload<EurowagImportPreview>('/api/fuel/imports/eurowag/preview', file),
+  confirmEurowag: (file: File) => upload<FuelImportResult>('/api/fuel/imports/eurowag', file),
   previewE100: (file: File) => upload<E100Preview>('/api/fuel/imports/e100/preview', file),
   confirmE100: (file: File) => upload<FuelImportResult>('/api/fuel/imports/e100', file),
   preview: (file: File) => upload<FuelImportPreview>('/api/fuel/imports/ids/preview', file),

@@ -20,7 +20,10 @@
             <tr v-for="(visit, i) in rows" :key="visit.id" class="ui-table-row divide-x divide-ui-divider [&>td]:px-3 [&>td]:py-2 [&>td]:align-middle">
               <td class="tabular-nums text-ui-mutedText">{{ page * 30 + i + 1 }}.</td>
               <td class="whitespace-nowrap font-semibold">{{ visit.plate }}</td>
-              <td class="min-w-40 break-words">{{ visitStation(visit) }}</td>
+              <td class="min-w-40">
+                <FuelStationInfo v-bind="stationDetails(primaryPurchase(visit), visit.station)" :can-create-station="canCreateStation"
+                  @create-station="createStation(primaryPurchase(visit), visit.station)" />
+              </td>
               <td class="whitespace-nowrap"><time :datetime="visit.at" class="tabular-nums">{{ day(visit.at) }}<span class="block text-ui-mutedText">{{ clock(visit.at) }}</span></time></td>
               <td class="whitespace-nowrap text-right tabular-nums">{{ visit.diesel ? liters(visit.diesel) : '—' }}</td>
               <td class="whitespace-nowrap text-right tabular-nums">{{ visit.adblue ? liters(visit.adblue) : '—' }}</td>
@@ -38,6 +41,7 @@
                   {{ visitStatus(visit).label }}
                 </span>
               </td>
+              <td class="whitespace-nowrap tabular-nums">{{ visit.adjustedConsumptionL100km == null ? '—' : number.format(visit.adjustedConsumptionL100km) + ' l/100 km' }}</td>
               <td class="text-center">
                 <AppIconButton :label="'Szczegóły wizyty ' + visit.plate + ' · ' + date(visit.at)" size="sm" @click="openVisit(visit)">
                   <IconListDetails class="h-4 w-4" />
@@ -69,7 +73,8 @@
           </tr></thead>
           <tbody>
             <tr v-for="p in sortedPurchases" :key="p.id" class="ui-table-row divide-x divide-ui-divider [&>td]:px-3 [&>td]:py-2">
-              <td class="tabular-nums">{{ date(p.at) }}</td><td>{{ p.provider }} {{ p.station || selected.station }}</td>
+              <td class="tabular-nums">{{ date(p.at) }}</td>
+              <td class="min-w-40"><FuelStationInfo v-bind="stationDetails(p, selected.station)" :can-create-station="canCreateStation" @create-station="createStation(p, selected.station)" /></td>
               <td>{{ p.product === 'DIESEL' ? 'Olej napędowy' : 'AdBlue' }}</td><td class="whitespace-nowrap text-right font-medium tabular-nums">{{ liters(p.liters) }}</td>
             </tr>
           </tbody>
@@ -88,6 +93,7 @@
       <FuelVisitChart :id="selected.id" :run-id="selected.runId" :at="anchor" />
     </section>
 
+    <FuelVisitConsumption :id="selected.id" :run-id="selected.runId" :diesel="selected.diesel" />
     <section class="space-y-3">
       <h3 class="flex items-center gap-2 text-[16px] font-semibold"><IconClipboardCheck class="h-5 w-5 text-ui-icon" />Ocena wizyty</h3>
       <p class="flex items-center gap-2 text-sm"><IconMapPin class="h-4 w-4 shrink-0 text-ui-icon" />
@@ -124,12 +130,19 @@
     @close="mapOpen = false">
     <FuelVisitMap :key="selected.id + '-' + mapAttempt" :id="selected.id" @retry="mapAttempt++" />
   </AppModal>
+  <FuelStationFormModal v-if="stationDraft && canCreateStation" :open="true" :station="null" :initial-values="stationDraft"
+    @close="stationDraft = null" @saved="load()" />
   </section>
 </template>
 <script setup lang="ts">
 import { computed, defineAsyncComponent, ref, watch, onBeforeUnmount } from 'vue'
 import { IconChartLine, IconCircleCheck, IconClipboardCheck, IconDroplet, IconGasStation,
   IconMap, IconHelpCircle, IconListDetails, IconMapPin, IconReceipt } from '@tabler/icons-vue'
+import FuelStationInfo from './FuelStationInfo.vue'
+import { useFuelStationPermissions } from '@/composables/useFuelStationPermissions'
+import { useFuelStationStore } from '@/stores/fuelStationStore'
+import { useAuthStore } from '@/stores/authStore'
+import type { FuelStationWrite } from '@/types/fuelStation'
 import FuelSummaryTiles from './FuelSummaryTiles.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
 import AppInput from '@/components/ui/AppInput.vue'
@@ -140,17 +153,38 @@ import AppModal from '@/components/ui/AppModal.vue'
 import AppLoadingIndicator from '@/components/ui/AppLoadingIndicator.vue'
 import { useWorkspacePolling } from '@/composables/useWorkspace'
 import { getApiErrorMessage } from '@/services/api'
-import { fuelVisitService, type Visit, type Decision, type VisitTotals } from '@/services/fuelVisitService'
+import { fuelVisitService, type Visit, type VisitPurchase, type Decision, type VisitTotals } from '@/services/fuelVisitService'
 
 defineProps<{ canManage: boolean }>()
+const auth = useAuthStore()
+const stationStore = useFuelStationStore()
+const { canRead: canReadStations, canManage: canManageStations } = useFuelStationPermissions()
+const canCreateStation = computed(() => canReadStations.value && canManageStations.value)
+const stationDraft = ref<FuelStationWrite | null>(null)
+watch(canCreateStation, allowed => { if (!allowed) stationDraft.value = null })
+const FuelStationFormModal = defineAsyncComponent(() => import('@/components/fuel-stations/FuelStationFormModal.vue'))
+function primaryPurchase(visit: Visit) { return visit.purchases.find(p => p.product === 'DIESEL') ?? visit.purchases[0] }
+function stationDetails(purchase?: VisitPurchase, fallback?: string) {
+  const name = purchase?.station || fallback
+  return { stationName: name && name !== purchase?.code && name !== 'Nieznana stacja' ? name : null,
+    stationCode: purchase?.code || '', country: purchase?.country, stationKnown: purchase?.stationKnown ?? true }
+}
+function createStation(purchase?: VisitPurchase, fallback?: string) {
+  if (!canCreateStation.value || !purchase?.code || purchase.stationKnown !== false) return
+  stationStore.ensureCompany(auth.activeCompanyId)
+  void stationStore.loadProviders()
+  stationDraft.value = { provider: purchase.provider, stationCode: purchase.code,
+    stationName: stationDetails(purchase, fallback).stationName || '', country: purchase.country || '', lat: null, lng: null }
+}
 const FuelVisitChart = defineAsyncComponent(() => import('./FuelVisitChart.vue'))
+const FuelVisitConsumption = defineAsyncComponent(() => import('./FuelVisitConsumption.vue'))
 const FuelVisitMap = defineAsyncComponent(() => import('./FuelVisitMap.vue'))
 const mapOpen = ref(false), mapAttempt = ref(0)
 function visitStation(visit: Visit) {
-  const purchase = visit.purchases.find(p => p.product === 'DIESEL') ?? visit.purchases[0]
+  const purchase = primaryPurchase(visit)
   return [purchase?.provider, purchase?.station || visit.station].filter(Boolean).join(' ')
 }
-const columns = ['Lp.', 'Pojazd', 'Stacja', 'Data', 'Olej napędowy', 'AdBlue', 'Status', 'Ocena wizyty', 'Szczegóły']
+const columns = ['Lp.', 'Pojazd', 'Stacja', 'Data', 'Olej napędowy', 'AdBlue', 'Status', 'Ocena wizyty', 'Skorygowane', 'Szczegóły']
 const reviewStatus = ref('ALL')
 const statusOptions = [
   { value: 'ALL', label: 'Wszystkie' },

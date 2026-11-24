@@ -5,7 +5,7 @@
       <p v-if="!supported" class="ui-caption">{{ store.providers.length ? 'Import dla tego dostawcy nie jest jeszcze dostępny.' : 'Nie udało się wczytać listy dostawców lub nadal trwa jej pobieranie.' }}</p>
       <p v-else class="ui-caption">Aby uzupełnić lokalizacje, plik musi zawierać szerokość i długość geograficzną stacji (Latitude i Longitude).</p>
       <label class="flex min-h-28 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-ui-border-strong bg-ui-muted p-5 text-center" :class="supported && !store.isImporting ? 'cursor-pointer hover:bg-ui-input-hover' : 'opacity-60'" @dragover.prevent @drop.prevent="onDrop">
-        <FileSpreadsheet class="h-7 w-7 text-ui-icon" />
+        <span class="flex h-10 w-10 items-center justify-center rounded-lg border border-ui-border bg-ui-surface"><FileSpreadsheet class="h-5 w-5 text-ui-icon" /></span>
         <span class="ui-body-sm font-medium">{{ file?.name || 'Wybierz lub przeciągnij plik XLSX' }}</span>
         <span class="ui-caption">Jeden plik · maksymalnie 5 MB</span>
         <input class="sr-only" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" :disabled="!supported || store.isImporting" @change="onFile" />
@@ -14,10 +14,10 @@
       <div v-if="store.isImporting" class="flex items-center gap-2 ui-body-sm" role="status"><LoaderCircle class="h-4 w-4 animate-spin" />Importowanie cen…</div>
       <template v-if="store.importResult">
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div v-for="item in summary" :key="item.label" class="rounded-md border border-ui-border bg-ui-muted p-3"><p class="ui-caption">{{ item.label }}</p><p class="text-lg font-semibold tabular-nums">{{ item.value }}</p></div>
+          <div v-for="item in summary" :key="item.label" class="rounded-lg border border-ui-divider bg-ui-muted p-3"><p class="ui-caption">{{ item.label }}</p><p class="text-lg font-semibold tabular-nums">{{ item.value }}</p></div>
         </div>
         <div v-if="issues.length" class="max-h-60 overflow-auto rounded-md border border-ui-border">
-          <table class="ui-table w-full text-left text-xs"><thead class="ui-table-head sticky top-0"><tr><th class="ui-table-cell">Wiersz</th><th class="ui-table-cell">Kod stacji</th><th class="ui-table-cell">Typ</th><th class="ui-table-cell">Informacja</th></tr></thead><tbody><tr v-for="(issue, index) in issues" :key="index" class="ui-table-row"><td class="ui-table-cell">{{ issue.row }}</td><td class="ui-table-cell">{{ issue.outletCode || '—' }}</td><td class="ui-table-cell">{{ issue.kind }}</td><td class="ui-table-cell whitespace-normal">{{ issue.message }}</td></tr></tbody></table>
+          <table class="ui-table w-full text-left text-xs"><thead class="ui-table-head sticky top-0"><tr class="divide-x divide-ui-divider"><th class="ui-table-cell">Wiersz</th><th class="ui-table-cell">Kod stacji</th><th class="ui-table-cell">Typ</th><th class="ui-table-cell">Informacja</th></tr></thead><tbody><tr v-for="(issue, index) in issues" :key="index" class="ui-table-row divide-x divide-ui-divider"><td class="ui-table-cell">{{ issue.row }}</td><td class="ui-table-cell">{{ issue.outletCode || '—' }}</td><td class="ui-table-cell">{{ issue.kind }}</td><td class="ui-table-cell whitespace-normal">{{ issue.message }}</td></tr></tbody></table>
         </div>
         <p v-else class="ui-caption">Import zakończony bez ostrzeżeń.</p>
       </template>

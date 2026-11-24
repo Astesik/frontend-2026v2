@@ -31,8 +31,10 @@
                 <td class="whitespace-nowrap tabular-nums">{{ amount(row.result.distanceKm, 'km') }}</td>
                 <td class="whitespace-nowrap tabular-nums">{{ amount(row.result.purchasedLiters, 'l') }}</td>
                 <td class="whitespace-nowrap font-medium tabular-nums">{{ amount(row.result.canPer100Km, 'l/100 km') }}</td>
-                <td class="whitespace-nowrap font-medium tabular-nums">{{ amount(row.result.purchasesPer100Km, 'l/100 km') }}</td>
-                <td class="whitespace-nowrap tabular-nums">{{ amount(row.result.differenceLiters, 'l') }}<span class="block text-ui-mutedText">{{ amount(row.result.differencePercent, '%') }}</span></td>
+                <td class="whitespace-nowrap font-medium tabular-nums">{{ amount(row.result.purchasesPer100Km, 'l/100 km') }}<span v-if="row.result.differencePercent != null" class="flex items-center gap-1 text-xs font-normal text-ui-mutedText"><IconTrendingDown v-if="row.result.differencePercent < 0" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" /><IconTrendingUp v-else-if="row.result.differencePercent > 0" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />{{ amount(row.result.differencePercent, '%') }} względem CAN</span></td>
+                <td class="whitespace-nowrap font-medium tabular-nums">{{ amount(row.result.adjusted?.adjustedConsumptionL100km, 'l/100 km') }}<span v-if="row.result.adjusted?.differencePercent != null" class="flex items-center gap-1 text-xs font-normal text-ui-mutedText"><IconTrendingDown v-if="row.result.adjusted?.differencePercent < 0" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" /><IconTrendingUp v-else-if="row.result.adjusted?.differencePercent > 0" class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />{{ amount(row.result.adjusted?.differencePercent, '%') }} względem CAN</span></td>
+                <td class="whitespace-nowrap tabular-nums">{{ amount(row.result.differenceLiters, 'l') }}</td>
+                <td class="whitespace-nowrap tabular-nums">{{ amount(row.result.adjusted?.differenceLiters, 'l') }}</td>
                 <td><span class="flex items-center gap-1.5 whitespace-nowrap text-xs font-medium" :class="row.result.confirmed ? 'text-success-600 dark:text-success-400' : 'text-warning-600 dark:text-warning-400'">
                   <component :is="row.result.confirmed ? IconCircleCheck : IconHelpCircle" class="h-4 w-4" />{{ row.result.confirmed ? 'Potwierdzono' : 'Do weryfikacji' }}
                 </span></td>
@@ -65,23 +67,8 @@
           <li v-for="issue in detail.cycle.result.issues" :key="issue">{{ issueLabels[issue] || issue }}</li>
         </ul>
         <FuelCounterDecreases :measurement="detail.cycle.result.telemetry.can" />
-        <div class="overflow-x-auto rounded-lg border border-ui-divider">
-          <table class="ui-table" aria-label="Porównanie metod spalania">
-            <thead class="ui-table-head"><tr class="divide-x divide-ui-divider [&>th]:whitespace-nowrap [&>th]:px-3 [&>th]:py-2">
-              <th>Metoda</th><th>Litry</th><th>Spalanie</th><th>Różnica względem CAN</th><th>Różnica %</th>
-            </tr></thead>
-            <tbody>
-              <tr class="ui-table-row divide-x divide-ui-divider [&>td]:whitespace-nowrap [&>td]:px-3 [&>td]:py-3">
-                <td class="font-medium">CAN</td><td>{{ amount(detail.cycle.result.canLiters, 'l') }}</td><td>{{ amount(detail.cycle.result.canPer100Km, 'l/100 km') }}</td>
-                <td>{{ detail.cycle.result.differenceLiters == null ? '—' : '0 l' }}</td><td>{{ detail.cycle.result.differencePercent == null ? '—' : '0%' }}</td>
-              </tr>
-              <tr class="ui-table-row divide-x divide-ui-divider [&>td]:whitespace-nowrap [&>td]:px-3 [&>td]:py-3">
-                <td class="font-medium">Z zakupów</td><td>{{ amount(detail.cycle.result.purchasedLiters, 'l') }}</td><td>{{ amount(detail.cycle.result.purchasesPer100Km, 'l/100 km') }}</td>
-                <td>{{ amount(detail.cycle.result.differenceLiters, 'l') }}</td><td>{{ amount(detail.cycle.result.differencePercent, '%') }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <FuelConsumptionMethods :result="detail.cycle.result" />
+        <FuelAdjustedConsumption :adjusted="detail.cycle.result.adjusted" />
         <section>
           <h3 class="mb-2 flex items-center gap-2 font-semibold"><IconReceipt class="h-4 w-4 text-ui-icon" />Tankowania ON w cyklu</h3>
           <div class="overflow-x-auto rounded-lg border border-ui-divider">
@@ -106,7 +93,7 @@
 </template>
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
-import { IconGasStation, IconChartLine, IconReceipt, IconCircleCheck, IconHelpCircle, IconListDetails, IconLoader2 } from '@tabler/icons-vue'
+import { IconGasStation, IconChartLine, IconReceipt, IconCircleCheck, IconHelpCircle, IconListDetails, IconLoader2, IconTrendingDown, IconTrendingUp } from '@tabler/icons-vue'
 import AppInput from '@/components/ui/AppInput.vue'
 import AppCard from '@/components/ui/AppCard.vue'
 import AppSelect from '@/components/ui/AppSelect.vue'
@@ -118,6 +105,8 @@ import AppLoadingIndicator from '@/components/ui/AppLoadingIndicator.vue'
 import FuelSummaryTiles from './FuelSummaryTiles.vue'
 import FuelConsumptionMeasurement from './FuelConsumptionMeasurement.vue'
 import FuelCounterDecreases from './FuelCounterDecreases.vue'
+import FuelConsumptionMethods from './FuelConsumptionMethods.vue'
+import FuelAdjustedConsumption from './FuelAdjustedConsumption.vue'
 import { fuelConsumptionService as service, type AutomaticCyclePage, type AutomaticCycleDetail, type AutomaticCycle } from '@/services/fuelConsumptionService'
 import { getApiErrorMessage } from '@/services/api'
 import { useWorkspacePolling } from '@/composables/useWorkspace'
@@ -126,7 +115,7 @@ const FuelCycleChart = defineAsyncComponent(() => import('./FuelCycleChart.vue')
 const search = ref(''), query = ref('')
 const from = ref(''), to = ref(''), mode = ref('ALL'), page = ref(0)
 const modeOptions = [{ value: 'ADJACENT', label: 'Sąsiednie tankowania' }, { value: 'ALL', label: 'Wszystkie pary pełnych tankowań' }]
-const columns = ['Pojazd', 'Koniec / początek', 'Cykl', 'Dystans', 'Zakupy ON', 'CAN', 'Z zakupów', 'Różnica do CAN', 'Ocena', 'Szczegóły']
+const columns = ['Pojazd', 'Koniec / początek', 'Cykl', 'Dystans', 'Zakupy ON', 'CAN', 'Transakcje paliwowe', 'Skorygowane', 'Transakcje paliwowe − CAN', 'Skorygowane − CAN', 'Ocena', 'Szczegóły']
 const report = ref<AutomaticCyclePage | null>(null), detail = ref<AutomaticCycleDetail | null>(null)
 const loading = ref(false), error = ref(''), detailError = ref(''), detailLoading = ref(false)
 const selected = ref<AutomaticCycle | null>(null)
@@ -135,7 +124,7 @@ let request: AbortController | undefined
 let fetching = false
 const date = new Intl.DateTimeFormat('pl-PL', { timeZone: 'Europe/Warsaw', dateStyle: 'short', timeStyle: 'short' })
 const timestamp = (at: string) => date.format(new Date(at))
-const amount = (value: number | null, unit: string) => value == null ? '—' : value.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + unit
+const amount = (value: number | null | undefined, unit: string) => value == null ? '—' : value.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + unit
 const issueLabels: Record<string, string> = {
   NO_INTERVAL: 'Brak porównywalnych odczytów.', MISSING_BOUNDARY: 'Brakuje odczytu przy granicy cyklu.',
   GAP: 'Przerwa w danych liczników.', SOURCE_CHANGE: 'Zmiana źródła lub urządzenia.',
